@@ -64,47 +64,54 @@ Stand up the engineering scaffolding — tooling, validation commands, documenta
 
 ## Phase 1 — Database and Domain Foundation
 
+**Status: implemented.** See `docs/adr/0002-phase-1-schema-clarifications.md` for every deviation from SRS §6's literal text and the reasoning behind each one; see `docs/REQUIREMENTS_TRACEABILITY.md` for the requirement-by-requirement status.
+
 ### Objective
-Implement the full 12-table Prisma schema exactly as specified in SRS §6, with every data-integrity rule enforced at the database level, and implement the pure, framework-agnostic calculation logic in `src/lib/domain` — unit-testable without a server or live database.
+Implement the full 13-table Prisma schema exactly as specified in SRS §6 (with the disclosed deviations in ADR-0002), with every data-integrity rule enforced at the database level, and implement the pure, framework-agnostic calculation logic in `src/lib/domain` — unit-testable without a server or live database.
 
 ### Exact SRS requirement groups
-- SRS §6 Database Design — all twelve tables: `users`, `parties`, `expense_items`, `expense_categories`, `vendors`, `daily_expenses`, `monthly_expenses`, `party_income`, `counter_income`, `assets`, `capital_contributions`, `audit_log`, `app_settings`.
+- SRS §6 Database Design — all thirteen tables: `users`, `parties`, `expense_items`, `expense_categories`, `vendors`, `daily_expenses`, `monthly_expenses`, `party_income`, `counter_income`, `assets`, `capital_contributions`, `audit_log`, `app_settings`. (SRS §6's own introductory prose says "Twelve tables"; the section it introduces documents thirteen — an inconsistency inside the SRS itself, not corrected there since it is read-only, but corrected here — see ADR-0002 decision 1.)
 - SRS §7 Data Integrity Rules — DR-01 to DR-09 in full.
-- SRS §8 Business Rules — BR-01 to BR-15 (encoded as domain functions and DB constraints, not yet wired to UI).
-- Schema-level requirements only (data shape, not screens) from: FR-DEXP-01/05/06/08, FR-MEXP-01/03/04/05, FR-PINC-01 to 09 (shape), FR-CINC-01/02, FR-AST-01 to 10, FR-INV-01/02/06, FR-RES-04 to 07/11 (pure calculation functions), FR-MST-01 to 07 (table shape only).
+- SRS §8 Business Rules — BR-01 to BR-15, at the level of detail each rule actually supports in a database-and-domain-only phase (see the coverage matrix in `docs/REQUIREMENTS_TRACEABILITY.md` — not every rule is "fully implemented" merely because Phase 1 touches it).
+- Schema-level requirements only (data shape, not screens) from: FR-DEXP-01/05/06/08, FR-MEXP-01/03/04/05, FR-PINC-01 to 09 (shape), FR-CINC-01/02/04, FR-AST-01 to 10, FR-INV-01/02/06, FR-RES-04 to 07/11 (pure calculation functions), FR-MST-01 to 07 (table shape only).
 
 ### Deliverables
-- `prisma/schema.prisma` with all twelve tables, every money column as `Decimal`/`NUMERIC(14,2)`, every `TIMESTAMPTZ` column, and every enum (`role`, `billing_mode`, `funding_source`, `acquisition_mode`, `receipt_type`, `expense_group`, `contribution_type`, `action`, `status`).
-- **`client_uuid UUID NOT NULL UNIQUE` included in this phase's schema** on `daily_expenses`, `monthly_expenses`, `party_income`, and `counter_income` (DR-05) — the offline sync mechanism itself is not built until Phase 6, but the column and its unique index exist from this phase forward so no later migration has to retrofit it.
-- Database `CHECK` constraints: `funding_source = PARTNER` requires `funded_by_user_id` (DR-07); asset `acquisition_mode` requires exactly one of `monthly_instalment` or (`purchase_price` + `purchased_by_user_id`), never both, never neither (DR-08).
-- `is_archived` on every financial and master-data table (DR-04, DR-06).
-- Initial migration(s), committed alongside the schema.
-- `src/lib/domain` pure functions: funding-source rule application, total income/expense aggregation, net profit/loss, profit-split division, partner investment aggregation — all operating on `Decimal`, all framework-agnostic (no Next.js or Prisma client import required to unit-test).
-- Seed script loading Appendix A master data (parties, expense items, administration categories, vendors, initial users, default 50/50 profit split in `app_settings`) — data only, no CRUD UI yet.
+- `prisma/schema.prisma` with all thirteen tables, every money column as `Decimal`/`NUMERIC(14,2)`, every `TIMESTAMPTZ` column, and every enum (`role`, `billing_mode`, `expense_group`, `funding_source`, `asset_classification`, `acquisition_mode`, `asset_status`, `receipt_type`, `contribution_type`, `audit_action`). `users.password_hash` is intentionally omitted and `app_settings.updated_by` is nullable — both disclosed deviations, ADR-0002.
+- `client_uuid UUID NOT NULL UNIQUE` on exactly `daily_expenses`, `monthly_expenses`, `party_income`, and `counter_income` (DR-05) — the offline sync mechanism itself is not built until Phase 6, but the column and its unique index exist from this phase forward.
+- Database `CHECK` constraints: bidirectional funding-source exclusivity (DR-07, approved decision — stricter than SRS's literal one-directional text); asset `acquisition_mode` mutual exclusivity (DR-08); per-table monetary positivity (`> 0` or `>= 0` as appropriate).
+- Database triggers: partner-eligibility (funded_by_user_id/purchased_by_user_id/partner_user_id must reference a real partner), audit-log append-only (rejects UPDATE/DELETE), and physical-deletion rejection on all thirteen tables (BR-15/DR-04/CON-04 — not merely inferred from absent delete code).
+- A partial unique index preventing duplicate active instalment rows for the same asset and month, while preserving archive-then-correct history.
+- `is_archived` on every financial-entry table except `assets` (which uses `status` as its sole archive representation, per ADR-0002 decision 6) and `is_active` on master-data tables.
+- Initial migration, hand-edited for the above and committed alongside the schema (`prisma/migrations/20260820170711_init/`).
+- `src/lib/domain` pure functions: funding-source rule application, total income/expense aggregation, net profit/loss, a deterministic profit-split rounding rule, and partner investment aggregation (including `DRAWING` sign handling) — all operating on `Decimal`, all framework-agnostic.
+- Seed script (`prisma/seed.ts`) loading Appendix A **master data only** — parties, expense items, expense categories, vendors, the default 50/50 profit split. Deliberately seeds **zero** `users` rows and **zero** July 2026 transaction amounts (ADR-0002 decision 2/4; Appendix A.5's own text says no password is ever chosen by the developer).
+- `@prisma/adapter-pg`, `pg`, `@types/pg` (Prisma 7 requires an explicit driver adapter — there is no bare-connection-string fallback) and `tsx@4.23.12` (exact-pinned dev dependency, to run `prisma/seed.ts` via Prisma 7's `migrations.seed` config field — flagged during implementation and **retroactively approved**, since Prisma 7 requires some TypeScript execution mechanism for a `.ts` seed script and no existing project dependency provides one) added as dependencies.
 
 ### Tests
 - `npx prisma validate` and `npx prisma format` pass.
-- Migration applies cleanly to a fresh Postgres instance and is reversible.
-- Constraint tests: inserting a `PARTNER`-funded expense with no `funded_by_user_id` fails; inserting an asset with both `monthly_instalment` and `purchase_price` fails; inserting an asset with neither fails.
-- Vitest unit tests for every `src/lib/domain` function against small synthetic (non-July-2026) fixtures, confirming `Decimal` arithmetic (no float coercion) and correct application of BR-01 to BR-15.
+- Migration applies cleanly to a fresh Postgres instance via `prisma migrate deploy` and `prisma migrate status` shows no drift. (Not claimed to be automatically "reversible" — no down-migration exists; recovery is restore-from-backup for any environment with real data.)
+- Constraint/trigger tests (`tests/integration/constraints/`): funding-source bidirectional exclusivity, partner-eligibility triggers, asset acquisition-mode exclusivity, monetary positivity, `client_uuid` uniqueness, counter-income non-blocking duplicates, instalment idempotency (reject-duplicate and archive-then-correct), audit-log append-only, physical-deletion rejection (every listed table), and foreign-key delete-rule inspection (RESTRICT/NO ACTION only, never CASCADE/SET NULL).
+- Vitest unit tests for every `src/lib/domain` function against small synthetic (non-July-2026) fixtures, confirming `Decimal` arithmetic (no float coercion) and the rules each function actually implements.
+- `tests/integration/seed.test.ts` confirms the seed loads the expected master-data counts and zero users/credentials/transactions.
 
 ### Risks
-- Getting the `CHECK` constraint syntax wrong for the funding-source and acquisition-mode rules (DR-07/DR-08) — these must be proven with failing-insert tests, not just declared.
-- Prisma's `Decimal` type surfacing as a JS `number` accidentally in generated types or serialization — must be caught here before any UI consumes it.
-- Schema churn risk if the `users`/`role` shape doesn't anticipate Phase 2's auth requirements — coordinate before finalizing.
+- Getting the `CHECK`/trigger syntax wrong for the funding-source, acquisition-mode, partner-eligibility, and delete-protection rules — proven with failing-insert/failing-delete tests, not just declared.
+- Prisma's `Decimal` type surfacing as a JS `number` accidentally in generated types or serialization — guarded against in `src/lib/domain/money.ts`, the one file in the domain layer that touches the generated client at all.
+- Two disclosed SRS deviations (`users.password_hash` omitted, `app_settings.updated_by` nullable) must be carried into Phase 2/7 correctly — ADR-0002 is the durable record.
 
 ### Exit criteria
-- Full schema matches SRS §6 table-for-table, column-for-column.
-- Every DR-01 to DR-09 rule is enforced and proven by a failing-insert or type-level test.
+- Full schema matches SRS §6 table-for-table, column-for-column, except the disclosed ADR-0002 deviations.
+- Every DR-01 to DR-09 rule is enforced and proven by a failing-insert/failing-delete test.
 - `src/lib/domain` functions are unit-tested and importable with no server or HTTP context.
-- Seed script loads Appendix A data without error.
+- Seed script loads Appendix A master data without error, and without any user or transaction row.
 
 ### Features that must not be implemented yet
-- No authentication or session handling.
+- No authentication or session handling; no Better Auth `session`/`account`/`verification` tables (Phase 2).
 - No API routes or UI screens.
 - No offline queue (Dexie) or sync logic — Phase 6 only.
-- No audit log **writes** yet (the table exists; nothing writes to it until Phase 2 onward).
-- No July 2026 reconciliation fixture — Phase 5 only.
+- No audit log **writes** from application code yet (the table and its append-only trigger exist; nothing writes to it until Phase 2 onward).
+- No July 2026 reconciliation fixture, and no July transaction amounts anywhere — Phase 5 only.
+- No instalment-line generation mechanism (Phase 4) and no resolution of the AT WASTE Rs 8,000 discrepancy (`CLAUDE.md` §27).
 
 ---
 

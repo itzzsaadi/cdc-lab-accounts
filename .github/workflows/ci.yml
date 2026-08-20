@@ -6,13 +6,31 @@ on:
   pull_request:
 
 env:
-  # Syntactically valid placeholder — Phase 0 has no models, so
-  # `prisma validate`/`prisma format` never need a reachable database.
-  DATABASE_URL: "postgresql://ci:ci@localhost:5432/cdc_lab_accounts_ci?schema=public"
+  DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_ci?schema=public"
+  TEST_DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_ci_test?schema=public"
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+
+    # Runner-provided CI infrastructure (Phase 1 plan §"Test-database
+    # plan"), not a project dependency — analogous to Playwright's browser
+    # binaries below.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: cdc_lab_accounts_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,10 +61,28 @@ jobs:
           npx prisma format
           git diff --exit-code -- prisma/schema.prisma
 
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Create the dedicated test database
+        run: PGPASSWORD=ci_password psql -h localhost -U ci -d cdc_lab_accounts_ci -c "CREATE DATABASE cdc_lab_accounts_ci_test;"
+
+      - name: Apply migrations (dev-equivalent database)
+        run: npx prisma migrate deploy
+
+      - name: Apply migrations (test database)
+        run: DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy
+
+      - name: Verify no migration drift
+        run: npx prisma migrate status
+
+      - name: Seed master data (dev-equivalent database)
+        run: npx prisma db seed
+
       - name: Build
         run: npm run build
 
-      - name: Unit tests
+      - name: Unit, integration, and constraint tests
         run: npm run test
 
       - name: Install Playwright browsers

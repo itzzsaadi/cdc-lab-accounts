@@ -1,11 +1,27 @@
 // CDC Lab Accounts & Asset Management System — Prisma schema
 //
-// Phase 0 (repository & development foundation) intentionally leaves this
-// schema empty of models. The financial/business schema (users, parties,
-// daily_expenses, monthly_expenses, party_income, counter_income, assets,
-// capital_contributions, audit_log, app_settings, expense_items,
-// expense_categories, vendors) is designed in Phase 1 per docs/SRS.md §6
-// and docs/PROJECT_PLAN.md. Do not add models here until Phase 1 begins.
+// Phase 1 (database & domain foundation) — implements the 13 SRS business
+// tables from docs/SRS.md §6, with the deviations recorded in
+// docs/adr/0002-phase-1-schema-clarifications.md:
+//   - users.password_hash is omitted (Better Auth's `account` table is the
+//     future authoritative credential store; that table is deferred to
+//     Phase 2, per docs/PROJECT_PLAN.md).
+//   - app_settings.updated_by is nullable (the seeded default profit split
+//     exists before any user account does).
+//   - counter_income has no unique constraint on income_date (FR-CINC-04
+//     requires a non-blocking warning, not a hard rejection).
+//   - assets uses `status` as its sole archive representation, never
+//     `is_archived`.
+//   - created_by/updated_by/updated_at are NOT added to parties,
+//     expense_items, expense_categories, vendors, or users — only to the
+//     genuine financial-entry tables, avoiding a seed/attribution conflict
+//     (Phase 1 seeds master data with zero users).
+//
+// CHECK constraints, partner-eligibility triggers, the audit append-only
+// trigger, physical-deletion-rejection triggers, and the instalment
+// partial-unique index are not expressible in this schema language and are
+// added by hand-editing the generated migration SQL (see
+// prisma/migrations/*_init/migration.sql).
 
 generator client {
   provider = "prisma-client"
@@ -14,4 +30,350 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  OPERATOR
+  PARTNER
+  ADMIN
+
+  @@map("role")
+}
+
+enum BillingMode {
+  DAILY
+  MONTHLY
+
+  @@map("billing_mode")
+}
+
+enum ExpenseGroup {
+  ADMIN
+  PURCHASING
+
+  @@map("expense_group")
+}
+
+enum FundingSource {
+  BUSINESS
+  PARTNER
+
+  @@map("funding_source")
+}
+
+enum AssetClassification {
+  FIXED
+  MOVABLE
+
+  @@map("asset_classification")
+}
+
+enum AcquisitionMode {
+  INSTALMENT
+  CASH
+
+  @@map("acquisition_mode")
+}
+
+enum AssetStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("asset_status")
+}
+
+enum ReceiptType {
+  DAILY
+  MONTHLY
+  CASH_DIRECT
+
+  @@map("receipt_type")
+}
+
+enum ContributionType {
+  INITIAL
+  INJECTION
+  DRAWING
+
+  @@map("contribution_type")
+}
+
+/// See docs/adr/0002-phase-1-schema-clarifications.md and the Phase 1 plan
+/// for why RESTORE, OFFLINE_UPLOAD, and CONFLICT_RESOLUTION are omitted.
+enum AuditAction {
+  CREATE
+  UPDATE
+  ARCHIVE
+  LOGIN
+  LOGIN_FAILED
+  PASSWORD_CHANGE
+  IMPORT
+
+  @@map("audit_action")
+}
+
+/// Two partners plus reception staff. No password_hash column — see
+/// docs/adr/0002-phase-1-schema-clarifications.md decision 2.
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  fullName  String   @map("full_name") @db.VarChar(120)
+  email     String   @unique @db.VarChar(180)
+  role      Role
+  isPartner Boolean  @default(false) @map("is_partner")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  fundedDailyExpenses         DailyExpense[]        @relation("DailyExpenseFundedBy")
+  createdDailyExpenses        DailyExpense[]        @relation("DailyExpenseCreatedBy")
+  updatedDailyExpenses        DailyExpense[]        @relation("DailyExpenseUpdatedBy")
+  fundedMonthlyExpenses       MonthlyExpense[]      @relation("MonthlyExpenseFundedBy")
+  createdMonthlyExpenses      MonthlyExpense[]      @relation("MonthlyExpenseCreatedBy")
+  updatedMonthlyExpenses      MonthlyExpense[]      @relation("MonthlyExpenseUpdatedBy")
+  createdPartyIncome          PartyIncome[]         @relation("PartyIncomeCreatedBy")
+  updatedPartyIncome          PartyIncome[]         @relation("PartyIncomeUpdatedBy")
+  createdCounterIncome        CounterIncome[]       @relation("CounterIncomeCreatedBy")
+  updatedCounterIncome        CounterIncome[]       @relation("CounterIncomeUpdatedBy")
+  capitalContributions        CapitalContribution[] @relation("CapitalContributionPartner")
+  createdCapitalContributions CapitalContribution[] @relation("CapitalContributionCreatedBy")
+  updatedCapitalContributions CapitalContribution[] @relation("CapitalContributionUpdatedBy")
+  purchasedAssets             Asset[]               @relation("AssetPurchasedBy")
+  createdAssets               Asset[]               @relation("AssetCreatedBy")
+  updatedAssets               Asset[]               @relation("AssetUpdatedBy")
+  auditLogEntries             AuditLog[]            @relation("AuditLogActor")
+  appSettingUpdates           AppSetting[]          @relation("AppSettingUpdatedBy")
+
+  @@map("users")
+}
+
+/// Referring labs and hospitals.
+model Party {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String      @unique @db.VarChar(150)
+  billingMode BillingMode @map("billing_mode")
+  isActive    Boolean     @default(true) @map("is_active")
+  sortOrder   Int         @map("sort_order") @db.SmallInt
+
+  partyIncome PartyIncome[]
+
+  @@map("parties")
+}
+
+/// The dropdown list for daily expenses.
+model ExpenseItem {
+  id       String  @id @default(uuid()) @db.Uuid
+  name     String  @unique @db.VarChar(120)
+  isActive Boolean @default(true) @map("is_active")
+
+  dailyExpenses DailyExpense[]
+
+  @@map("expense_items")
+}
+
+/// Monthly expense classification (administration and purchasing).
+model ExpenseCategory {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String       @unique @db.VarChar(120)
+  expenseGroup ExpenseGroup @map("expense_group")
+  isRecurring  Boolean      @default(false) @map("is_recurring")
+  isActive     Boolean      @default(true) @map("is_active")
+
+  monthlyExpenses MonthlyExpense[]
+
+  @@map("expense_categories")
+}
+
+/// Suppliers named in the purchasing list.
+model Vendor {
+  id       String  @id @default(uuid()) @db.Uuid
+  name     String  @unique @db.VarChar(150)
+  isActive Boolean @default(true) @map("is_active")
+
+  monthlyExpenses MonthlyExpense[]
+  assets          Asset[]
+
+  @@map("vendors")
+}
+
+/// One row per purchase. See migration.sql for the funding-source CHECKs
+/// and the partner-eligibility trigger on funded_by_user_id.
+model DailyExpense {
+  id                String        @id @default(uuid()) @db.Uuid
+  clientUuid        String        @unique @map("client_uuid") @db.Uuid
+  expenseDate       DateTime      @map("expense_date") @db.Date
+  expenseItemId     String?       @map("expense_item_id") @db.Uuid
+  expenseItem       ExpenseItem?  @relation(fields: [expenseItemId], references: [id], onDelete: Restrict)
+  customDescription String?       @map("custom_description") @db.VarChar(300)
+  amount            Decimal       @db.Decimal(14, 2)
+  fundingSource     FundingSource @map("funding_source")
+  fundedByUserId    String?       @map("funded_by_user_id") @db.Uuid
+  fundedBy          User?         @relation("DailyExpenseFundedBy", fields: [fundedByUserId], references: [id], onDelete: Restrict)
+  isArchived        Boolean       @default(false) @map("is_archived")
+  capturedAt        DateTime      @map("captured_at") @db.Timestamptz(6)
+  syncedAt          DateTime?     @map("synced_at") @db.Timestamptz(6)
+  createdBy         String        @map("created_by") @db.Uuid
+  createdByUser     User          @relation("DailyExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy         String        @map("updated_by") @db.Uuid
+  updatedByUser     User          @relation("DailyExpenseUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt         DateTime      @map("updated_at") @db.Timestamptz(6)
+
+  @@index([expenseDate])
+  @@map("daily_expenses")
+}
+
+/// Administration and purchasing lines, including machine instalments
+/// (asset_id set). See migration.sql for the instalment partial-unique
+/// index and the funding-source CHECKs/trigger.
+model MonthlyExpense {
+  id             String          @id @default(uuid()) @db.Uuid
+  clientUuid     String          @unique @map("client_uuid") @db.Uuid
+  periodMonth    DateTime        @map("period_month") @db.Date
+  categoryId     String          @map("category_id") @db.Uuid
+  category       ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  vendorId       String?         @map("vendor_id") @db.Uuid
+  vendor         Vendor?         @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  assetId        String?         @map("asset_id") @db.Uuid
+  asset          Asset?          @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  description    String?         @db.VarChar(300)
+  amount         Decimal         @db.Decimal(14, 2)
+  fundingSource  FundingSource   @map("funding_source")
+  fundedByUserId String?         @map("funded_by_user_id") @db.Uuid
+  fundedBy       User?           @relation("MonthlyExpenseFundedBy", fields: [fundedByUserId], references: [id], onDelete: Restrict)
+  isArchived     Boolean         @default(false) @map("is_archived")
+  capturedAt     DateTime        @map("captured_at") @db.Timestamptz(6)
+  syncedAt       DateTime?       @map("synced_at") @db.Timestamptz(6)
+  createdBy      String          @map("created_by") @db.Uuid
+  createdByUser  User            @relation("MonthlyExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy      String          @map("updated_by") @db.Uuid
+  updatedByUser  User            @relation("MonthlyExpenseUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt      DateTime        @map("updated_at") @db.Timestamptz(6)
+
+  @@index([periodMonth])
+  @@map("monthly_expenses")
+}
+
+/// Daily entries, monthly bills and direct cash receipts, in one table.
+model PartyIncome {
+  id            String      @id @default(uuid()) @db.Uuid
+  clientUuid    String      @unique @map("client_uuid") @db.Uuid
+  partyId       String      @map("party_id") @db.Uuid
+  party         Party       @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  incomeDate    DateTime    @map("income_date") @db.Date
+  amount        Decimal     @db.Decimal(14, 2)
+  receiptType   ReceiptType @map("receipt_type")
+  note          String?     @db.VarChar(300)
+  isArchived    Boolean     @default(false) @map("is_archived")
+  capturedAt    DateTime    @map("captured_at") @db.Timestamptz(6)
+  syncedAt      DateTime?   @map("synced_at") @db.Timestamptz(6)
+  createdBy     String      @map("created_by") @db.Uuid
+  createdByUser User        @relation("PartyIncomeCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy     String      @map("updated_by") @db.Uuid
+  updatedByUser User        @relation("PartyIncomeUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt     DateTime    @map("updated_at") @db.Timestamptz(6)
+
+  @@index([incomeDate])
+  @@map("party_income")
+}
+
+/// Walk-in patient income, entered daily. No unique constraint on
+/// income_date — see docs/adr/0002-phase-1-schema-clarifications.md
+/// decision 5 (FR-CINC-04 requires a non-blocking warning, not rejection).
+model CounterIncome {
+  id            String    @id @default(uuid()) @db.Uuid
+  clientUuid    String    @unique @map("client_uuid") @db.Uuid
+  incomeDate    DateTime  @map("income_date") @db.Date
+  amount        Decimal   @db.Decimal(14, 2)
+  note          String?   @db.VarChar(300)
+  isArchived    Boolean   @default(false) @map("is_archived")
+  capturedAt    DateTime  @map("captured_at") @db.Timestamptz(6)
+  syncedAt      DateTime? @map("synced_at") @db.Timestamptz(6)
+  createdBy     String    @map("created_by") @db.Uuid
+  createdByUser User      @relation("CounterIncomeCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy     String    @map("updated_by") @db.Uuid
+  updatedByUser User      @relation("CounterIncomeUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt     DateTime  @map("updated_at") @db.Timestamptz(6)
+
+  @@index([incomeDate])
+  @@map("counter_income")
+}
+
+/// Fixed and movable equipment. `status` is the sole archive
+/// representation for this table — never `is_archived` (ADR-0002
+/// decision 6). See migration.sql for the INSTALMENT/CASH mutual-
+/// exclusivity CHECKs and the partner-eligibility trigger.
+model Asset {
+  id                String              @id @default(uuid()) @db.Uuid
+  name              String              @db.VarChar(200)
+  classification    AssetClassification
+  acquisitionMode   AcquisitionMode     @map("acquisition_mode")
+  monthlyInstalment Decimal?            @map("monthly_instalment") @db.Decimal(14, 2)
+  purchasePrice     Decimal?            @map("purchase_price") @db.Decimal(14, 2)
+  purchasedByUserId String?             @map("purchased_by_user_id") @db.Uuid
+  purchasedBy       User?               @relation("AssetPurchasedBy", fields: [purchasedByUserId], references: [id], onDelete: Restrict)
+  vendorId          String?             @map("vendor_id") @db.Uuid
+  vendor            Vendor?             @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  acquiredOn        DateTime?           @map("acquired_on") @db.Date
+  status            AssetStatus         @default(ACTIVE)
+  createdBy         String              @map("created_by") @db.Uuid
+  createdByUser     User                @relation("AssetCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy         String              @map("updated_by") @db.Uuid
+  updatedByUser     User                @relation("AssetUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt         DateTime            @map("updated_at") @db.Timestamptz(6)
+
+  monthlyExpenseLines MonthlyExpense[]
+
+  @@map("assets")
+}
+
+/// Direct injections and withdrawals of partner money. partner_user_id is
+/// always required (never conditional) — see the partner-eligibility
+/// trigger in migration.sql.
+model CapitalContribution {
+  id               String           @id @default(uuid()) @db.Uuid
+  partnerUserId    String           @map("partner_user_id") @db.Uuid
+  partner          User             @relation("CapitalContributionPartner", fields: [partnerUserId], references: [id], onDelete: Restrict)
+  entryDate        DateTime         @map("entry_date") @db.Date
+  amount           Decimal          @db.Decimal(14, 2)
+  contributionType ContributionType @map("contribution_type")
+  note             String?          @db.VarChar(500)
+  isArchived       Boolean          @default(false) @map("is_archived")
+  createdBy        String           @map("created_by") @db.Uuid
+  createdByUser    User             @relation("CapitalContributionCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  updatedBy        String           @map("updated_by") @db.Uuid
+  updatedByUser    User             @relation("CapitalContributionUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt        DateTime         @map("updated_at") @db.Timestamptz(6)
+
+  @@map("capital_contributions")
+}
+
+/// Append-only. actor_user_id is nullable to represent a failed sign-in
+/// against an email that matches no user (entity_id = 'unknown' in that
+/// case) — see docs/adr/0002-phase-1-schema-clarifications.md and the
+/// append-only trigger in migration.sql, which rejects every UPDATE/DELETE.
+model AuditLog {
+  id          BigInt      @id @default(autoincrement())
+  actorUserId String?     @map("actor_user_id") @db.Uuid
+  actor       User?       @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  action      AuditAction
+  entityType  String      @map("entity_type") @db.VarChar(60)
+  entityId    String      @map("entity_id") @db.VarChar(60)
+  oldValues   Json?       @map("old_values") @db.JsonB
+  newValues   Json?       @map("new_values") @db.JsonB
+  capturedAt  DateTime    @map("captured_at") @db.Timestamptz(6)
+  syncedAt    DateTime?   @map("synced_at") @db.Timestamptz(6)
+
+  @@index([entityType, entityId])
+  @@map("audit_log")
+}
+
+/// Configuration held as data. updated_by is nullable — see
+/// docs/adr/0002-phase-1-schema-clarifications.md decision 4 (the seeded
+/// default profit split exists before any user account does).
+model AppSetting {
+  settingKey    String   @id @map("setting_key") @db.VarChar(80)
+  settingValue  Json     @map("setting_value") @db.JsonB
+  updatedBy     String?  @map("updated_by") @db.Uuid
+  updatedByUser User?    @relation("AppSettingUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+
+  @@map("app_settings")
 }

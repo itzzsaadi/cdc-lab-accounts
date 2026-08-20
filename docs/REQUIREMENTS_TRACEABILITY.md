@@ -1,6 +1,6 @@
 # REQUIREMENTS_TRACEABILITY.md — CDC Lab Accounts & Asset Management System
 
-This matrix traces every Functional Requirement (FR), Non-Functional Requirement (NFR), and Acceptance Criterion (AC) in `docs/SRS.md` v3.0 to its planned implementation phase per `docs/PROJECT_PLAN.md`. No application code exists yet, so **every row's Implementation Files and Test Files are empty and every Status is "Not Started."** This document is generated from, and does not modify, `CLAUDE.md`, `docs/SRS.md`, or `docs/PROJECT_PLAN.md`.
+This matrix traces every Functional Requirement (FR), Non-Functional Requirement (NFR), and Acceptance Criterion (AC) in `docs/SRS.md` v3.0 to its planned implementation phase per `docs/PROJECT_PLAN.md`. Originally every row's Implementation Files and Test Files were empty and every Status was "Not Started"; as of Phase 1 (database & domain foundation), the rows whose Phase 1 schema/domain/constraint foundation now exists carry real file references and an updated Notes entry — **their Status column is left as "Not Started" unless the requirement's full, later-phase delivery is what that row tracks and is itself complete** (only `NFR-MNT-05` is marked `Implemented`, since versioned migrations are the entire practice it tracks). No row is marked `Verified` — that is reserved for a requirement whose stated Verification Method has actually been carried out end-to-end. This document is generated from, and does not modify, `CLAUDE.md`, `docs/SRS.md`, or `docs/PROJECT_PLAN.md`.
 
 ## How to read this table
 
@@ -34,14 +34,14 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-DEXP-01 | Record daily expense: date, item, amount, funding source | M | Phase 3 | — | — | Test | Not Started | Schema staged Phase 1 (shape only); full entry screen Phase 3. |
+| FR-DEXP-01 | Record daily expense: date, item, amount, funding source | M | Phase 3 | `prisma/schema.prisma` | — | Test | Not Started | Schema implemented Phase 1 (shape only, `daily_expenses` table); full entry screen Phase 3. |
 | FR-DEXP-02 | Item selectable from managed list; free text also accepted | M | Phase 3 | — | — | Test | Not Started | |
 | FR-DEXP-03 | Admin can add/rename/archive items; never alters recorded expenses | M | Phase 3 | — | — | Test | Not Started | Overlaps with the master-data CRUD delivered generally in Phase 7 (FR-MST-02); daily-expense-item picker itself needed from Phase 3. |
 | FR-DEXP-04 | Date defaults to today, changeable for late entry | M | Phase 3 | — | — | Test | Not Started | |
-| FR-DEXP-05 | Funding source Business or Partner; Partner requires naming the partner | M | Phase 3 | — | — | Test | Not Started | DB-level `CHECK` (DR-07) staged Phase 1; UI/API enforcement Phase 3. |
+| FR-DEXP-05 | Funding source Business or Partner; Partner requires naming the partner | M | Phase 3 | `prisma/migrations/20260820170711_init/migration.sql` | `tests/integration/constraints/funding-source.test.ts` | Test | Not Started | DB-level bidirectional `CHECK` (DR-07) implemented and tested Phase 1; UI/API enforcement Phase 3. |
 | FR-DEXP-06 | Reject zero/negative/non-numeric amounts with field-level message | M | Phase 3 | — | — | Test | Not Started | |
 | FR-DEXP-07 | Show daily expenses for a range, date order, running total, filterable | M | Phase 3 | — | — | Test | Not Started | |
-| FR-DEXP-08 | Period total calculated by system, never typed | M | Phase 3 | — | — | Test | Not Started | Pure calculation function itself unit-tested from Phase 1. |
+| FR-DEXP-08 | Period total calculated by system, never typed | M | Phase 3 | `src/lib/domain/result.ts` | `tests/unit/domain/result.test.ts` | Test | Not Started | Pure calculation function implemented and unit-tested Phase 1; wired to a screen in Phase 3. |
 | FR-DEXP-09 | Daily expense editable/archivable any time; history keeps prior values | M | Phase 3 | — | — | Test | Not Started | |
 | FR-DEXP-10 | (Should→Could) Allow a receipt photo attachment to an expense | C | Phase 3 (optional, may defer) | — | — | Test | Not Started | `PROJECT_PLAN.md` explicitly allows deferring this priority-C item past Phase 3 without blocking exit; no firm later phase is committed. |
 
@@ -49,11 +49,11 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-PINC-01 | Maintain party list, each marked daily-billing or monthly-billing | M | Phase 1 (schema) / Phase 7 (inferred) | — | — | Test | Not Started | **Gap:** `PROJECT_PLAN.md` stages this as schema-only in Phase 1 and never explicitly re-cites it in any later phase's requirement groups. Phase 7's FR-MST-01 covers near-identical ground. Recommend `PROJECT_PLAN.md` be updated to explicitly assign this. |
+| FR-PINC-01 | Maintain party list, each marked daily-billing or monthly-billing | M | Phase 1 (schema) / Phase 7 (inferred) | `prisma/schema.prisma` | `tests/integration/seed.test.ts` | Test | Not Started | Schema (`parties` table, `billing_mode` enum) and seed data implemented Phase 1. **Gap unchanged:** `PROJECT_PLAN.md` never explicitly re-cites this past Phase 1; Phase 7's FR-MST-01 covers near-identical ground. Recommend `PROJECT_PLAN.md` be updated to explicitly assign this. |
 | FR-PINC-02 | Daily-billing parties shown as grid (days × parties), workbook layout | M | Phase 3 | — | — | Test | Not Started | |
 | FR-PINC-03 | Monthly-billing parties accept one figure per party per month | M | Phase 4 | — | — | Test | Not Started | Partner-only per UC-07, distinct from the Operator-facing daily grid. |
-| FR-PINC-04 | Party addable/renamable/switchable/archivable any time; list may be empty | M | Phase 1 (schema) / Phase 7 (inferred) | — | — | Test | Not Started | **Gap — same as FR-PINC-01.** Substance overlaps FR-MST-01/FR-MST-05; never explicitly re-cited past Phase 1 in `PROJECT_PLAN.md`. |
-| FR-PINC-05 | Changing/archiving a party never alters recorded income figures | M | Phase 1 (schema) / Phase 7 (inferred) | — | — | Test | Not Started | **Gap — same as FR-PINC-01/04.** Overlaps DR-06/CON-05 and FR-MST-05's guarantee. |
+| FR-PINC-04 | Party addable/renamable/switchable/archivable any time; list may be empty | M | Phase 1 (schema) / Phase 7 (inferred) | `prisma/schema.prisma` | `tests/integration/constraints/physical-delete-protection.test.ts` | Test | Not Started | `is_active` archive field and physical-deletion prevention implemented Phase 1 (schema level only — no admin UI yet). **Gap unchanged** — same as FR-PINC-01. |
+| FR-PINC-05 | Changing/archiving a party never alters recorded income figures | M | Phase 1 (schema) / Phase 7 (inferred) | `prisma/schema.prisma` | — | Test | Not Started | FK-only referential design implemented Phase 1 — see `docs/adr/0002-phase-1-schema-clarifications.md` decision 8 for the precise guarantee (figures/relationships protected; display **labels** are not frozen). **Gap unchanged** — same as FR-PINC-01/04. |
 | FR-PINC-06 | Record direct cash receipt against a party: date, amount, note | M | Phase 3 | — | — | Test | Not Started | The Best Lab evidence case (SRS §2.2) this requirement exists for; prose in §2.2 misnames it "FR-INC-06" — see Ambiguous IDs below. |
 | FR-PINC-07 | Party monthly total = daily entries + monthly figure + cash receipts, system-calculated | M | Phase 3 | — | — | Test | Not Started | Reused again once Phase 4 adds the monthly-bill figure into the same total. |
 | FR-PINC-08 | Show total per party and combined party income for any range | M | Phase 3 | — | — | Test | Not Started | |
@@ -73,7 +73,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-MEXP-01 | Record monthly expense: month, group, category, vendor, amount, funding source | M | Phase 4 | — | — | Test | Not Started | Schema staged Phase 1. |
+| FR-MEXP-01 | Record monthly expense: month, group, category, vendor, amount, funding source | M | Phase 4 | `prisma/schema.prisma` | `tests/integration/constraints/instalment-idempotency.test.ts` | Test | Not Started | Schema (`monthly_expenses` table) implemented Phase 1, including the instalment partial-unique index. |
 | FR-MEXP-02 | Managed list of expense categories; Admin can add/rename/archive | M | Phase 4 | — | — | Test | Not Started | Category CRUD overlaps Phase 7's FR-MST-03; category *picker* needed from Phase 4. |
 | FR-MEXP-03 | Daily-expense total appears automatically as read-only Purchasing line | M | Phase 4 | — | — | Test | Not Started | |
 | FR-MEXP-04 | Administration and Purchasing totalled separately for display, combined for profit calc | M | Phase 4 | — | — | Test | Not Started | |
@@ -87,12 +87,12 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
 | FR-AST-01 | Asset register starts empty; assets added over time | M | Phase 4 | — | — | Test | Not Started | |
-| FR-AST-02 | Record asset: name, classification, acquisition mode, vendor, date | M | Phase 4 | — | — | Test | Not Started | Schema + `CHECK` constraint staged Phase 1. |
+| FR-AST-02 | Record asset: name, classification, acquisition mode, vendor, date | M | Phase 4 | `prisma/schema.prisma` | `tests/integration/constraints/asset-acquisition-mode.test.ts` | Test | Not Started | Schema + `CHECK` constraints implemented and tested Phase 1. |
 | FR-AST-03 | Instalment asset records fixed monthly instalment, editable any time | M | Phase 4 | — | — | Test | Not Started | |
 | FR-AST-04 | Active asset's monthly instalment appears as monthly expense line, reduces profit, no partner tag | M | Phase 4 | — | — | Test | Not Started | Auto-generation logic flagged as a risk area in `PROJECT_PLAN.md` Phase 4. |
 | FR-AST-05 | Instalments open-ended; no total price/end date/outstanding balance tracked | M | Phase 4 | — | — | Test | Not Started | Explicitly out-of-scope to add per `CLAUDE.md` §26. |
 | FR-AST-06 | Cash-purchased asset records buying partner and price; adds to investment, not an expense | M | Phase 4 | — | — | Test | Not Started | |
-| FR-AST-07 | Asset is instalment or cash, never both | M | Phase 4 | — | — | Test | Not Started | DB `CHECK` (DR-08) proven at Phase 1; UI/API enforcement Phase 4. |
+| FR-AST-07 | Asset is instalment or cash, never both | M | Phase 4 | `prisma/migrations/20260820170711_init/migration.sql` | `tests/integration/constraints/asset-acquisition-mode.test.ts` | Test | Not Started | DB `CHECK` (DR-08) implemented and proven by failing-insert tests Phase 1; UI/API enforcement Phase 4. |
 | FR-AST-08 | Asset addable/editable/archivable any time; archiving stops future instalment lines only | M | Phase 4 | — | — | Test | Not Started | |
 | FR-AST-09 | Asset register filterable by classification/mode/status, with purchase-price total | M | Phase 4 | — | — | Test | Not Started | |
 | FR-AST-10 | Depreciation is never calculated | M | Phase 4 | — | — | Test | Not Started | Out-of-scope guard per `CLAUDE.md` §26 — this is a "must not build" requirement. |
@@ -101,7 +101,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-INV-01 | Maintain running investment total per partner | M | Phase 4 | — | — | Test | Not Started | Never stored (DR-09); calculated on demand from Phase 1 domain function. |
+| FR-INV-01 | Maintain running investment total per partner | M | Phase 4 | `src/lib/domain/investment.ts` | `tests/unit/domain/investment.test.ts` | Test | Not Started | Never stored (DR-09); domain aggregation function implemented and unit-tested Phase 1, not yet wired to a screen. |
 | FR-INV-02 | Investment total = capital contributions + partner-funded expenses + cash-bought assets | M | Phase 4 | — | — | Test | Not Started | |
 | FR-INV-03 | Record direct capital contribution: date, partner, amount, note | M | Phase 4 | — | — | Test | Not Started | |
 | FR-INV-04 | (Should) Record partner withdrawal, reducing that partner's investment total | S | Phase 4 | — | — | Test | Not Started | |
@@ -113,7 +113,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-RES-01 | Calculate results for any user-chosen date range | M | Phase 5 | — | — | Test | Not Started | Core aggregation function unit-tested from Phase 1. |
+| FR-RES-01 | Calculate results for any user-chosen date range | M | Phase 5 | `src/lib/domain/result.ts` | `tests/unit/domain/result.test.ts` | Test | Not Started | Core aggregation functions implemented and unit-tested Phase 1 (date-range filtering itself is a Phase 5 query/UI concern). |
 | FR-RES-02 | Date range defaults to first/last day of current month | M | Phase 5 | — | — | Test | Not Started | |
 | FR-RES-03 | User can set any start/end date; step to prev/next month in one action | M | Phase 5 | — | — | Test | Not Started | Verified via AC-09. |
 | FR-RES-04 | Total income = counter income + all party income in range | M | Phase 5 | — | — | Test | Not Started | |
@@ -144,7 +144,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | FR-OFF-03 | Connection state and pending-upload count shown visibly on every screen | M | Phase 6 | — | — | Test | Not Started | Dashboard placeholder exists from Phase 5; live wiring is Phase 6. |
 | FR-OFF-04 | Waiting entries upload automatically when connection returns | M | Phase 6 | — | — | Test | Not Started | |
 | FR-OFF-05 | Manual upload control provided | M | Phase 6 | — | — | Test | Not Started | |
-| FR-OFF-06 | Unique device-generated identifier per entry; server prevents duplicate on repeat upload | M | Phase 6 | — | — | Test | Not Started | `client_uuid` column + unique index staged in Phase 1 schema (DR-05); actual on-device generation and use is Phase 6 only. |
+| FR-OFF-06 | Unique device-generated identifier per entry; server prevents duplicate on repeat upload | M | Phase 6 | `prisma/schema.prisma` | `tests/integration/constraints/client-uuid-uniqueness.test.ts` | Test | Not Started | `client_uuid` column + unique index implemented and tested Phase 1 (DR-05); actual on-device generation and use is Phase 6 only. |
 | FR-OFF-07 | Entries uploaded in capture order | M | Phase 6 | — | — | Test | Not Started | |
 | FR-OFF-08 | Device/server conflict on same record: keep both, ask user to choose; never auto-discard | M | Phase 6 | — | — | Test | Not Started | Highest-risk item per SRS §3.10 framing. |
 | FR-OFF-09 | Waiting entries kept on device indefinitely until uploaded or explicitly discarded | M | Phase 6 | — | — | Test | Not Started | |
@@ -163,8 +163,8 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | FR-MST-03 | Admin adds/renames/archives monthly expense categories; marks which are recurring | M | Phase 7 | — | — | Test | Not Started | |
 | FR-MST-04 | Admin adds/renames/archives vendors | M | Phase 7 | — | — | Test | Not Started | |
 | FR-MST-05 | Archiving a master record removes it from lists; historical entries unchanged | M | Phase 7 | — | — | Test | Not Started | CON-05/DR-06 hard constraint. |
-| FR-MST-06 | Admin sets profit-split percentages; must total 100 | M | Phase 7 | — | — | Test | Not Started | Default 50/50 seeded Phase 1; editing UI is Phase 7. |
-| FR-MST-07 | System delivered pre-loaded with July 2026 parties/categories/items | M | Phase 7 | — | — | Test | Not Started | Actual seed data loading happens in Phase 1; this FR is about the load being present at delivery, formally verified in Phase 7/8. |
+| FR-MST-06 | Admin sets profit-split percentages; must total 100 | M | Phase 7 | `prisma/seed.ts` | `tests/integration/seed.test.ts` | Test | Not Started | Default 50/50 seeded Phase 1 (`app_settings`); the 100%-total rule is enforced server-side in Phase 7, not at the database level (see Phase 1 plan). |
+| FR-MST-07 | System delivered pre-loaded with July 2026 parties/categories/items | M | Phase 7 | `prisma/seed.ts` | `tests/integration/seed.test.ts` | Test | Not Started | Master-data names (parties/categories/items/vendors) loaded Phase 1 — **not** the July transaction amounts themselves, which are deliberately excluded from the Phase 1 seed (see ADR-0002); this FR's full intent is formally verified in Phase 7/8. |
 
 ### 3.12 Change History (FR-AUD) — SRS §3.12
 
@@ -172,7 +172,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 |---|---|---|---|---|---|---|---|---|
 | FR-AUD-01 | Record an entry for every creation/change/archiving of any financial record | M | Phase 3 | — | — | Test | Not Started | First substantively exercised with real entry types in Phase 3; extended in Phase 4. |
 | FR-AUD-02 | Each audit entry records user, time, action, record, before/after values | M | Phase 3 | — | — | Test | Not Started | |
-| FR-AUD-03 | Change history is append-only; no mechanism to alter or delete an entry | M | Phase 1 (inferred) | — | — | Test | Not Started | **Gap:** never explicitly named in any phase's requirement groups in `PROJECT_PLAN.md`. Satisfied by *absence* of any update/delete code path against `audit_log`; most defensibly anchored at Phase 1 (schema/API surface design) but should be added explicitly, e.g. as a negative test, to a named phase. |
+| FR-AUD-03 | Change history is append-only; no mechanism to alter or delete an entry | M | Phase 1 | `prisma/migrations/20260820170711_init/migration.sql` | `tests/integration/constraints/audit-log-append-only.test.ts` | Test | Not Started | **Gap closed:** implemented via a Postgres `BEFORE UPDATE OR DELETE` trigger on `audit_log` (not merely the absence of update/delete code), proven by a failing-UPDATE and a failing-DELETE test. Status remains "Not Started" because no application code writes to `audit_log` yet (Phase 2 onward). |
 | FR-AUD-04 | Change history shown as read-only list, filterable by user/date/record type | M | Phase 5 | — | — | Test | Not Started | |
 | FR-AUD-05 | User can view an individual record's own change history | M | Phase 5 | — | — | Test | Not Started | |
 | FR-AUD-06 | (Should) Highlight changes to entries dated more than one month in the past | S | Phase 5 | — | — | Test | Not Started | |
@@ -240,7 +240,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | NFR-REL-01 | Database backed up automatically at least every 24 hours | N/A | Phase 8 | — | — | Inspection | Not Started | |
 | NFR-REL-02 | Backups kept 30+ days; one monthly backup kept 12 months | N/A | Phase 8 | — | — | Inspection | Not Started | |
 | NFR-REL-03 | Backup restore tested and documented before launch | N/A | Phase 8 | — | — | Demonstration | Not Started | Verified via AC-12. |
-| NFR-REL-04 | No user action causes permanent loss of a financial record | N/A | Phase 8 | — | — | Test | Not Started | Underlying archive-only guarantee (DR-04) is built from Phase 1 onward; formal verification is Phase 8. |
+| NFR-REL-04 | No user action causes permanent loss of a financial record | N/A | Phase 8 | `prisma/migrations/20260820170711_init/migration.sql` | `tests/integration/constraints/physical-delete-protection.test.ts` | Test | Not Started | Underlying archive-only guarantee (DR-04) implemented and proven at the database level (BEFORE DELETE triggers) Phase 1; formal end-to-end verification is Phase 8. |
 | NFR-REL-05 | No offline entry lost, incl. browser close/device restart before upload | N/A | Phase 6 | — | — | Test | Not Started | |
 | NFR-REL-06 | Application errors captured to monitoring service with diagnostic context | N/A | Phase 8 | — | — | Inspection | Not Started | |
 | NFR-REL-07 | Target availability 99% per month, excluding planned maintenance | N/A | Phase 8 | — | — | Analysis | Not Started | |
@@ -266,7 +266,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | NFR-MNT-02 | .env.example lists every environment variable, no real secrets | N/A | Phase 0 | — | — | Inspection | Not Started | Re-verified via AC-15. |
 | NFR-MNT-03 | Each significant technical decision recorded as a short ADR | N/A | Phase 0 | — | — | Inspection | Not Started | Ongoing practice through every later phase, not a one-time deliverable. |
 | NFR-MNT-04 | Repository contains deployment runbook (deploy, rollback, backup restore) | N/A | Phase 8 | — | — | Inspection | Not Started | Skeleton created Phase 0; finalized content requires actual deployment, so full delivery is Phase 8. Re-verified via AC-15. |
-| NFR-MNT-05 | All DB changes via versioned migrations; no manual production DB changes | N/A | Phase 1 | — | — | Inspection | Not Started | Practice established here, continued every later phase. |
+| NFR-MNT-05 | All DB changes via versioned migrations; no manual production DB changes | N/A | Phase 1 | `prisma/migrations/20260820170711_init/` | — | Inspection | Implemented | One versioned migration exists, hand-edited per the documented Prisma escape-hatch pattern; no `prisma db push` used anywhere. Practice continues every later phase. |
 | NFR-MNT-06 | Result calculation covered by automated tests, incl. funding source + July 2026 fixture | N/A | Phase 5 | — | — | Test | Not Started | **Gated:** the July 2026 fixture cannot be finalized until the AT WASTE reconciliation conflict (CLAUDE.md §27, item 1) is resolved with the client. |
 | NFR-MNT-07 | Offline upload/conflict handling covered by automated tests, incl. repeated upload | N/A | Phase 6 | — | — | Test | Not Started | |
 | NFR-MNT-08 | Static typing throughout; build fails on type errors | N/A | Phase 0 | — | — | Inspection | Not Started | |
