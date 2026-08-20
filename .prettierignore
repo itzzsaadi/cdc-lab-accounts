@@ -15,3 +15,7 @@ CLAUDE.md
 docs/SRS.md
 docs/PROJECT_PLAN.md
 docs/REQUIREMENTS_TRACEABILITY.md
+
+# Raw Google Stitch UI/UX handoff — preserved exactly as received (HTML
+# exports + DESIGN.md), never reformatted, never treated as project source.
+docs/ui/stitch-export/

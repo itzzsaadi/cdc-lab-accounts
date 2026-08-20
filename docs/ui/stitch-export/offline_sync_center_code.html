@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sync Center - LabFinance Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary": "#ffffff",
+                      "surface-container-highest": "#d3e4fe",
+                      "secondary-fixed-dim": "#adcae7",
+                      "secondary": "#46617a",
+                      "primary-fixed-dim": "#80d5cb",
+                      "on-surface-variant": "#3e4947",
+                      "on-secondary-fixed-variant": "#2e4961",
+                      "surface": "#f8f9ff",
+                      "on-error-container": "#93000a",
+                      "secondary-container": "#c3e0fe",
+                      "on-error": "#ffffff",
+                      "inverse-primary": "#80d5cb",
+                      "on-tertiary-fixed": "#07006c",
+                      "on-tertiary-container": "#eae8ff",
+                      "on-secondary-fixed": "#001d32",
+                      "surface-container": "#e5eeff",
+                      "on-secondary-container": "#48637d",
+                      "tertiary-fixed-dim": "#c0c1ff",
+                      "outline-variant": "#bdc9c6",
+                      "tertiary-container": "#5457e2",
+                      "inverse-on-surface": "#eaf1ff",
+                      "surface-container-low": "#eff4ff",
+                      "on-primary-fixed-variant": "#00504a",
+                      "primary-container": "#0f766e",
+                      "on-secondary": "#ffffff",
+                      "surface-bright": "#f8f9ff",
+                      "surface-tint": "#006a63",
+                      "on-primary-fixed": "#00201d",
+                      "surface-container-high": "#dce9ff",
+                      "on-primary-container": "#a3faef",
+                      "on-background": "#0b1c30",
+                      "on-tertiary-fixed-variant": "#2f2ebe",
+                      "inverse-surface": "#213145",
+                      "tertiary": "#3b3bc9",
+                      "surface-variant": "#d3e4fe",
+                      "primary-fixed": "#9cf2e8",
+                      "on-surface": "#0b1c30",
+                      "on-primary": "#ffffff",
+                      "error": "#ba1a1a",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-dim": "#cbdbf5",
+                      "error-container": "#ffdad6",
+                      "outline": "#6e7977",
+                      "secondary-fixed": "#cde5ff",
+                      "primary": "#005c55",
+                      "background": "#f8f9ff",
+                      "tertiary-fixed": "#e1e0ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "touch-target-min": "44px",
+                      "header-height": "56px",
+                      "base": "4px",
+                      "gutter": "16px",
+                      "container-margin": "24px",
+                      "sidebar-width": "260px"
+              },
+              "fontFamily": {
+                      "body-md": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "label-caps": ["Inter"],
+                      "tabular-nums": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "headline-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "tabular-nums": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for clinical efficiency look */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #bdc9c6;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6e7977;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md overflow-hidden flex">
+<!-- Persistent SideNavBar Component -->
+<nav class="w-sidebar-width h-screen fixed left-0 top-0 bg-on-background dark:bg-on-background flex flex-col py-gutter px-4 z-50">
+<div class="mb-8 px-2 flex items-center gap-3">
+<span class="material-symbols-outlined text-surface-bright text-2xl" data-weight="fill" style="font-variation-settings: 'FILL' 1;">science</span>
+<div>
+<h1 class="text-headline-sm font-headline-sm text-surface-bright">LabFinance Pro</h1>
+<p class="font-label-caps text-label-caps text-primary-fixed-dim uppercase tracking-wider">Precision &amp; Control</p>
+</div>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<!-- Navigation Items (Dashboard active intentionally to show standard state, though page is a specific center) -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-r-lg border-l-2 border-primary-fixed-dim bg-secondary-container/10 text-primary-fixed-dim font-bold transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-colors transition-all duration-200 ease-in-out border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span>Asset Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-colors transition-all duration-200 ease-in-out border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span>Financial Ledger</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-colors transition-all duration-200 ease-in-out border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-colors transition-all duration-200 ease-in-out border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined">manage_accounts</span>
+<span>User Management</span>
+</a>
+</div>
+<div class="mt-auto flex flex-col gap-2 border-t border-on-secondary-fixed-variant/30 pt-4">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-colors transition-all duration-200 ease-in-out border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-error hover:bg-error/10 transition-colors transition-all duration-200 ease-in-out border-l-2 border-transparent" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col min-w-0 ml-[260px] h-screen bg-background relative">
+<!-- TopNavBar Component -->
+<header class="h-header-height sticky top-0 z-40 bg-surface border-b border-outline-variant flex justify-between items-center px-gutter w-full shrink-0">
+<div class="flex items-center gap-4">
+<span class="font-headline-sm text-headline-sm text-on-surface">Financial &amp; Asset Manager</span>
+<div class="h-6 w-px bg-outline-variant mx-2"></div>
+<span class="font-tabular-nums text-tabular-nums text-on-surface-variant flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse"></span>
+                    Sync Center
+                </span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 text-on-surface-variant">
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">sync</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors cursor-pointer active:opacity-80 relative">
+<span class="material-symbols-outlined">cloud_upload</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-tabular-nums text-sm overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A small, professional headshot photo of a clinical administrator in a well-lit office setting. Corporate and modern aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpPb0CiLbOk4wBvoh9K9CKHErs7prnBotENijDU788Qy8ouVS7xdqEXxnRt_IRVArmMD72Js3l0F0FpOKxF_-nhNdkeDIyiff66QuqsIurwtjVPLCXAyj7Es2ZSDA4uNyt-xmx8YXq0TmKgc4QT1NxaDKo9SzSvkRKlD-mQtcK2SlAvz3Y5rukXHVT_cCoS2oFsGtElUXHvTEp-cZQjl0fbfV4d5QUPxZHcQdruzmoNFe7VrRJQPAWkQ"/>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<main class="flex-1 overflow-y-auto p-container-margin flex flex-col gap-6">
+<!-- Context Header & Warning -->
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="font-display-lg text-display-lg text-on-background">Conflict Resolution</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-1">Review and resolve data inconsistencies before resuming operations.</p>
+</div>
+<div class="flex items-center gap-3 bg-surface border border-outline-variant px-4 py-2 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-outline">wifi_off</span>
+<span class="font-tabular-nums text-tabular-nums text-on-surface font-semibold">Offline</span>
+<span class="w-1 h-1 rounded-full bg-outline mx-1"></span>
+<span class="font-tabular-nums text-tabular-nums text-error">14 entries pending</span>
+</div>
+</div>
+<!-- Sign-out Warning Banner -->
+<div class="bg-error-container border border-error/20 rounded-xl p-4 flex items-start gap-4">
+<span class="material-symbols-outlined text-on-error-container mt-0.5">warning</span>
+<div class="flex-1">
+<h3 class="font-tabular-nums text-tabular-nums font-bold text-on-error-container">Unsynced Data Warning</h3>
+<p class="font-body-md text-body-md text-on-error-container/80 mt-1">
+                            You have local changes that have not been committed to the server. Signing out now or clearing your browser cache will result in permanent data loss for 14 records.
+                        </p>
+</div>
+<button class="px-4 py-2 border border-on-error-container text-on-error-container rounded-lg font-tabular-nums text-sm hover:bg-on-error-container/10 transition-colors">
+                        Force Sync Retry
+                    </button>
+</div>
+</div>
+<!-- Asymmetric Bento Grid for Resolution UI -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter flex-1 min-h-[600px]">
+<!-- Queue Panel (Left) -->
+<div class="lg:col-span-4 bg-surface border border-outline-variant rounded-xl flex flex-col overflow-hidden">
+<div class="p-4 border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center sticky top-0 z-10">
+<h3 class="font-tabular-nums text-tabular-nums font-semibold text-on-surface">Upload Queue</h3>
+<span class="font-label-caps text-label-caps text-on-surface-variant px-2 py-1 bg-surface-container rounded-md">14 Items</span>
+</div>
+<div class="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
+<!-- Active Conflict Item -->
+<div class="p-3 rounded-lg border border-primary bg-surface-container-low cursor-pointer flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex justify-between items-start pl-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-error text-[18px]">error</span>
+<span class="font-tabular-nums text-tabular-nums font-bold text-on-surface">INV-2023-8901</span>
+</div>
+<span class="font-label-caps text-label-caps text-error bg-error-container px-1.5 py-0.5 rounded">Conflict</span>
+</div>
+<div class="pl-2 flex justify-between items-end">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Centrifuge Calibration Record</span>
+<span class="font-tabular-nums text-tabular-nums text-[11px] text-on-surface-variant">10:42 AM</span>
+</div>
+</div>
+<!-- Pending Item -->
+<div class="p-3 rounded-lg border border-transparent hover:border-outline-variant hover:bg-surface-container-lowest cursor-pointer flex flex-col gap-2 transition-colors">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[18px]">cloud_upload</span>
+<span class="font-tabular-nums text-tabular-nums text-on-surface">FIN-LEDG-102</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">Pending</span>
+</div>
+<div class="flex justify-between items-end">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Reagent Batch A Purchase</span>
+<span class="font-tabular-nums text-tabular-nums text-[11px] text-on-surface-variant">10:45 AM</span>
+</div>
+</div>
+<!-- Pending Item -->
+<div class="p-3 rounded-lg border border-transparent hover:border-outline-variant hover:bg-surface-container-lowest cursor-pointer flex flex-col gap-2 transition-colors">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[18px]">cloud_upload</span>
+<span class="font-tabular-nums text-tabular-nums text-on-surface">USR-UPDATE-99</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">Pending</span>
+</div>
+<div class="flex justify-between items-end">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1">Role Modification: Dr. Smith</span>
+<span class="font-tabular-nums text-tabular-nums text-[11px] text-on-surface-variant">11:02 AM</span>
+</div>
+</div>
+<!-- More dummy items to show scroll -->
+<div class="p-3 rounded-lg border border-transparent opacity-60 flex flex-col gap-2">
+<div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-outline-variant/30"></div><div class="h-4 w-24 bg-outline-variant/30 rounded"></div></div>
+<div class="h-3 w-40 bg-outline-variant/20 rounded mt-1"></div>
+</div>
+<div class="p-3 rounded-lg border border-transparent opacity-60 flex flex-col gap-2">
+<div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-outline-variant/30"></div><div class="h-4 w-24 bg-outline-variant/30 rounded"></div></div>
+<div class="h-3 w-40 bg-outline-variant/20 rounded mt-1"></div>
+</div>
+</div>
+</div>
+<!-- Conflict Resolution Workspace (Right) -->
+<div class="lg:col-span-8 bg-surface border border-outline-variant rounded-xl flex flex-col overflow-hidden relative shadow-[0_2px_8px_rgba(18,48,71,0.04)]">
+<!-- Header -->
+<div class="p-4 border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">compare_arrows</span>
+<h3 class="font-tabular-nums text-tabular-nums font-semibold text-on-surface">Reviewing: INV-2023-8901</h3>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Modified at 10:42 AM (Local)</span>
+</div>
+<!-- Split Comparison Area -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Local Version Column -->
+<div class="w-1/2 border-r border-outline-variant flex flex-col bg-surface-bright relative">
+<div class="p-3 border-b border-outline-variant bg-surface-container-low flex items-center justify-between sticky top-0 z-10">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-tabular-nums text-tabular-nums font-bold text-on-surface">Local Version</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Your Device</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+<!-- Data Field -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Asset Name</label>
+<div class="p-2 bg-surface-container-lowest border border-outline-variant rounded text-on-surface font-body-md">Centrifuge Model X-Pro</div>
+</div>
+<!-- Data Field with Conflict -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Calibration Status</label>
+<div class="p-2 bg-primary-container/10 border border-primary rounded text-on-surface font-body-md relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<span class="pl-2">Completed - Pass</span>
+</div>
+</div>
+<!-- Data Field with Conflict -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Next Due Date</label>
+<div class="p-2 bg-primary-container/10 border border-primary rounded text-on-surface font-tabular-nums relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<span class="pl-2">2024-05-15</span>
+</div>
+</div>
+<!-- Data Field -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Notes</label>
+<div class="p-2 bg-surface-container-lowest border border-outline-variant rounded text-on-surface font-body-md text-sm min-h-[80px]">Rotor balance checked. Minor vibration noted during spin-up.</div>
+</div>
+</div>
+</div>
+<!-- Server Version Column -->
+<div class="w-1/2 flex flex-col bg-surface relative">
+<div class="p-3 border-b border-outline-variant bg-surface flex items-center justify-between sticky top-0 z-10">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-tabular-nums text-tabular-nums font-bold text-on-surface">Server Version</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Database</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+<!-- Data Field -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Asset Name</label>
+<div class="p-2 bg-surface-container-lowest border border-transparent rounded text-on-surface font-body-md">Centrifuge Model X-Pro</div>
+</div>
+<!-- Data Field with Conflict -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Calibration Status</label>
+<div class="p-2 bg-error-container/20 border border-error/30 rounded text-on-surface font-body-md relative overflow-hidden line-through text-on-surface-variant">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error/50"></div>
+<span class="pl-2">Pending - Overdue</span>
+</div>
+</div>
+<!-- Data Field with Conflict -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Next Due Date</label>
+<div class="p-2 bg-error-container/20 border border-error/30 rounded text-on-surface font-tabular-nums relative overflow-hidden line-through text-on-surface-variant">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error/50"></div>
+<span class="pl-2">2023-11-15</span>
+</div>
+</div>
+<!-- Data Field -->
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Notes</label>
+<div class="p-2 bg-surface-container-lowest border border-transparent rounded text-on-surface font-body-md text-sm min-h-[80px] italic text-on-surface-variant">No notes provided.</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Glassmorphism Action Bar -->
+<div class="p-4 border-t border-outline-variant bg-surface/90 backdrop-blur-md sticky bottom-0 z-20 flex justify-between items-center">
+<button class="px-5 py-2.5 rounded-lg font-tabular-nums text-sm text-secondary hover:bg-secondary/10 transition-colors flex items-center gap-2 h-touch-target-min">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+                            Cancel &amp; Review Later
+                        </button>
+<div class="flex items-center gap-3">
+<button class="px-5 py-2.5 border border-secondary text-secondary rounded-lg font-tabular-nums text-sm hover:bg-surface-container-high transition-colors flex items-center gap-2 h-touch-target-min">
+<span class="material-symbols-outlined text-[18px]">dns</span>
+                                Keep Server Version
+                            </button>
+<button class="px-5 py-2.5 bg-primary text-on-primary rounded-lg font-tabular-nums text-sm hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm flex items-center gap-2 h-touch-target-min">
+<span class="material-symbols-outlined text-[18px]">save_as</span>
+                                Keep Local Version
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
