@@ -54,20 +54,25 @@ A change is not "done" until it passes all of the above, not just the ones that 
 
 ## 6. Planned Source-Code Structure
 
-This is a plan for when implementation begins — do not scaffold it yet.
+Scaffolded in Phase 0 (directories below marked with an existing README are already in place as empty placeholders; everything else is still a plan for the phase noted).
 
 ```
-/app                    Next.js App Router routes, grouped by role-visible area
-  /(auth)                sign-in, password reset
-  /(operator)             daily expenses, party income, counter income, cash receipts
-  /(partner)               monthly expenses, assets, investment, results, reports
-  /(admin)                  master lists, users, profit split settings
-  /api                       route handlers (server-side auth + Zod validation on every one)
-/lib
-  /domain                 pure calculation logic (result calc, funding-source rule, splits)
-  /auth                    Better Auth config, role guards
-  /validation              Zod schemas, one per entity/command
-  /offline                 Dexie queue, sync client (future)
+/src
+  /app                    Next.js App Router routes, grouped by role-visible area
+    /(auth)                sign-in, password reset
+    /(operator)             daily expenses, party income, counter income, cash receipts
+    /(partner)               monthly expenses, assets, investment, results, reports
+    /(admin)                  master lists, users, profit split settings
+    /api                       route handlers (server-side auth + Zod validation on every one)
+  /components
+    /ui                     reusable UI primitives — translated from the Google Stitch design, not implemented from assumptions
+    /layout                  structural/layout components — same rule
+  /lib
+    /domain                 pure calculation logic (result calc, funding-source rule, splits)
+    /auth                    Better Auth config, role guards
+    /validation              Zod schemas, one per entity/command
+    /offline                 Dexie queue, sync client (future)
+  /server                   server-only code (server actions, the Better Auth server instance, etc.)
 /prisma
   schema.prisma
   /migrations
@@ -78,14 +83,18 @@ This is a plan for when implementation begins — do not scaffold it yet.
   /fixtures                 July 2026 reconciliation fixture (see §21)
 /docs
   SRS.md                    (untouched)
+  UI_REQUIREMENTS.md        filled in once the Stitch design handoff arrives
+  /ui/screenshots, /ui/stitch-export   placeholder locations for Stitch design assets
   architecture.md
   offline-sync.md
   deployment.md
   testing.md
   /adr
+/public
+  /design-assets            placeholder for static assets exported from the Stitch design
 ```
 
-Domain/service logic (result calculation, funding-source rule, profit split) must be isolated in `/lib/domain`, framework-agnostic, and unit-testable without a running Next.js server or database — this is what makes AC-02/NFR-MNT-06 practical to enforce.
+Domain/service logic (result calculation, funding-source rule, profit split) must be isolated in `/src/lib/domain`, framework-agnostic, and unit-testable without a running Next.js server or database — this is what makes AC-02/NFR-MNT-06 practical to enforce.
 
 ## 7. Funding-Source Business Rule
 
@@ -213,7 +222,7 @@ CON-07 states this system will be maintained long-term by a single developer, an
 
 1. Identify the requirement ID(s) (§3) the change implements or fixes.
 2. If the change is architecturally significant, write/update an ADR first (§23).
-3. Implement domain logic in `/lib/domain` first, with unit tests, before wiring up UI — this keeps the July 2026 fixture (§21) and the funding-source rule (§7) testable in isolation.
+3. Implement domain logic in `/src/lib/domain` first, with unit tests, before wiring up UI — this keeps the July 2026 fixture (§21) and the funding-source rule (§7) testable in isolation.
 4. Add/extend Zod schemas (§18) for any new or changed input shape.
 5. Add/extend Prisma schema + migration (§20) for any data model change; never hand-edit the database.
 6. Enforce role checks server-side (§15/§16) for any new endpoint.
@@ -247,3 +256,13 @@ Two inconsistencies were found while reading `docs/SRS.md` v3.0. Do not "fix" ei
 1. **July 2026 reconciliation figures vs. Appendix A initial data do not reconcile.** SRS §11.3 states the duplicate `AT WASTE` line (Rs 8,000) in the original July 2026 workbook was an error and "is one fixed monthly bill, not two." Appendix A.2 lists `AT WASTE` once, and the 15 administration categories in Appendix A.2 sum to Rs 692,919; combined with the 10 purchasing lines in Appendix A.3 (Rs 594,540), total expenses = **Rs 1,287,459**. But AC-02 and SRS §2.1 both require the system to reproduce total expenses of **Rs 1,295,459** and profit of **Rs 200,076** (which is exactly Rs 1,495,535 − Rs 1,295,459, i.e. the *uncorrected*, duplicate-AT-WASTE figure). If Appendix A's initial data is loaded as literally specified, the system will compute profit of Rs 208,076 (Rs 104,038 per partner), not the Rs 200,076 / Rs 100,038 required by AC-02. **This must be resolved with the client** — either the AC-02 target figures need updating, or Appendix A.2 needs an explicit extra Rs 8,000 administration line (or the reconciliation fixture in §21 needs its own dataset distinct from the literal Appendix A seed data) — before the AC-02/NFR-MNT-06 automated test is written.
 
 2. **Requirement ID typo in SRS §2.2.** The narrative text says "Requirement FR-INC-06 gives those receipts a place to live," but no `FR-INC-06` exists anywhere else in the document. The actual requirement for direct cash receipts is **FR-PINC-06** (SRS §3.3). Treat `FR-PINC-06` as correct; `FR-INC-06` is a documentation typo.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

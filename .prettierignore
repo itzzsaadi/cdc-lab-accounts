@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+generated
+prisma/generated
+playwright-report
+test-results
+package-lock.json
+media
+
+# Pre-existing project documents authored and reviewed before Phase 0 —
+# left out of automated formatting so their hand-crafted structure
+# (in particular docs/SRS.md, which must never be edited) is never touched.
+CLAUDE.md
+docs/SRS.md
+docs/PROJECT_PLAN.md
+docs/REQUIREMENTS_TRACEABILITY.md
