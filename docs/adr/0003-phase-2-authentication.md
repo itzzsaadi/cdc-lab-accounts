@@ -260,3 +260,27 @@ dependency added.
   unchanged.
 - The Phase 1 migration (`20260820170711_init`) is untouched; Phase 2 adds
   one new, purely additive migration (`20260820181038_phase2_auth`).
+
+## Phase 2 closure: removing the test-only HTTP route
+
+The initial Phase 2 delivery included a test-only route,
+`src/app/api/test/seed-user/route.ts`, guarded to 403 in production, so
+Playwright could create real users without importing server modules
+directly into the Playwright process (which cannot load the generated
+Prisma client — it uses ESM `import.meta`, which Playwright's own
+TypeScript transform cannot handle, confirmed by the `SyntaxError: Cannot
+use 'import.meta' outside a module` this produced on first attempt). On
+review, a compiled-but-guarded route was judged an unnecessary production
+attack surface regardless of the 403. **Resolution: the route is deleted
+entirely.** Fixtures are now created by `scripts/e2e-create-user.ts` — a
+small CLI script, run via `tsx` (the same tool `scripts/bootstrap-admin.ts`
+already uses, which correctly handles the Prisma client's ESM), invoked as
+a child process by `tests/e2e/helpers/create-user.ts`. This exercises the
+identical real invitation-acceptance code path as before, with **no route
+of any kind added to the Next.js app** — `scripts/` is never imported by
+`src/`, so nothing here can appear in the production route table. Fixing
+this also surfaced a real, latent gap: scripts run via bare `tsx` do not
+inherit whatever environment `next dev` loaded into its own process, so
+`scripts/e2e-create-user.ts` and `scripts/bootstrap-admin.ts` both needed
+an explicit `import "dotenv/config"` to read `.env` themselves — added to
+both.

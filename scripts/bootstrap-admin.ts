@@ -9,6 +9,7 @@
  * terminal only — never through the application's email transport, never
  * through any logger, never written to a file.
  */
+import "dotenv/config"; // run directly via `tsx`, not through Next.js — load `.env` explicitly, before any module below reads `process.env` at import time
 import { prisma } from "../src/server/prisma";
 import { issueInvitationGate } from "../src/lib/auth/invitation";
 

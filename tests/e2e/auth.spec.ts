@@ -1,28 +1,18 @@
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { createActivatedUser } from "./helpers/create-user";
 
 /**
  * End-to-end proof against the real running app (Phase 2 plan §12).
- * Fixtures are created through a test-only route
- * (`src/app/api/test/seed-user/route.ts`) that exercises the app's real
- * invitation-acceptance code path against the same database the dev
- * server connects to — never a separate mocked backend, and never a
- * direct cross-runtime import of server modules into the Playwright
- * process (which hits an unrelated ESM/CJS interop mismatch specific to
- * Playwright's own TypeScript transform).
+ * Fixtures are created via `tests/e2e/helpers/create-user.ts`, which runs
+ * `scripts/e2e-create-user.ts` through `tsx` as a child process — a real
+ * invitation-acceptance code path exercised against the same database the
+ * dev server connects to, with **no test-only HTTP route compiled into
+ * the Next.js app** (Phase 2 closure: the earlier `/api/test/seed-user`
+ * route was removed once this safer mechanism was in place — see
+ * docs/adr/0003-phase-2-authentication.md).
  */
 
 const TEST_PASSWORD = "correct-horse-battery-staple";
-
-async function makeActivatedUser(
-  request: APIRequestContext,
-  role: "OPERATOR" | "PARTNER" | "ADMIN",
-) {
-  const response = await request.post("/api/test/seed-user", {
-    data: { role, password: TEST_PASSWORD },
-  });
-  expect(response.ok()).toBe(true);
-  return (await response.json()) as { email: string; id: string };
-}
 
 test.describe("Sign In screen", () => {
   test("reproduces the approved Stitch design elements", async ({ page }) => {
@@ -43,17 +33,14 @@ test.describe("Sign In screen", () => {
     await expect(checkbox).toBeDisabled();
   });
 
-  test("unknown email and wrong password show the identical generic error", async ({
-    page,
-    request,
-  }) => {
+  test("unknown email and wrong password show the identical generic error", async ({ page }) => {
     await page.goto("/sign-in");
     await page.getByLabel("Email Address").fill("no-such-account@example.test");
     await page.getByLabel("Password", { exact: true }).fill("whatever12345");
     await page.getByRole("button", { name: "Sign In" }).click();
     const unknownEmailError = await page.getByRole("alert").textContent();
 
-    const user = await makeActivatedUser(request, "OPERATOR");
+    const user = await createActivatedUser("OPERATOR", TEST_PASSWORD);
     await page.goto("/sign-in");
     await page.getByLabel("Email Address").fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill("the-wrong-password");
@@ -63,8 +50,8 @@ test.describe("Sign In screen", () => {
     expect(unknownEmailError).toBe(wrongPasswordError);
   });
 
-  test("valid sign-in reaches the role-appropriate placeholder home", async ({ page, request }) => {
-    const user = await makeActivatedUser(request, "OPERATOR");
+  test("valid sign-in reaches the role-appropriate placeholder home", async ({ page }) => {
+    const user = await createActivatedUser("OPERATOR", TEST_PASSWORD);
     await page.goto("/sign-in");
     await page.getByLabel("Email Address").fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(TEST_PASSWORD);
@@ -75,11 +62,8 @@ test.describe("Sign In screen", () => {
 });
 
 test.describe("Authorization — server-side, not just hidden UI", () => {
-  test("an Operator is denied direct navigation to an Admin-only route", async ({
-    page,
-    request,
-  }) => {
-    const user = await makeActivatedUser(request, "OPERATOR");
+  test("an Operator is denied direct navigation to an Admin-only route", async ({ page }) => {
+    const user = await createActivatedUser("OPERATOR", TEST_PASSWORD);
     await page.goto("/sign-in");
     await page.getByLabel("Email Address").fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(TEST_PASSWORD);
@@ -100,8 +84,8 @@ test.describe("Authorization — server-side, not just hidden UI", () => {
 });
 
 test.describe("Cookie and origin security", () => {
-  test("the session cookie is HttpOnly and SameSite=Lax", async ({ page, context, request }) => {
-    const user = await makeActivatedUser(request, "OPERATOR");
+  test("the session cookie is HttpOnly and SameSite=Lax", async ({ page, context }) => {
+    const user = await createActivatedUser("OPERATOR", TEST_PASSWORD);
     await page.goto("/sign-in");
     await page.getByLabel("Email Address").fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(TEST_PASSWORD);
