@@ -85,7 +85,7 @@ Implement the full 13-table Prisma schema exactly as specified in SRS §6 (with 
 - Initial migration, hand-edited for the above and committed alongside the schema (`prisma/migrations/20260820170711_init/`).
 - `src/lib/domain` pure functions: funding-source rule application, total income/expense aggregation, net profit/loss, a deterministic profit-split rounding rule, and partner investment aggregation (including `DRAWING` sign handling) — all operating on `Decimal`, all framework-agnostic.
 - Seed script (`prisma/seed.ts`) loading Appendix A **master data only** — parties, expense items, expense categories, vendors, the default 50/50 profit split. Deliberately seeds **zero** `users` rows and **zero** July 2026 transaction amounts (ADR-0002 decision 2/4; Appendix A.5's own text says no password is ever chosen by the developer).
-- `@prisma/adapter-pg`, `pg`, `@types/pg` (Prisma 7 requires an explicit driver adapter — there is no bare-connection-string fallback) and `tsx` (to run the seed script) added as dependencies.
+- `@prisma/adapter-pg`, `pg`, `@types/pg` (Prisma 7 requires an explicit driver adapter — there is no bare-connection-string fallback) and `tsx@4.23.12` (exact-pinned dev dependency, to run `prisma/seed.ts` via Prisma 7's `migrations.seed` config field — flagged during implementation and **retroactively approved**, since Prisma 7 requires some TypeScript execution mechanism for a `.ts` seed script and no existing project dependency provides one) added as dependencies.
 
 ### Tests
 - `npx prisma validate` and `npx prisma format` pass.

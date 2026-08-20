@@ -251,11 +251,13 @@ These were considered and set aside for this release (SRS §12); some may return
 
 ## 27. Known SRS Issues (flag, do not silently resolve)
 
-Two inconsistencies were found while reading `docs/SRS.md` v3.0. Do not "fix" either by guessing — raise with the user/client before the affected work begins.
+Three inconsistencies were found while reading `docs/SRS.md` v3.0. Do not "fix" any by guessing — raise with the user/client before the affected work begins.
 
 1. **July 2026 reconciliation figures vs. Appendix A initial data do not reconcile.** SRS §11.3 states the duplicate `AT WASTE` line (Rs 8,000) in the original July 2026 workbook was an error and "is one fixed monthly bill, not two." Appendix A.2 lists `AT WASTE` once, and the 15 administration categories in Appendix A.2 sum to Rs 692,919; combined with the 10 purchasing lines in Appendix A.3 (Rs 594,540), total expenses = **Rs 1,287,459**. But AC-02 and SRS §2.1 both require the system to reproduce total expenses of **Rs 1,295,459** and profit of **Rs 200,076** (which is exactly Rs 1,495,535 − Rs 1,295,459, i.e. the *uncorrected*, duplicate-AT-WASTE figure). If Appendix A's initial data is loaded as literally specified, the system will compute profit of Rs 208,076 (Rs 104,038 per partner), not the Rs 200,076 / Rs 100,038 required by AC-02. **This must be resolved with the client** — either the AC-02 target figures need updating, or Appendix A.2 needs an explicit extra Rs 8,000 administration line (or the reconciliation fixture in §21 needs its own dataset distinct from the literal Appendix A seed data) — before the AC-02/NFR-MNT-06 automated test is written.
 
 2. **Requirement ID typo in SRS §2.2.** The narrative text says "Requirement FR-INC-06 gives those receipts a place to live," but no `FR-INC-06` exists anywhere else in the document. The actual requirement for direct cash receipts is **FR-PINC-06** (SRS §3.3). Treat `FR-PINC-06` as correct; `FR-INC-06` is a documentation typo.
+
+3. **Appendix A.1 party count vs. party list do not reconcile.** SRS Appendix A.1's heading says "Parties (27)," but the table beneath it names only 26 parties (4 daily-billing + 22 monthly-billing). Confirmed while building the Phase 1 master-data seed (`prisma/seed.ts`): every named party was loaded literally, and no 27th party was invented to satisfy the heading's count. This must be resolved with the client — either the heading is wrong (26 is correct), or a 27th party name is missing from the table and needs to be supplied. Does not block Phase 2 or any later phase; only matters if/when the client supplies the missing name (or corrects the heading).
 
 <!-- BEGIN:nextjs-agent-rules -->
 
