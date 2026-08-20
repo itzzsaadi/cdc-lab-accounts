@@ -5,9 +5,12 @@ import { defineConfig, devices } from "@playwright/test";
 // own browser download (see PLAYWRIGHT_BROWSERS_PATH/PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
 // in the environment). Point at it only when it's actually present; real CI
 // and any other machine install their own browser via `playwright install`
-// and fall back to Playwright's normal resolution.
+// and get an entirely unmodified `use` block — no `launchOptions` key at all —
+// so Playwright's normal browser resolution is never touched there.
 const sandboxChromium = "/opt/pw-browsers/chromium";
-const executablePath = existsSync(sandboxChromium) ? sandboxChromium : undefined;
+const sandboxOverride = existsSync(sandboxChromium)
+  ? { launchOptions: { executablePath: sandboxChromium } }
+  : {};
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -22,7 +25,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"], launchOptions: { executablePath } },
+      use: { ...devices["Desktop Chrome"], ...sandboxOverride },
     },
   ],
   webServer: {
