@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+/*
+ * Color tokens reproduced from the approved Stitch design (docs/ui/stitch-export/*.html,
+ * docs/ui/stitch-export/DESIGN.md) — only the subset the Phase 2 Sign In
+ * screen and its extended states actually use. See docs/UI_REQUIREMENTS.md
+ * §12 for the full palette and the border-radius discrepancy this project
+ * resolved. This is a hand-authored Tailwind v4 `@theme` block, not a copy
+ * of the Stitch HTML's CDN-only inline `tailwind.config` script (which is
+ * never used in production — CLAUDE.md / docs/UI_REQUIREMENTS.md §27).
+ */
+@theme {
+  --color-primary: #005c55;
+  --color-primary-container: #0f766e;
+  --color-on-primary: #ffffff;
+  --color-on-surface: #0b1c30;
+  --color-on-surface-variant: #3e4947;
+  --color-surface: #f8f9ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #eff4ff;
+  --color-outline-variant: #bdc9c6;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --font-body-md: 14px;
+  --font-body-sm: 12px;
+  --font-headline-md: 24px;
+}

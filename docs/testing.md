@@ -1,9 +1,9 @@
 # Test Plan and QA Checklist
 
-Status: Phase 1 test infrastructure in place. Filled in further as each
-later phase's coverage is built — see `docs/PROJECT_PLAN.md` for what each
-phase tests, and `docs/REQUIREMENTS_TRACEABILITY.md` for the full
-requirement-to-test mapping.
+Status: Phase 1 and Phase 2 test infrastructure in place. Filled in
+further as each later phase's coverage is built — see `docs/PROJECT_PLAN.md`
+for what each phase tests, and `docs/REQUIREMENTS_TRACEABILITY.md` for the
+full requirement-to-test mapping.
 
 ## Test types
 
@@ -87,9 +87,41 @@ any environment variable itself.
   deletion rejection on every protected table, foreign-key delete-rule
   inspection (no `CASCADE`/`SET NULL` anywhere), and the seed script's
   exact contents (master data present, zero users, zero transactions).
-- `npm run test:e2e` (Playwright) — one smoke test against the Phase 0
-  placeholder health page. No feature e2e tests exist yet (Phase 2
-  onward).
+
+## Current coverage (Phase 2)
+
+- **Unit** (`tests/unit/permissions/`, `tests/unit/auth/`): the centralized
+  `requirePermission` role/permission logic; the production-HTTPS startup
+  guard; the fail-closed email-transport guard (production requires SMTP,
+  the dev/test file sink refuses to run when `NODE_ENV=production`).
+- **Integration** (`tests/integration/auth/`, `tests/integration/constraints/auth-schema.test.ts`):
+  `sessions.token`/`account (issuer, accountId)` uniqueness; `users`' Phase 1
+  delete-rejection trigger still holds after the Phase 2 migration;
+  `sessions`/`account`/`verification` are proven deletable (deliberately
+  not trigger-protected); the invitation-gate token is proven to store
+  only a SHA-256 digest, never the raw token; single-use and reissue-
+  invalidates-all-prior-tokens behavior; a transient failure _after_ gate
+  validation (an invalid password rejected by Better Auth's own
+  `resetPassword`) is proven to leave the gate token valid for a retry,
+  not burned; 10-consecutive-failure lockout including under concurrent
+  requests; a locked/inactive account's session is proven to never reach
+  the caller and to be revoked immediately; `audit_log` rows for every
+  auth event, checked for the complete absence of any password, hash,
+  token, or URL; cookie `Secure` attribute proven environment-aware (absent
+  over HTTP, present when `NODE_ENV=production` with an HTTPS origin);
+  sign-out, password reset, and deactivation each proven to reject a
+  cookie captured _before_ that action, replayed after it.
+- **Playwright e2e** (`tests/e2e/auth.spec.ts`): the Sign In screen renders
+  the approved Stitch design; unknown-email and wrong-password produce the
+  identical generic error; valid sign-in reaches the role-appropriate
+  placeholder; an Operator is denied direct navigation to an Admin-only
+  route; the session cookie is `HttpOnly`/`SameSite=Lax`; a cross-origin
+  POST to the auth API is rejected. Fixtures are created through a
+  test-only, `NODE_ENV`-guarded route (`src/app/api/test/seed-user/route.ts`)
+  that exercises the real invitation-acceptance code path, rather than
+  importing server modules directly into the Playwright process (which
+  hits an unrelated ESM/CJS interop mismatch specific to Playwright's own
+  TypeScript transform).
 
 The July 2026 reconciliation fixture (`CLAUDE.md` §21, `AC-02`) — the
 single most important regression test in the project — is built in

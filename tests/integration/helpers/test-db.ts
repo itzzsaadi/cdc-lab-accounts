@@ -51,7 +51,8 @@ export async function resetDatabase(): Promise<void> {
     TRUNCATE TABLE
       "daily_expenses", "monthly_expenses", "party_income", "counter_income",
       "capital_contributions", "assets", "parties", "expense_items",
-      "expense_categories", "vendors", "audit_log", "app_settings", "users"
+      "expense_categories", "vendors", "audit_log", "app_settings", "users",
+      "sessions", "account", "verification"
     RESTART IDENTITY CASCADE
   `);
 }
