@@ -150,3 +150,8 @@ vite.config.ts.timestamp-*
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Development-only email sink (Phase 2 — see src/lib/email/, docs/adr/0003)
+# *.log above already matches this, but it's named explicitly since it can
+# contain reset/invitation tokens and must never reach a commit.
+/.local/

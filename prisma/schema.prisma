@@ -22,6 +22,16 @@
 // partial-unique index are not expressible in this schema language and are
 // added by hand-editing the generated migration SQL (see
 // prisma/migrations/*_init/migration.sql).
+//
+// Phase 2 (authentication & authorization) adds Better Auth's Session,
+// Account, and Verification tables plus five new User columns
+// (emailVerified, image, updatedAt, failedLoginCount, lockoutUntil) and two
+// AuditAction values (SESSION_REVOKED, ACCOUNT_LOCKED) — see
+// docs/adr/0003-phase-2-authentication.md. These three new tables are
+// deliberately NOT covered by the physical-deletion-rejection triggers below
+// (they are authentication infrastructure, not business/financial/master-
+// data/settings/audit records); `users` keeps its existing trigger
+// unchanged.
 
 generator client {
   provider = "prisma-client"
@@ -108,20 +118,34 @@ enum AuditAction {
   LOGIN_FAILED
   PASSWORD_CHANGE
   IMPORT
+  SESSION_REVOKED
+  ACCOUNT_LOCKED
 
   @@map("audit_action")
 }
 
-/// Two partners plus reception staff. No password_hash column — see
-/// docs/adr/0002-phase-1-schema-clarifications.md decision 2.
+/// Two partners plus reception staff. No password_hash column — Better
+/// Auth's `account` table is the authoritative credential store (see
+/// docs/adr/0002-phase-1-schema-clarifications.md decision 2 and
+/// docs/adr/0003-phase-2-authentication.md). email_verified, image, and
+/// updated_at are Better Auth schema requirements, not SRS fields — see
+/// docs/adr/0003-phase-2-authentication.md for why each new column exists
+/// and why last_sign_in_at/an invitation-state field were deliberately not
+/// added (both derivable from existing data, so adding them would be
+/// duplicate state).
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  fullName  String   @map("full_name") @db.VarChar(120)
-  email     String   @unique @db.VarChar(180)
-  role      Role
-  isPartner Boolean  @default(false) @map("is_partner")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id               String    @id @default(uuid()) @db.Uuid
+  fullName         String    @map("full_name") @db.VarChar(120)
+  email            String    @unique @db.VarChar(180)
+  role             Role
+  isPartner        Boolean   @default(false) @map("is_partner")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  emailVerified    Boolean   @default(false) @map("email_verified")
+  image            String?   @db.VarChar(2048)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  failedLoginCount Int       @default(0) @map("failed_login_count") @db.SmallInt
+  lockoutUntil     DateTime? @map("lockout_until") @db.Timestamptz(6)
 
   fundedDailyExpenses         DailyExpense[]        @relation("DailyExpenseFundedBy")
   createdDailyExpenses        DailyExpense[]        @relation("DailyExpenseCreatedBy")
@@ -141,8 +165,74 @@ model User {
   updatedAssets               Asset[]               @relation("AssetUpdatedBy")
   auditLogEntries             AuditLog[]            @relation("AuditLogActor")
   appSettingUpdates           AppSetting[]          @relation("AppSettingUpdatedBy")
+  sessions                    Session[]
+  accounts                    Account[]
 
   @@map("users")
+}
+
+/// Better Auth session — authentication infrastructure, not a business
+/// record. Deliberately NOT protected by a physical-deletion-rejection
+/// trigger (docs/adr/0003-phase-2-authentication.md) — expiry pruning and
+/// explicit revocation (sign-out, deactivation, password reset) are normal,
+/// expected deletions here, unlike every table in Phase 1's migration.
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  token     String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.VarChar(512)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Better Auth credential storage — `password` holds the Scrypt hash for
+/// the `credential` provider. Authentication infrastructure, no
+/// delete-rejection trigger (see Session's comment above).
+model Account {
+  id                    String    @id @default(uuid()) @db.Uuid
+  issuer                String    @db.VarChar(255)
+  accountId             String    @map("account_id") @db.VarChar(255)
+  providerId            String    @map("provider_id") @db.VarChar(60)
+  userId                String    @map("user_id") @db.Uuid
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  idToken               String?   @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                 String?   @db.VarChar(500)
+  password              String?   @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([issuer, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+/// Better Auth verification tokens — password-reset tokens (identifier
+/// `reset-password:<token>`, stored hashed per `storeIdentifier: "hashed"`,
+/// see docs/adr/0003-phase-2-authentication.md) and this project's own
+/// invitation-gate tokens (identifier `invite-gate:<userId>`, written
+/// directly by application code, never through Better Auth's adapter —
+/// see src/lib/auth/invitation.ts). Authentication infrastructure, no
+/// delete-rejection trigger.
+model Verification {
+  id         String   @id @default(uuid()) @db.Uuid
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([identifier])
+  @@map("verification")
 }
 
 /// Referring labs and hospitals.

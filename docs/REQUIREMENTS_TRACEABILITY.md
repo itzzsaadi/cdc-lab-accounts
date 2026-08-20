@@ -20,15 +20,15 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-AUTH-01 | Sign in with email/password required before any data is shown | M | Phase 2 | — | — | Test | Not Started | |
-| FR-AUTH-02 | Passwords hashed with per-user salt, never stored readable | M | Phase 2 | — | — | Test | Not Started | |
-| FR-AUTH-03 | Three roles supported — Operator, Partner, Admin — per §2.6 permissions | M | Phase 2 | — | — | Test | Not Started | Admin-facing user-management *UI* for this role model is delivered in Phase 7; the role mechanism itself is Phase 2. |
-| FR-AUTH-04 | Operator has no route (UI or server) to profit/loss/investment/profit-split | M | Phase 2 | — | — | Test | Not Started | Guard mechanism proven Phase 2; full sweep across every financial endpoint only possible once they all exist — closed out via AC-08 in Phase 5. |
-| FR-AUTH-05 | Signed-in session persists 30 days across browser restarts | M | Phase 2 | — | — | Test | Not Started | |
-| FR-AUTH-06 | Password reset via single-use email link, expires in 60 minutes | M | Phase 2 | — | — | Test | Not Started | |
-| FR-AUTH-07 | Account temporarily locked after 10 consecutive failed sign-ins | M | Phase 2 | — | — | Test | Not Started | |
-| FR-AUTH-08 | Every server request independently verifies identity and role | M | Phase 2 | — | — | Test | Not Started | Foundational rule reused by every later phase's endpoints (CLAUDE.md §15). |
-| FR-AUTH-09 | Sign-out ends server session; warns if uploads are pending | M | Phase 2 | — | — | Test | Not Started | The "uploads pending" warning is only meaningful once Phase 6 offline queue exists; mechanism stubbed here, completed in Phase 6. |
+| FR-AUTH-01 | Sign in with email/password required before any data is shown | M | Phase 2 | `src/lib/auth/config.ts`, `src/server/actions/auth.ts` | `tests/e2e/auth.spec.ts` | Test | Implemented | Better Auth email/password sign-in, gated by `emailAndPassword.enabled`/`disableSignUp`; e2e-proven. |
+| FR-AUTH-02 | Passwords hashed with per-user salt, never stored readable | M | Phase 2 | `src/lib/auth/config.ts` | `tests/integration/auth/invitation.test.ts` | Test | Implemented | Better Auth's default Scrypt hashing (per-invocation salt) — never a custom algorithm; confirmed hashed, not plaintext, in the created `account.password` row. |
+| FR-AUTH-03 | Three roles supported — Operator, Partner, Admin — per §2.6 permissions | M | Phase 2 | `src/lib/permissions/roles.ts`, `matrix.ts`, `guard.ts` | `tests/unit/permissions/guard.test.ts` | Test | Implemented | Role inheritance (OPERATOR ⊂ PARTNER ⊂ ADMIN) mechanism complete and unit-tested. Admin-facing user-management *UI* for this role model is delivered in Phase 7. |
+| FR-AUTH-04 | Operator has no route (UI or server) to profit/loss/investment/profit-split | M | Phase 2 | `src/lib/permissions/matrix.ts` | `tests/unit/permissions/guard.test.ts`, `tests/e2e/auth.spec.ts` | Test | Not Started | Guard mechanism proven in Phase 2 (Operator denied Partner/Admin-only permissions, e2e-proven for one placeholder route); full sweep across every financial endpoint only possible once they all exist — closed out via AC-08 in Phase 5. |
+| FR-AUTH-05 | Signed-in session persists 30 days across browser restarts | M | Phase 2 | `src/lib/auth/config.ts` | `tests/integration/auth/cookies-and-revocation.test.ts` | Test | Implemented | `session.expiresIn = 60*60*24*30`; e2e cookie inspection confirms `Max-Age`. |
+| FR-AUTH-06 | Password reset via single-use email link, expires in 60 minutes | M | Phase 2 | `src/lib/auth/config.ts` | `tests/integration/auth/invitation.test.ts` (shared reset mechanism) | Test | Implemented | `resetPasswordTokenExpiresIn = 3600`; single-use via Better Auth's own atomic `consumeVerificationValue`; identifier stored hashed (`verification.storeIdentifier: "hashed"`). |
+| FR-AUTH-07 | Account temporarily locked after 10 consecutive failed sign-ins | M | Phase 2 | `src/lib/auth/lockout.ts` | `tests/integration/auth/lockout.test.ts` | Test | Implemented | 10-failure/15-minute lockout via one atomic `UPDATE ... RETURNING`; concurrency-tested; no Admin-unlock action built (time-based expiry only, approved). |
+| FR-AUTH-08 | Every server request independently verifies identity and role | M | Phase 2 | `src/lib/permissions/guard.ts`, `src/server/session.ts` | `tests/unit/permissions/guard.test.ts`, `tests/e2e/auth.spec.ts` | Test | Implemented | One centralized `requirePermission` function, called identically from every Server Component/Action/Route Handler placeholder; direct-request denial e2e-proven, not just hidden UI. |
+| FR-AUTH-09 | Sign-out ends server session; warns if uploads are pending | M | Phase 2 | `src/server/actions/auth.ts` | `tests/integration/auth/cookies-and-revocation.test.ts` | Test | Not Started | Sign-out ends the server session (mechanism implemented and tested). The "uploads pending" warning is only meaningful once Phase 6's offline queue exists; not built here. |
 
 ### 3.2 Daily Expenses (FR-DEXP) — SRS §3.2
 
@@ -176,7 +176,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | FR-AUD-04 | Change history shown as read-only list, filterable by user/date/record type | M | Phase 5 | — | — | Test | Not Started | |
 | FR-AUD-05 | User can view an individual record's own change history | M | Phase 5 | — | — | Test | Not Started | |
 | FR-AUD-06 | (Should) Highlight changes to entries dated more than one month in the past | S | Phase 5 | — | — | Test | Not Started | |
-| FR-AUD-07 | Sign-in, failed sign-in, and password-change events recorded | M | Phase 2 | — | — | Test | Not Started | |
+| FR-AUD-07 | Sign-in, failed sign-in, and password-change events recorded | M | Phase 2 | `src/lib/auth/audit.ts`, `src/server/actions/auth.ts` | `tests/integration/auth/audit.test.ts` | Test | Implemented | `LOGIN`/`LOGIN_FAILED`/`ACCOUNT_LOCKED`/`PASSWORD_CHANGE`/`SESSION_REVOKED` all write real `audit_log` rows; verified no password/hash/token/URL ever appears in any of them. |
 | FR-AUD-08 | Offline-made entry records both capture time and upload time | M | Phase 6 | — | — | Test | Not Started | |
 
 ### 3.13 Dashboard and Reports (FR-RPT) — SRS §3.13

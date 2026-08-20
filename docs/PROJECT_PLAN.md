@@ -117,6 +117,8 @@ Implement the full 13-table Prisma schema exactly as specified in SRS §6 (with 
 
 ## Phase 2 — Authentication and Authorization
 
+**Status: Implemented.** See `docs/adr/0003-phase-2-authentication.md` for the full design record — Better Auth integration, the two-layer invitation-acceptance mechanism (a project-owned, SHA-256-hashed gate token wrapping Better Auth's own public `requestPasswordReset`/`resetPassword` endpoints, never Better Auth internals), the corrected sign-in sequencing that guarantees a locked/inactive account's session never reaches the browser, the centralized `requirePermission` authorization layer, and the fail-closed email-delivery and production-HTTPS safeguards. Deliverables below were implemented largely as planned, with these deviations, each recorded in the ADR: session/lockout/audit event helpers live in `src/lib/auth/` rather than session-fetching living in `src/server/session.ts` (a Better-Auth-instance-dependent concern, kept out of the framework-agnostic `lib` layer); the Better Auth instance is built via a `buildAuth(prisma, baseURL)` factory (`src/lib/auth/config.ts`) rather than a bare module-level singleton, specifically so integration tests can bind it to the test database.
+
 ### Objective
 Implement sign-in, session management, and the three-role permission model (`OPERATOR`, `PARTNER`, `ADMIN`) with server-side enforcement, using Better Auth. Begin audit-log writes for authentication events.
 

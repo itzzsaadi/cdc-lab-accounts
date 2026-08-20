@@ -8,6 +8,14 @@ on:
 env:
   DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_ci?schema=public"
   TEST_DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_ci_test?schema=public"
+  # Phase 2 — non-production values for every step except Build below.
+  # NODE_ENV is not "production" for `prisma generate`/`db seed`/`test`/
+  # `test:e2e` (Playwright's webServer runs `next dev`), so the file-sink
+  # email transport and an HTTP BETTER_AUTH_URL are valid here — see
+  # src/server/auth.ts and src/lib/email/transport.ts's fail-closed guards.
+  BETTER_AUTH_URL: "http://localhost:3000"
+  BETTER_AUTH_SECRET: "ci-only-secret-not-used-in-any-real-deployment-0123456789"
+  EMAIL_TRANSPORT: "file"
 
 jobs:
   validate:
@@ -80,7 +88,21 @@ jobs:
         run: npx prisma db seed
 
       - name: Build
+        # next build sets NODE_ENV=production internally, so the
+        # production-only startup guards in src/server/auth.ts fire here —
+        # an HTTPS BETTER_AUTH_URL and complete (placeholder, never
+        # connected-to) SMTP configuration are required for this one step
+        # only. Every other step keeps the job-level, non-production values
+        # above.
         run: npm run build
+        env:
+          BETTER_AUTH_URL: "https://ci-build-placeholder.example"
+          EMAIL_TRANSPORT: "smtp"
+          SMTP_HOST: "smtp.ci-build-placeholder.example"
+          SMTP_PORT: "587"
+          SMTP_USER: "ci"
+          SMTP_PASSWORD: "ci"
+          SMTP_FROM: "noreply@ci-build-placeholder.example"
 
       - name: Unit, integration, and constraint tests
         run: npm run test
