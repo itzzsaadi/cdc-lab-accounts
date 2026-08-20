@@ -1,0 +1,434 @@
+# PROJECT_PLAN.md — CDC Lab Accounts & Asset Management System
+
+This plan sequences implementation into controlled phases derived from `docs/SRS.md` v3.0 and governed by the permanent rules in `CLAUDE.md`. Both documents are read-only inputs to this plan and are not modified by it.
+
+**Ground rules carried into every phase (see `CLAUDE.md` for the full statement of each):**
+
+- Money is `Decimal`/`NUMERIC(14,2)` everywhere, never floating point (DR-01, CLAUDE.md §9–10).
+- No physical deletion of financial or master records — archive only (CON-04, DR-04, BR-15, CLAUDE.md §11).
+- No stored profit/loss/investment totals — always derived on demand (DR-09, CLAUDE.md §12).
+- No month locking, ever (CON-06, BR-12, CLAUDE.md §13).
+- Every server endpoint independently checks role; hiding a control in the UI is never sufficient (FR-AUTH-08, NFR-SEC-03, CLAUDE.md §15).
+- Operators have no route, server-side or UI, to profit/loss/investment/profit-split (FR-AUTH-04, CLAUDE.md §16).
+- Every write is Zod-validated server-side regardless of client validation (NFR-SEC-05, CLAUDE.md §18).
+- The full validation suite (`typecheck`, `lint`, `format:check`, `test`, `test:e2e`, `prisma validate`, `prisma format`, `build`) must pass before any phase is considered exited, not just the checks that seem relevant (CLAUDE.md §5).
+
+**Known open issue that blocks part of Phase 5:** `CLAUDE.md` §27 documents that the Appendix A initial-data set (expenses summing to Rs 1,287,459) does not reconcile with the AC-02 target figures (Rs 1,295,459 expenses / Rs 200,076 profit) because of the corrected `AT WASTE` duplicate line. This must be resolved with the client **before** the Phase 5 reconciliation fixture is written as a permanent regression test — see Phase 5 for how this gates that phase's headline deliverable.
+
+**Phase dependency order:** each phase assumes every prior phase's exit criteria are met. Phases are not parallelized against this order without an explicit decision recorded as an ADR (`CLAUDE.md` §23), since later phases depend on schema, auth, and domain logic settled earlier.
+
+---
+
+## Phase 0 — Repository and Development Foundation
+
+### Objective
+Stand up the engineering scaffolding — tooling, validation commands, documentation skeleton, and CI — with no business logic, no schema, and no screens. This phase makes every later phase's "done" criteria enforceable.
+
+### Exact SRS requirement groups
+- NFR-MNT-01 to NFR-MNT-09 (README, `.env.example`, ADRs, deployment runbook placeholder, migration discipline, result-calc test coverage hook, offline-test hook, static typing, lint/format enforcement)
+- NFR-SEC-07 (secrets in environment configuration, never committed)
+- CON-07 (single-developer maintainability, simplicity over premature optimisation)
+- SRS §10 Documentation Deliverables (skeleton only: architecture.md, offline-sync.md, deployment.md, testing.md, CHANGELOG.md placeholders)
+
+### Deliverables
+- Next.js (App Router) + TypeScript strict project skeleton per `CLAUDE.md` §6 planned structure (empty route groups, no pages beyond a placeholder).
+- `package.json` scripts: `typecheck`, `lint`, `format:check`, `test`, `test:e2e`, `prisma validate`, `prisma format`, `build`.
+- ESLint + Prettier configuration; Vitest and Playwright configured with zero tests passing trivially.
+- `README.md` sufficient for a competent engineer to run the system locally within 30 minutes (NFR-MNT-01).
+- `.env.example` listing every environment variable with no real secrets (NFR-MNT-02).
+- `/docs/adr/0001-technology-stack.md` recording the stack decision and alternatives rejected (NFR-MNT-03).
+- Skeleton `/docs/architecture.md`, `/docs/offline-sync.md`, `/docs/deployment.md`, `/docs/testing.md`, `CHANGELOG.md`.
+- CI pipeline running the full validation suite on every push.
+
+### Tests
+- CI green on an empty scaffold: typecheck, lint, format check, build all pass.
+- A trivial Vitest and a trivial Playwright test both run and pass, proving the harnesses are wired correctly.
+
+### Risks
+- Over-scaffolding: adding tooling or dependencies not yet justified by a feature, contrary to CON-07 and `CLAUDE.md` §24's dependency-approval policy.
+- Divergence between local and CI environments if Node/Postgres versions aren't pinned.
+
+### Exit criteria
+- All Phase 5 validation commands (§5 of `CLAUDE.md`) succeed on the skeleton.
+- README onboarding demonstrated within 30 minutes by a second person or a clean-environment run.
+- ADR-0001 committed.
+
+### Features that must not be implemented yet
+- No Prisma schema, no database tables.
+- No authentication.
+- No domain/business logic.
+- No real UI screens, forms, or API routes.
+- No offline/PWA capability.
+
+---
+
+## Phase 1 — Database and Domain Foundation
+
+### Objective
+Implement the full 12-table Prisma schema exactly as specified in SRS §6, with every data-integrity rule enforced at the database level, and implement the pure, framework-agnostic calculation logic in `/lib/domain` — unit-testable without a server or live database.
+
+### Exact SRS requirement groups
+- SRS §6 Database Design — all twelve tables: `users`, `parties`, `expense_items`, `expense_categories`, `vendors`, `daily_expenses`, `monthly_expenses`, `party_income`, `counter_income`, `assets`, `capital_contributions`, `audit_log`, `app_settings`.
+- SRS §7 Data Integrity Rules — DR-01 to DR-09 in full.
+- SRS §8 Business Rules — BR-01 to BR-15 (encoded as domain functions and DB constraints, not yet wired to UI).
+- Schema-level requirements only (data shape, not screens) from: FR-DEXP-01/05/06/08, FR-MEXP-01/03/04/05, FR-PINC-01 to 09 (shape), FR-CINC-01/02, FR-AST-01 to 10, FR-INV-01/02/06, FR-RES-04 to 07/11 (pure calculation functions), FR-MST-01 to 07 (table shape only).
+
+### Deliverables
+- `prisma/schema.prisma` with all twelve tables, every money column as `Decimal`/`NUMERIC(14,2)`, every `TIMESTAMPTZ` column, and every enum (`role`, `billing_mode`, `funding_source`, `acquisition_mode`, `receipt_type`, `expense_group`, `contribution_type`, `action`, `status`).
+- **`client_uuid UUID NOT NULL UNIQUE` included in this phase's schema** on `daily_expenses`, `monthly_expenses`, `party_income`, and `counter_income` (DR-05) — the offline sync mechanism itself is not built until Phase 6, but the column and its unique index exist from this phase forward so no later migration has to retrofit it.
+- Database `CHECK` constraints: `funding_source = PARTNER` requires `funded_by_user_id` (DR-07); asset `acquisition_mode` requires exactly one of `monthly_instalment` or (`purchase_price` + `purchased_by_user_id`), never both, never neither (DR-08).
+- `is_archived` on every financial and master-data table (DR-04, DR-06).
+- Initial migration(s), committed alongside the schema.
+- `/lib/domain` pure functions: funding-source rule application, total income/expense aggregation, net profit/loss, profit-split division, partner investment aggregation — all operating on `Decimal`, all framework-agnostic (no Next.js or Prisma client import required to unit-test).
+- Seed script loading Appendix A master data (parties, expense items, administration categories, vendors, initial users, default 50/50 profit split in `app_settings`) — data only, no CRUD UI yet.
+
+### Tests
+- `npx prisma validate` and `npx prisma format` pass.
+- Migration applies cleanly to a fresh Postgres instance and is reversible.
+- Constraint tests: inserting a `PARTNER`-funded expense with no `funded_by_user_id` fails; inserting an asset with both `monthly_instalment` and `purchase_price` fails; inserting an asset with neither fails.
+- Vitest unit tests for every `/lib/domain` function against small synthetic (non-July-2026) fixtures, confirming `Decimal` arithmetic (no float coercion) and correct application of BR-01 to BR-15.
+
+### Risks
+- Getting the `CHECK` constraint syntax wrong for the funding-source and acquisition-mode rules (DR-07/DR-08) — these must be proven with failing-insert tests, not just declared.
+- Prisma's `Decimal` type surfacing as a JS `number` accidentally in generated types or serialization — must be caught here before any UI consumes it.
+- Schema churn risk if the `users`/`role` shape doesn't anticipate Phase 2's auth requirements — coordinate before finalizing.
+
+### Exit criteria
+- Full schema matches SRS §6 table-for-table, column-for-column.
+- Every DR-01 to DR-09 rule is enforced and proven by a failing-insert or type-level test.
+- `/lib/domain` functions are unit-tested and importable with no server or HTTP context.
+- Seed script loads Appendix A data without error.
+
+### Features that must not be implemented yet
+- No authentication or session handling.
+- No API routes or UI screens.
+- No offline queue (Dexie) or sync logic — Phase 6 only.
+- No audit log **writes** yet (the table exists; nothing writes to it until Phase 2 onward).
+- No July 2026 reconciliation fixture — Phase 5 only.
+
+---
+
+## Phase 2 — Authentication and Authorization
+
+### Objective
+Implement sign-in, session management, and the three-role permission model (`OPERATOR`, `PARTNER`, `ADMIN`) with server-side enforcement, using Better Auth. Begin audit-log writes for authentication events.
+
+### Exact SRS requirement groups
+- FR-AUTH-01 to FR-AUTH-09 (all).
+- NFR-SEC-01, NFR-SEC-02, NFR-SEC-03, NFR-SEC-04, NFR-SEC-05, NFR-SEC-08, NFR-SEC-10 (the security requirements auth touches directly).
+- FR-AUD-07 (sign-in, failed sign-in, password-change events recorded).
+- DR-03 (`created_by`/`updated_by` attribution pattern, established here for reuse by every later entity).
+
+### Deliverables
+- Better Auth configuration: email/password sign-in, password hashing per FR-AUTH-02, single-use password-reset link expiring after 60 minutes (FR-AUTH-06).
+- Session persistence for 30 days (FR-AUTH-05); HTTP-only, Secure, SameSite cookies (NFR-SEC-08).
+- Account lockout after 10 consecutive failed sign-ins (FR-AUTH-07).
+- `/lib/auth` role-guard helpers (`requireRole`, session verification) usable identically from API routes and server actions — the single place every later endpoint calls into (FR-AUTH-08, NFR-SEC-03).
+- Sign-out that ends the server session, with a placeholder hook for the Phase 6 "entries waiting to upload" warning (FR-AUTH-09).
+- `audit_log` writes for `LOGIN`, failed login, and password-change events (FR-AUD-07).
+- A minimal placeholder protected route per role, used only to prove the guard works end-to-end.
+
+### Tests
+- Integration tests: an `OPERATOR`-guarded route rejects an `ADMIN`-only or `PARTNER`-only request at the server, independent of any UI.
+- Playwright e2e: sign-in, sign-out, password-reset flow, session persistence across a simulated restart.
+- Lockout test: 10 consecutive failures lock the account; the 11th legitimate attempt is blocked until unlock/reset.
+- Audit-log assertions: login, failed login, and password-change events appear correctly attributed.
+
+### Risks
+- Modeling role inheritance (`PARTNER` ⊇ `OPERATOR`, `ADMIN` ⊇ `PARTNER`) incorrectly in the guard helper, creating a privilege gap or an over-restriction discovered only later.
+- Session cookie misconfiguration (missing `Secure`/`SameSite`) shipped unnoticed without an explicit inspection step (NFR-SEC-08 is verified by inspection, not just a test).
+- Treating the UI hiding a link as sufficient — every guard must be proven by a direct server-side request test, not a UI click-path only.
+
+### Exit criteria
+- FR-AUTH-01 to 09 all demonstrated.
+- The role-guard mechanism is proven reusable and is the only authorization path any later phase's endpoints use.
+- Login-related audit events are being written correctly.
+- Full AC-08 verification is **not** expected yet (no financial screens exist to attempt to reach) — this phase proves the mechanism only; AC-08 is finally closed out in Phase 5.
+
+### Features that must not be implemented yet
+- No operator transaction entry screens (Phase 3).
+- No monthly expense/asset/investment screens (Phase 4).
+- No financial results, dashboard, or reports (Phase 5).
+- No offline/PWA support (Phase 6).
+- No master-data admin UI or profit-split settings screen (Phase 7).
+
+---
+
+## Phase 3 — Operator Transaction Workflows
+
+### Objective
+Build the day-to-day entry screens used by reception staff: daily expenses, daily-billing party income (grid), direct cash receipts, and counter income — entirely online, with no financial-result leakage to the Operator role.
+
+### Exact SRS requirement groups
+- FR-DEXP-01 to FR-DEXP-09 (FR-DEXP-10 receipt photo is priority C — may be deferred past this phase; see below).
+- FR-PINC-02, FR-PINC-06, FR-PINC-07, FR-PINC-08, FR-PINC-09.
+- FR-CINC-01 to FR-CINC-04 (FR-CINC-05, priority S, may be folded into Phase 5's warnings work instead).
+- FR-AUD-01, FR-AUD-02 (creation/change/archive audit entries, now exercised for real entry types).
+- FR-AUTH-04 (reconfirmed: none of these screens or their APIs expose profit/loss/investment).
+- NFR-USE-01, NFR-USE-02, NFR-USE-03, NFR-USE-04, NFR-USE-06, NFR-USE-07 (usability of entry screens).
+- NFR-PERF-01, NFR-PERF-02, NFR-PERF-03 (load, navigation, save-confirmation timing).
+- UC-02, UC-03, UC-04, UC-05.
+
+### Deliverables
+- `/app/(operator)` routes: daily expenses (list + add/edit/archive with running total), daily-billing party income grid (keyboard-operable, matching workbook layout), direct cash receipt form, counter income daily entry.
+- `/lib/validation` Zod schemas for each entry type, rejecting zero/negative/non-numeric amounts with field-level errors (FR-DEXP-06).
+- Archive actions requiring confirmation naming the specific record (NFR-USE-06); no physical deletion.
+- Running totals computed via the Phase 1 `/lib/domain` functions, never typed by a user (FR-DEXP-08, FR-PINC-07).
+- Duplicate-counter-income-for-date warning, non-blocking (FR-CINC-04).
+- Audit-log writes wired for every create/edit/archive of these four entry types.
+
+### Tests
+- Vitest: validation schemas reject invalid amounts with correct field-level messages.
+- Integration tests: full CRUD + archive lifecycle for each of the four entry types, confirming `is_archived` is set rather than a row deleted.
+- Playwright e2e: enter a daily expense (including a Partner-funded one naming the partner), enter a full day of grid income by keyboard only (NFR-USE-02), enter a direct cash receipt, enter counter income twice for the same date and confirm the non-blocking warning appears.
+- Spot-check integration test: an Operator session cannot retrieve any endpoint exposing profit/loss/investment introduced so far (full AC-08 sweep happens in Phase 5 once all financial endpoints exist).
+
+### Risks
+- Keyboard-only grid navigation (NFR-USE-02) is genuinely fiddly to get right and easy to regress silently.
+- The "warn but never block" requirement (FR-CINC-04, FR-WARN-03 in spirit) is easy to accidentally implement as a hard validation error.
+- Confusing "archive" with "delete" in a UI copy or API name, undermining CON-04/DR-04.
+
+### Exit criteria
+- UC-02, UC-03, UC-04, UC-05 fully demonstrated.
+- FR-DEXP-01 to 09, FR-CINC-01 to 04, FR-PINC-02/06/07/08/09 implemented and tested.
+- Audit trail present and correct for every entry type in this phase.
+
+### Features that must not be implemented yet
+- No monthly expenses, assets, capital contributions, or investment statements (Phase 4).
+- No results/dashboard/reports/warnings screens (Phase 5) — beyond the running totals required by FR-DEXP-08/FR-PINC-07 themselves.
+- No offline entry or sync (Phase 6) — these screens are online-only until then.
+- No master-data admin CRUD (parties/items are consumed from Phase 1 seed data only; Phase 7 adds management UI).
+- FR-DEXP-10 (receipt photo attachment, priority C) and FR-CINC-05 (missing-day list, priority S) may be deferred to Phase 5 or later without blocking this phase's exit.
+
+---
+
+## Phase 4 — Monthly Expenses, Assets, and Partner Investment
+
+### Objective
+Build the Partner-only, monthly-cadence workflows: administration and purchasing expenses, monthly party billing, the asset register with its strict instalment/cash rule, capital contributions, and the partner investment statement.
+
+### Exact SRS requirement groups
+- FR-MEXP-01 to FR-MEXP-08.
+- FR-PINC-03 (monthly party bill entry — Partner-only per UC-07, distinct from the Operator-facing daily grid in Phase 3).
+- FR-AST-01 to FR-AST-10.
+- FR-INV-01 to FR-INV-07.
+- FR-AUD-01, FR-AUD-02 (extended to these entity types).
+- UC-06, UC-07, UC-08, UC-09, UC-11.
+
+### Deliverables
+- `/app/(partner)` monthly expenses screen: Administration and Purchasing entered separately, totalled together for display (FR-MEXP-04); the daily-expense total appears automatically as a **read-only** Purchasing line (FR-MEXP-03); recurring-line pre-fill from the previous month requiring confirmation (FR-MEXP-06); same-category-twice-in-a-month allowed with a warning (FR-MEXP-08).
+- Monthly party bill entry screen (FR-PINC-03), feeding the same per-party monthly total calculation as Phase 3's daily grid and cash receipts (FR-PINC-07, reused from `/lib/domain`).
+- Asset register CRUD: `INSTALMENT` vs `CASH` toggle enforced at form, API/Zod, and DB layers (FR-AST-07, DR-08); instalment assets auto-generate their monthly expense line each month with no partner tag (FR-AST-04, BR-09); cash assets record `purchased_by_user_id` and `purchase_price`, adding to that partner's investment, never an expense (FR-AST-06, BR-08); archiving an asset stops future instalment lines without altering past months (FR-AST-08).
+- Capital contribution entry (`INITIAL`/`INJECTION`/`DRAWING`) (FR-INV-03, FR-INV-04).
+- Partner investment statement: itemised, running-balance view combining capital contributions, partner-funded expenses, and cash-bought assets (FR-INV-05), visible to Partners/Admins only (FR-INV-07), never affecting the profit split (FR-INV-06).
+
+### Tests
+- Integration tests replicating the SRS §2.4 worked example exactly: a Business-paid utility bill reduces profit only; a Partner-paid utility bill leaves profit unchanged and raises that partner's investment; an instalment-purchased machine's monthly line reduces profit with no partner tag; a cash-purchased machine raises the buying partner's investment and is not an expense.
+- Asset constraint tests via the API layer (not just DB): reject an asset submitted as both modes or neither.
+- Playwright e2e: create an instalment asset and confirm its expense line appears the following month; create a cash asset and confirm it appears only in the investment statement; recurring monthly-expense pre-fill flow, requiring explicit confirmation before saving.
+
+### Risks
+- Auto-generating the instalment monthly-expense line (FR-AST-04) incorrectly — must generate exactly one line per active instalment asset per month, not a stored/duplicated row, and must respect "no month locking" (a past month's already-recorded instalment line is not silently regenerated or altered).
+- The recurring-line pre-fill (FR-MEXP-06) accidentally auto-saving instead of requiring confirmation.
+- Investment statement double-counting a cash asset or partner-funded expense if the aggregation function from Phase 1 isn't reused consistently.
+
+### Exit criteria
+- FR-MEXP-01 to 08, FR-AST-01 to 10, FR-INV-01 to 07, FR-PINC-03 implemented and tested.
+- AC-05 (funding-source rule) is demonstrable end-to-end for both daily and monthly expenses and both asset acquisition modes.
+
+### Features that must not be implemented yet
+- No results/profit-and-loss calculation screens or dashboard (Phase 5) — entries exist but are not yet summarized into a monthly result view.
+- No reports or exports (Phase 5).
+- No warnings engine (Phase 5), though the underlying data this phase produces is what Phase 5's warnings will read.
+- No offline entry or sync for these screens (Phase 6) — Partner workflows remain online-only until then.
+- No master-data admin CRUD or profit-split settings UI (Phase 7) — `app_settings` profit-split value is read here, not edited.
+
+---
+
+## Phase 5 — Calculations, Dashboard, Warnings, and Reports
+
+### Objective
+Assemble every entry type recorded so far into the actual monthly result, the dashboard, the warnings engine, and exports — and build the July 2026 reconciliation fixture as the project's permanent, most important regression test.
+
+### Exact SRS requirement groups
+- FR-RES-01 to FR-RES-11 (all).
+- FR-WARN-01 to FR-WARN-05 (all).
+- FR-RPT-01 to FR-RPT-09 (all).
+- FR-AUD-04, FR-AUD-05, FR-AUD-06 (change-history viewing — Partner-visible per UC-14, delivered here alongside the other Partner-facing analytical views).
+- NFR-MNT-06 (result-calculation test coverage, including funding-source rules and the July 2026 fixture).
+- NFR-PERF-04, NFR-PERF-05.
+- AC-02, AC-08 (full and final verification), AC-09, AC-10.
+- UC-10, UC-12, UC-13, UC-14, UC-18, UC-21.
+
+### Deliverables
+- Monthly summary / results screen: date range defaulting to the current calendar month, one-action step to previous/next month (FR-RES-02/03), itemised breakdown laid out in the same shape as the existing workbook (FR-RES-09/10), profit split applied from `app_settings` and shown per partner including for a loss (FR-RES-08).
+- Dashboard: current vs previous month (FR-RPT-01), outstanding warnings, and (placeholder until Phase 6) pending-upload count (FR-RPT-02).
+- Warnings engine: recurring categories missing this month (FR-WARN-01), active instalment assets missing this month's line (FR-WARN-02), non-blocking presentation on the dashboard (FR-WARN-03), marked variance from the previous month (FR-WARN-04, should), per-month dismissal (FR-WARN-05, should).
+- Reports: income/expense trend across recent months (FR-RPT-03), expenses by category marking partner-funded lines (FR-RPT-04), income by party (FR-RPT-05).
+- Exports: PDF formatted for A4 in the existing sheet's shape (FR-RPT-06), Excel with one sheet per data type (FR-RPT-07), every export stamped with date produced, range covered, and producing user (FR-RPT-08).
+- Change-history browsing: read-only, filterable list by user/date/record type (FR-AUD-04), per-record history view (FR-AUD-05), highlighting of edits to entries over a month old (FR-AUD-06, should).
+- Server-side withholding of every one of the above from `OPERATOR` (FR-RPT-09, FR-AUTH-04, NFR-SEC-04) — this is where AC-08 is closed out completely, since this is the first phase where every financial endpoint exists to test against.
+- **The July 2026 reconciliation fixture** (`/tests/fixtures`) and its Vitest test against the `/lib/domain` result calculation, asserting exactly: income Rs 1,495,535; expenses Rs 1,295,459; profit Rs 200,076; Rs 100,038 to each partner; daily-expense component Rs 171,190; daily-billing party income Rs 225,650.
+
+### Tests
+- **The AC-02 fixture test itself** — the single most important regression test in the codebase, per `CLAUDE.md` §21.
+- AC-09: date range demonstrated across a calendar-month boundary and over an arbitrary custom range.
+- AC-10: a missing recurring bill and a missing instalment line are both correctly flagged.
+- AC-13: PDF and Excel export content verified line-by-line against the underlying entries.
+- AC-08 full sweep: an automated test attempts every financial endpoint/report as an `OPERATOR` session and confirms all are refused server-side.
+- NFR-PERF-04/05: result calculation and export timing measured against their stated limits.
+
+### Risks
+- **Blocking risk, must be resolved before the headline test is written:** per `CLAUDE.md` §27 item 1, Appendix A's initial data (as loaded in Phase 1) sums to Rs 1,287,459 in expenses, not the Rs 1,295,459 AC-02 requires, because the corrected single `AT WASTE` line removes a duplicate Rs 8,000 that the *target* figures still include. Building the fixture against the literal Appendix A seed data will produce Rs 208,076 profit, not Rs 200,076. **Do not guess a resolution.** Raise this with the client first; the fixture's dataset (which may need to be distinct from the literal Phase 1 seed data) is only finalized once the client confirms which figure is correct.
+- Decimal-precision edge cases when the profit split isn't an even 50/50 (rounding remainders must be handled deterministically, not silently dropped).
+- PDF layout fidelity to the original A4 workbook shape is easy to under-scope.
+- Performance with realistic multi-year data volumes (NFR-PERF-06) is only partially testable here; full-scale testing is completed in Phase 8.
+
+### Exit criteria
+- The July 2026 fixture test passes and is committed as a permanent regression guard, only after the AT WASTE conflict above has been resolved with the client.
+- AC-02, AC-08, AC-09, AC-10, AC-13 all demonstrated.
+- FR-RES-01 to 11, FR-WARN-01 to 05, FR-RPT-01 to 09, FR-AUD-04 to 06 implemented and tested.
+
+### Features that must not be implemented yet
+- No offline entry, PWA installability, or sync (Phase 6) — the pending-upload count on the dashboard is stubbed/placeholder only until then, and "provisional figures while offline" (FR-OFF-12) does not apply yet since there is no offline mode.
+- No master-data admin CRUD or profit-split settings **editing** UI (Phase 7) — the split is read from `app_settings`, not configured here.
+- No historical Excel import (Phase 7).
+- No production deployment, backup/restore rehearsal, or handover documentation (Phase 8).
+
+---
+
+## Phase 6 — Offline Operation and Synchronization
+
+### Objective
+Deliver the single most technically demanding requirement in the specification (SRS §3.10): full offline entry for the four synchronizable entry types, automatic and manual upload, guaranteed-safe idempotent retry via the `client_uuid` established in Phase 1, and conflict handling that never silently discards data.
+
+**Offline synchronization is implemented only in this phase — no earlier phase builds any part of the offline queue, PWA shell, or sync client.**
+
+### Exact SRS requirement groups
+- FR-OFF-01 to FR-OFF-14 (all).
+- FR-AUD-08 (capture time and upload time recorded for offline-created entries).
+- NFR-REL-05, NFR-MNT-07, NFR-PERF-07, NFR-SEC-09.
+- AC-06, AC-07.
+- UC-01 (offline-aware sign-out warning), UC-20.
+
+### Deliverables
+- Progressive Web App shell: installable, loads without a network connection once installed (FR-OFF-01).
+- Dexie-backed local queue mirroring `daily_expenses`, `monthly_expenses`, `party_income`, `counter_income`, each entry assigned its `client_uuid` on the device at creation, before any network call (FR-OFF-02, FR-OFF-06 — the column itself already exists from Phase 1; this phase is where it is actually generated and used client-side).
+- Visible connection-state and pending-upload-count indicator on every screen (FR-OFF-03).
+- Automatic upload on connection return, plus a manual "upload now" control (FR-OFF-04, FR-OFF-05).
+- Server-side idempotency: repeated upload of the same `client_uuid` is recognized and ignored, never creating a duplicate (DR-05, AC-07).
+- Upload ordering by capture time (FR-OFF-07).
+- Conflict handling: where the same record was changed both on a device and on the server, both versions are kept and presented to the user to choose — neither is discarded automatically (FR-OFF-08).
+- Entries persist on the device indefinitely until uploaded or explicitly discarded by the user, surviving a browser close/reopen or device restart (FR-OFF-09, NFR-REL-05).
+- A warning before any action — including sign-out — that would discard entries not yet uploaded (FR-OFF-10, FR-AUTH-09).
+- Both `captured_at` (device time) and `synced_at` (server time) recorded per entry and in its audit-log entry (FR-OFF-11, FR-AUD-08, DR-02).
+- Figures shown while offline are visibly marked provisional (FR-OFF-12).
+- Reports and exports require a connection and are unavailable offline (FR-OFF-13).
+- The most recent 90 days of entries readable offline (FR-OFF-14, should).
+- Device-held offline data cleared on sign-out once nothing is pending (NFR-SEC-09).
+- `/docs/offline-sync.md` documenting the conflict-resolution strategy, backed by an ADR (`CLAUDE.md` §23).
+
+### Tests
+- **AC-06 end-to-end:** disable the network, make several entries across more than one entry type, close and reopen the browser, restore the connection, confirm every entry uploads exactly once.
+- **AC-07:** deliberately resend an already-uploaded `client_uuid` and confirm no duplicate row is created.
+- NFR-MNT-07: automated tests specifically for conflict handling (both-changed scenario) and for repeated-upload safety.
+- NFR-PERF-07: 200 entries queued offline upload within 30 seconds once reconnected.
+- Playwright: PWA install flow, offline-mode simulation, sign-out-with-pending-entries warning.
+
+### Risks
+- This is explicitly flagged in the SRS as the highest-risk, most technically demanding area — browser storage quirks, service-worker cache invalidation, and background-sync API inconsistencies across browsers/devices are all real risks to budget time for.
+- Conflict-resolution UX is easy to get functionally correct but confusing for reception staff under time pressure; must be validated with an actual walkthrough, not just automated tests.
+- Ensuring "reports require a connection" (FR-OFF-13) doesn't accidentally also block already-cached read-only entry views that Phase 6 is supposed to keep available (FR-OFF-14).
+
+### Exit criteria
+- FR-OFF-01 to 14 implemented and tested.
+- AC-06 and AC-07 demonstrated.
+- `/docs/offline-sync.md` written and the corresponding ADR recorded.
+
+### Features that must not be implemented yet
+- No master-data admin CRUD or profit-split settings UI (Phase 7).
+- No historical Excel import (Phase 7).
+- No production deployment, backup/restore rehearsal, or handover documentation (Phase 8).
+
+---
+
+## Phase 7 — Administration and Historical Import
+
+### Objective
+Give Admins control over master data, users, and the profit split, and deliver the one-time historical data import pipeline.
+
+### Exact SRS requirement groups
+- FR-MST-01 to FR-MST-07 (all).
+- FR-AUTH-03 (user management scope, specifically the Admin capability to manage accounts).
+- FR-IMP-01 to FR-IMP-04 (all).
+- UC-15, UC-16, UC-17.
+
+### Deliverables
+- `/app/(admin)` master-list management: parties (with billing-mode assignment), expense items, expense categories (marked recurring or not), vendors — add, rename, archive only, never delete (FR-MST-01 to 05).
+- User management: create/deactivate Operator, Partner, and Admin accounts (`is_active` toggle, never a hard delete of a user record).
+- Profit-split settings screen enforcing the two percentages sum to exactly 100 (FR-MST-06).
+- Historical data import: a defined Excel template (FR-IMP-01), upload-and-preview with validation errors marked before anything is saved (FR-IMP-02), all-or-nothing import — any failing row rejects the whole file (FR-IMP-03), imported records flagged as historical imports in the audit log (FR-IMP-04).
+
+### Tests
+- Archive tests confirming a renamed/archived party, item, category, or vendor never alters a figure already recorded against it (CON-05, BR-14, DR-06) — this is a hard constraint and must be proven, not assumed, given how central it is to the system's integrity.
+- Profit-split validation: rejects any submission where the two percentages don't sum to 100.
+- Import pipeline tests: a fully valid file imports cleanly; a file with one invalid row rejects the entire import with no partial write; imported rows are visibly tagged as historical in the audit log.
+- Playwright e2e: an Admin walkthrough covering master-list edits, a user deactivation, a profit-split change, and a historical import — contributing toward AC-14.
+
+### Risks
+- Import validation complexity for a multi-sheet Excel template — the all-or-nothing rule (FR-IMP-03) must be implemented as a single transaction, not a best-effort loop with manual rollback.
+- A profit-split change must only affect future views of the result, since no result is ever stored (DR-09) — confirm this is naturally satisfied by always applying the *current* `app_settings` value at calculation time, and flag to the client if retroactive/historical split versioning is ever expected (the SRS does not currently specify this; do not invent it).
+- Ensuring "archive" in the admin UI never becomes a UI affordance that reads as "delete" to the Admin, given how much historical integrity depends on it (CON-04).
+
+### Exit criteria
+- FR-MST-01 to 07, FR-IMP-01 to 04 implemented and tested.
+- An Admin end-to-end walkthrough (master data, users, profit split, import) completes without assistance.
+
+### Features that must not be implemented yet
+- No production deployment, backup/restore rehearsal, cross-browser/device compatibility pass, or handover documentation (Phase 8).
+- No new business features beyond what SRS §3.11/§3.14 and this phase's requirement groups specify — in particular, do not build instalment end dates, depreciation, or any other item from the out-of-scope list (`CLAUDE.md` §26) under cover of "admin flexibility."
+
+---
+
+## Phase 8 — Acceptance Testing, Deployment, and Handover
+
+### Objective
+Verify every acceptance criterion end to end, deploy to production, rehearse recovery, and hand over full documentation — closing out the project per SRS §12/§13.
+
+### Exact SRS requirement groups
+- AC-01 to AC-15 (all, full and final verification).
+- NFR-REL-01 to NFR-REL-07 (all).
+- NFR-CMP-01 to NFR-CMP-03 (all).
+- SRS §10 Documentation Deliverables (finalized, not skeleton).
+- SRS §12 Change Control, §13 Sign-Off.
+- Appendix A final data load verification against production.
+
+### Deliverables
+- Production deployment, cloud-hosted, with hosting cost kept to a minimum per CON-02.
+- Automated backups at least every 24 hours, retained at least 30 days with one monthly backup retained 12 months (NFR-REL-01/02).
+- A tested, documented backup-restore procedure, rehearsed into a clean environment (NFR-REL-03, AC-12).
+- Application error monitoring with enough context to diagnose issues (NFR-REL-06).
+- `/docs/deployment.md` finalized as a full runbook covering deployment, rollback, and backup restoration (NFR-MNT-04).
+- Every `/docs` deliverable finalized: `architecture.md`, `offline-sync.md`, `testing.md`, README, `.env.example`, all ADRs, `CHANGELOG.md`, the change-request log, the handover document (accounts, domain, hosting, renewal dates — passwords only ever in a password manager, never in a document), and one-page user guides for Operators and Partners (SRS §10).
+- At least two further historical months reconciled line by line against the client's workbooks, beyond July 2026 (AC-03).
+- Cross-browser/device compatibility verified: current and previous major Chrome/Edge/Firefox/Safari, Android 10+, iOS 15+, Excel exports opening correctly in Excel 2016+ and Google Sheets (NFR-CMP-01 to 03).
+
+### Tests
+- Full AC-01 to AC-15 checklist executed and recorded as the formal acceptance record.
+- AC-12: restore from an actual backup into a clean environment, demonstrated live.
+- AC-14: both partners and at least one reception operator complete an unaided walkthrough of their routine tasks.
+- Security pass across NFR-SEC-01 to 10: HTTPS-only with permanent redirect, encryption at rest, generic error messages with no stack traces or internal paths (NFR-SEC-10), OWASP Top 10 posture reviewed (NFR-SEC-06).
+- Performance sanity check at realistic multi-year data volume against NFR-PERF-01 to 07, especially NFR-PERF-06 (screens remain within limits with three years of accumulated data).
+
+### Risks
+- Backup/restore rehearsal is exactly the kind of check that surfaces late-discovered gaps — budget real time for it, don't treat it as a formality.
+- AC-03's two additional historical months could surface another reconciliation mismatch similar to the AT WASTE issue found in Phase 5's planning — if so, treat it identically: raise it with the client, do not silently adjust the fixture or the target to make it pass.
+- Hosting-tier choice creeping past CON-02's "kept to a minimum" instruction if sized for headroom rather than the SRS §4.1 sizing basis (a small-data system).
+
+### Exit criteria
+- Every AC-01 to AC-15 demonstrated and signed off per SRS §13.
+- Production is live, backed up, and monitored.
+- All documentation deliverables in SRS §10 are complete and handed over.
+
+### Features that must not be implemented yet
+- Nothing from `CLAUDE.md` §26's out-of-scope list is built at any point in this plan without a client-approved Change Request per SRS §12: payroll, bank integration, payment gateways, patient registration, diagnostic results, tax filing, accounting-package integration, asset depreciation, instalment end dates/outstanding balances, month closing/locking, capital/running-cost separation, partner reimbursement/settlement transfers, multiple currencies, multiple branches, native mobile apps, or an Urdu interface.
