@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Asset Register - LabFinance Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "on-tertiary": "#ffffff",
+                            "surface-container-highest": "#d3e4fe",
+                            "secondary-fixed-dim": "#adcae7",
+                            "secondary": "#46617a",
+                            "primary-fixed-dim": "#80d5cb",
+                            "on-surface-variant": "#3e4947",
+                            "on-secondary-fixed-variant": "#2e4961",
+                            "surface": "#f8f9ff",
+                            "on-error-container": "#93000a",
+                            "secondary-container": "#c3e0fe",
+                            "on-error": "#ffffff",
+                            "inverse-primary": "#80d5cb",
+                            "on-tertiary-fixed": "#07006c",
+                            "on-tertiary-container": "#eae8ff",
+                            "on-secondary-fixed": "#001d32",
+                            "surface-container": "#e5eeff",
+                            "on-secondary-container": "#48637d",
+                            "tertiary-fixed-dim": "#c0c1ff",
+                            "outline-variant": "#bdc9c6",
+                            "tertiary-container": "#5457e2",
+                            "inverse-on-surface": "#eaf1ff",
+                            "surface-container-low": "#eff4ff",
+                            "on-primary-fixed-variant": "#00504a",
+                            "primary-container": "#0f766e",
+                            "on-secondary": "#ffffff",
+                            "surface-bright": "#f8f9ff",
+                            "surface-tint": "#006a63",
+                            "on-primary-fixed": "#00201d",
+                            "surface-container-high": "#dce9ff",
+                            "on-primary-container": "#a3faef",
+                            "on-background": "#0b1c30",
+                            "on-tertiary-fixed-variant": "#2f2ebe",
+                            "inverse-surface": "#213145",
+                            "tertiary": "#3b3bc9",
+                            "surface-variant": "#d3e4fe",
+                            "primary-fixed": "#9cf2e8",
+                            "on-surface": "#0b1c30",
+                            "on-primary": "#ffffff",
+                            "error": "#ba1a1a",
+                            "surface-container-lowest": "#ffffff",
+                            "surface-dim": "#cbdbf5",
+                            "error-container": "#ffdad6",
+                            "outline": "#6e7977",
+                            "secondary-fixed": "#cde5ff",
+                            "primary": "#005c55",
+                            "background": "#f8f9ff",
+                            "tertiary-fixed": "#e1e0ff"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.125rem",
+                            "lg": "0.25rem",
+                            "xl": "0.5rem",
+                            "full": "0.75rem"
+                    },
+                    "spacing": {
+                            "touch-target-min": "44px",
+                            "header-height": "56px",
+                            "base": "4px",
+                            "gutter": "16px",
+                            "container-margin": "24px",
+                            "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                            "body-md": ["Inter"],
+                            "body-sm": ["Inter"],
+                            "label-caps": ["Inter"],
+                            "tabular-nums": ["Inter"],
+                            "display-lg": ["Inter"],
+                            "body-lg": ["Inter"],
+                            "headline-md": ["Inter"],
+                            "headline-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                            "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                            "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                            "tabular-nums": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                            "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                            "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                            "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Custom scrollbar for tables */
+        .table-scroll::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .table-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .table-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex antialiased">
+<!-- SideNavBar (Desktop Only) -->
+<nav class="hidden md:flex flex-col h-full py-gutter px-4 bg-on-background w-sidebar-width h-screen fixed left-0 top-0 transition-all duration-200 ease-in-out z-50 shadow-none border-none">
+<div class="flex items-center gap-3 mb-8 px-2 mt-2">
+<div class="w-8 h-8 rounded bg-primary-fixed-dim flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed font-bold filled">science</span>
+</div>
+<div>
+<h1 class="text-headline-sm font-headline-sm text-surface-bright">LabFinance Pro</h1>
+<p class="text-body-sm text-on-secondary-fixed-variant">Precision &amp; Control</p>
+</div>
+</div>
+<div class="flex flex-col gap-1 flex-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-[44px]" href="#">
+<span class="material-symbols-outlined group-hover:filled transition-all">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded border-l-2 border-primary-fixed-dim bg-secondary-container/10 text-primary-fixed-dim font-bold min-h-[44px]" href="#">
+<span class="material-symbols-outlined filled">inventory_2</span>
+<span class="font-body-md">Asset Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-[44px]" href="#">
+<span class="material-symbols-outlined group-hover:filled transition-all">account_balance_wallet</span>
+<span class="font-body-md">Financial Ledger</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-[44px]" href="#">
+<span class="material-symbols-outlined group-hover:filled transition-all">analytics</span>
+<span class="font-body-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-[44px]" href="#">
+<span class="material-symbols-outlined group-hover:filled transition-all">manage_accounts</span>
+<span class="font-body-md">User Management</span>
+</a>
+</div>
+<div class="mt-auto flex flex-col gap-1 border-t border-on-secondary-fixed-variant/30 pt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-[44px]" href="#">
+<span class="material-symbols-outlined group-hover:filled transition-all">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-[44px]" href="#">
+<span class="material-symbols-outlined group-hover:filled transition-all text-error/80 group-hover:text-error">logout</span>
+<span class="font-body-md">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col w-full md:ml-sidebar-width min-h-screen">
+<!-- TopNavBar (Desktop) -->
+<header class="hidden md:flex justify-between items-center px-gutter h-header-height sticky top-0 z-40 bg-surface border-b border-outline-variant shadow-none w-full">
+<div class="flex items-center gap-4">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Financial &amp; Asset Manager</h2>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full pl-10 pr-4 py-2 rounded bg-surface-container-low border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-all min-h-[44px] h-[44px]" placeholder="Search assets..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-[44px] h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant hover:text-primary cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">sync</span>
+</button>
+<button class="w-[44px] h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant hover:text-primary cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">cloud_upload</span>
+</button>
+<button class="w-[44px] h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container transition-colors text-on-surface-variant hover:text-primary cursor-pointer active:opacity-80 relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+</div>
+<div class="h-8 w-px bg-outline-variant mx-2"></div>
+<div class="w-[44px] h-[44px] rounded-full bg-surface-container-highest border border-outline-variant overflow-hidden cursor-pointer">
+<img alt="Administrator Profile" class="w-full h-full object-cover" data-alt="Professional headshot portrait of an administrator in a clinical or corporate setting, soft lighting, neutral background, looking confident and approachable. Professional UI avatar style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCfuL-t7i4EX17Q9_RALv6ewzyrPH--1Pc0jAFHzmAxgcCugNm82xmIAo_VWDy-OXCFTEpD4o-PV4iZS1h0shT44dSU0XiHEcfYKcsqhrRrYB51MtC_1uSiIub2su48fHsIWmCPyCxejoyeaOnHJMkXtJmyWBA1EXjx8nlHRw91-GZtB_IHNZIM9ol5ZKYiPA1nf1OxDTBdsE6FqQ0QRi5UBqbzax-jtYDewIqXDnzCuhvEb_1gdSpfbA"/>
+</div>
+</div>
+</header>
+<!-- Mobile Top App Bar -->
+<header class="md:hidden flex justify-between items-center px-4 h-[56px] sticky top-0 z-40 bg-surface border-b border-outline-variant">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary font-bold filled text-[18px]">science</span>
+</div>
+<h1 class="font-headline-sm text-headline-sm text-on-surface truncate">Asset Register</h1>
+</div>
+<button class="w-[44px] h-[44px] flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">search</span>
+</button>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 p-4 md:p-container-margin max-w-[1440px] mx-auto w-full flex flex-col gap-6 pb-24 md:pb-8">
+<!-- Page Header & Actions -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div>
+<h1 class="font-display-lg text-display-lg text-on-background">Asset Register</h1>
+<p class="font-body-md text-on-surface-variant mt-1">Manage and track laboratory equipment acquisition and status.</p>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2.5 rounded font-body-md font-medium hover:bg-primary-container transition-colors flex items-center gap-2 min-h-[44px] shadow-sm" onclick="toggleAddAssetForm()">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                    Add New Asset
+                </button>
+</div>
+<!-- Dashboard Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+<!-- Summary Card 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-5 flex flex-col justify-between">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-caps text-on-surface-variant uppercase tracking-wider">Total Assets</span>
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">biotech</span>
+</div>
+</div>
+<div class="font-tabular-nums text-[32px] font-bold text-on-background leading-none">142</div>
+<div class="mt-2 text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="text-primary flex items-center"><span class="material-symbols-outlined text-[14px]">arrow_upward</span> 12%</span> from last month
+                    </div>
+</div>
+<!-- Summary Card 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-5 flex flex-col justify-between">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-caps text-on-surface-variant uppercase tracking-wider">Total Value (PKR)</span>
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">account_balance</span>
+</div>
+</div>
+<div class="font-tabular-nums text-[24px] font-bold text-on-background leading-tight">45,250,000</div>
+<div class="mt-2 flex gap-2">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-highest text-[10px] font-medium text-on-surface"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Cash</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-highest text-[10px] font-medium text-on-surface"><span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b]"></span> Instalment</span>
+</div>
+</div>
+<!-- Explanation Banner (Takes 2 cols on desktop) -->
+<div class="md:col-span-2 bg-surface-container-low border border-outline-variant border-l-4 border-l-secondary rounded p-5 flex items-start gap-4">
+<span class="material-symbols-outlined text-secondary mt-0.5">info</span>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-1">Acquisition Strategy Impact</h3>
+<p class="font-body-md text-on-surface-variant">
+<strong>Instalments</strong> reduce immediate profit margins due to ongoing liabilities. 
+                            <strong>Partner cash purchases</strong> increase capital investment pool without creating long-term debt overhead for the lab.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Data Table Section -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded shadow-sm overflow-hidden flex flex-col flex-1">
+<!-- Table Toolbar -->
+<div class="px-5 py-4 border-b border-outline-variant flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface-bright">
+<div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+<button class="px-3 py-1.5 rounded bg-surface-container text-on-surface font-body-sm font-medium border border-outline-variant whitespace-nowrap min-h-[36px]">All Assets</button>
+<button class="px-3 py-1.5 rounded bg-transparent text-on-surface-variant hover:bg-surface-container-low font-body-sm whitespace-nowrap min-h-[36px]">Fixed</button>
+<button class="px-3 py-1.5 rounded bg-transparent text-on-surface-variant hover:bg-surface-container-low font-body-sm whitespace-nowrap min-h-[36px]">Movable</button>
+</div>
+<div class="flex items-center gap-3 w-full sm:w-auto">
+<button class="flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-on-surface min-h-[36px]">
+<span class="material-symbols-outlined text-[18px]">filter_list</span> Filter
+                        </button>
+<div class="h-4 w-px bg-outline-variant"></div>
+<button class="flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-on-surface min-h-[36px]">
+<span class="material-symbols-outlined text-[18px]">download</span> Export
+                        </button>
+</div>
+</div>
+<!-- Desktop Table View -->
+<div class="hidden md:block overflow-x-auto table-scroll">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-bright">
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10 w-[25%]">Asset Name</th>
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10">Type</th>
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10">Vendor</th>
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10">Acquisition</th>
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10">Mode</th>
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10 text-right">Value (PKR)</th>
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10 text-center">Status</th>
+<th class="py-3 px-5 font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-bright z-10 w-10"></th>
+</tr>
+</thead>
+<tbody class="font-body-sm divide-y divide-outline-variant/50">
+<!-- Row 1 -->
+<tr class="hover:bg-[#f1f5f9] transition-colors group">
+<td class="py-3 px-5 text-on-surface font-medium border-l-2 border-transparent group-hover:border-primary">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[16px]">vaccines</span>
+</div>
+<div>
+<div class="truncate">Hematology Analyzer X900</div>
+<div class="text-[11px] text-on-surface-variant">ID: LAB-EQ-042</div>
+</div>
+</div>
+</td>
+<td class="py-3 px-5 text-on-surface-variant">Fixed</td>
+<td class="py-3 px-5 text-on-surface-variant">Sysmex Corp</td>
+<td class="py-3 px-5 text-on-surface-variant font-tabular-nums">12 Oct 2023</td>
+<td class="py-3 px-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-secondary-container text-on-secondary-container">
+                                        Cash (Partner)
+                                    </span>
+</td>
+<td class="py-3 px-5 text-right font-tabular-nums text-on-surface">4,500,000</td>
+<td class="py-3 px-5 text-center">
+<div class="flex items-center justify-center gap-1.5 text-on-surface">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span> Online
+                                    </div>
+</td>
+<td class="py-3 px-5 text-right">
+<button class="text-on-surface-variant hover:text-on-surface opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-[#f1f5f9] transition-colors group">
+<td class="py-3 px-5 text-on-surface font-medium border-l-2 border-transparent group-hover:border-primary">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[16px]">science</span>
+</div>
+<div>
+<div class="truncate">Centrifuge 5424 R</div>
+<div class="text-[11px] text-on-surface-variant">ID: LAB-EQ-108</div>
+</div>
+</div>
+</td>
+<td class="py-3 px-5 text-on-surface-variant">Movable</td>
+<td class="py-3 px-5 text-on-surface-variant">Eppendorf</td>
+<td class="py-3 px-5 text-on-surface-variant font-tabular-nums">05 Nov 2023</td>
+<td class="py-3 px-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-surface-container-highest border border-outline-variant text-on-surface">
+                                        Instalment
+                                    </span>
+</td>
+<td class="py-3 px-5 text-right font-tabular-nums text-on-surface">125,000 /mo</td>
+<td class="py-3 px-5 text-center">
+<div class="flex items-center justify-center gap-1.5 text-on-surface">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span> Online
+                                    </div>
+</td>
+<td class="py-3 px-5 text-right">
+<button class="text-on-surface-variant hover:text-on-surface opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 (Offline) -->
+<tr class="hover:bg-[#f1f5f9] transition-colors group">
+<td class="py-3 px-5 text-on-surface font-medium border-l-2 border-transparent group-hover:border-primary">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[16px]">kitchen</span>
+</div>
+<div>
+<div class="truncate">Ultra-Low Freezer</div>
+<div class="text-[11px] text-on-surface-variant">ID: LAB-EQ-012</div>
+</div>
+</div>
+</td>
+<td class="py-3 px-5 text-on-surface-variant">Fixed</td>
+<td class="py-3 px-5 text-on-surface-variant">Thermo Fisher</td>
+<td class="py-3 px-5 text-on-surface-variant font-tabular-nums">15 Jan 2022</td>
+<td class="py-3 px-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-secondary-container text-on-secondary-container">
+                                        Cash
+                                    </span>
+</td>
+<td class="py-3 px-5 text-right font-tabular-nums text-on-surface">1,200,000</td>
+<td class="py-3 px-5 text-center">
+<div class="flex items-center justify-center gap-1.5 text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span> Maint.
+                                    </div>
+</td>
+<td class="py-3 px-5 text-right">
+<button class="text-on-surface-variant hover:text-on-surface opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Mobile Card View -->
+<div class="md:hidden flex flex-col divide-y divide-outline-variant">
+<!-- Mobile Card 1 -->
+<div class="p-4 flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">vaccines</span>
+</div>
+<div>
+<div class="font-medium text-on-surface">Hematology Analyzer X900</div>
+<div class="text-body-sm text-on-surface-variant">Sysmex Corp • Fixed</div>
+</div>
+</div>
+<button class="w-[44px] h-[44px] -mr-2 -mt-2 flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="flex justify-between items-center bg-surface-bright p-2 rounded border border-outline-variant">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Value / Mode</span>
+<span class="font-tabular-nums text-sm font-medium">4,500,000 <span class="text-xs font-normal text-on-surface-variant ml-1">(Cash)</span></span>
+</div>
+<div class="flex items-center gap-1.5 text-body-sm">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span> Online
+                            </div>
+</div>
+</div>
+<!-- Mobile Card 2 -->
+<div class="p-4 flex flex-col gap-3 border-t-2 border-t-tertiary">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">science</span>
+</div>
+<div>
+<div class="font-medium text-on-surface">Centrifuge 5424 R</div>
+<div class="text-body-sm text-on-surface-variant">Eppendorf • Movable</div>
+</div>
+</div>
+<button class="w-[44px] h-[44px] -mr-2 -mt-2 flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="flex justify-between items-center bg-surface-bright p-2 rounded border border-outline-variant">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Value / Mode</span>
+<span class="font-tabular-nums text-sm font-medium">125,000/mo <span class="text-xs font-normal text-on-surface-variant ml-1">(Instal.)</span></span>
+</div>
+<div class="flex items-center gap-1.5 text-body-sm">
+<span class="w-2 h-2 rounded-full bg-[#10b981]"></span> Online
+                            </div>
+</div>
+</div>
+</div>
+<!-- Pagination Footer -->
+<div class="px-5 py-3 border-t border-outline-variant bg-surface-bright flex justify-between items-center text-body-sm text-on-surface-variant mt-auto">
+<div>Showing 1-10 of 142</div>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-container disabled:opacity-50 min-h-[44px] min-w-[44px]" disabled="">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-container min-h-[44px] min-w-[44px]">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Bottom Navigation Bar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-[64px] bg-surface border-t border-outline-variant flex justify-around items-center z-50 px-2 pb-safe">
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px] mb-1">dashboard</span>
+<span class="text-[10px] font-medium">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-primary font-bold" href="#">
+<div class="px-4 py-1 rounded-full bg-secondary-container/30 mb-1">
+<span class="material-symbols-outlined text-[24px] filled">inventory_2</span>
+</div>
+<span class="text-[10px] font-medium">Assets</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px] mb-1">account_balance_wallet</span>
+<span class="text-[10px] font-medium">Ledger</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px] mb-1">menu</span>
+<span class="text-[10px] font-medium">More</span>
+</a>
+</nav>
+<!-- Floating Action Button (Mobile Only) -->
+<button class="md:hidden fixed bottom-[80px] right-4 w-[56px] h-[56px] bg-primary text-on-primary rounded-xl shadow-lg flex items-center justify-center z-40 hover:bg-primary-container transition-colors active:scale-95" onclick="toggleAddAssetForm()">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+<!-- Add Asset Form Modal / Side Panel -->
+<div class="fixed inset-0 z-[100] hidden" id="addAssetModal">
+<!-- Backdrop -->
+<div class="absolute inset-0 bg-on-background/40 backdrop-blur-sm transition-opacity" onclick="toggleAddAssetForm()"></div>
+<!-- Panel -->
+<div class="absolute right-0 top-0 h-full w-full max-w-md bg-surface-container-lowest shadow-2xl border-l border-outline-variant flex flex-col transform transition-transform duration-300 translate-x-full" id="addAssetPanel">
+<!-- Header -->
+<div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center bg-surface-bright">
+<h2 class="font-headline-md text-headline-md text-on-background">Add New Asset</h2>
+<button class="w-[44px] h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant transition-colors" onclick="toggleAddAssetForm()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Form Content -->
+<div class="flex-1 overflow-y-auto p-6">
+<form class="flex flex-col gap-5">
+<!-- Asset Basic Info -->
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-1">Asset Name</label>
+<input class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface min-h-[44px]" placeholder="e.g. Mass Spectrometer" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-1">Type</label>
+<select class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface min-h-[44px]">
+<option>Fixed</option>
+<option>Movable</option>
+</select>
+</div>
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-1">Vendor</label>
+<input class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface min-h-[44px]" placeholder="Vendor name" type="text"/>
+</div>
+</div>
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-1">Acquisition Date</label>
+<input class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface min-h-[44px]" type="date"/>
+</div>
+<hr class="border-outline-variant/50 my-2"/>
+<!-- Acquisition Mode Toggle -->
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-2">Acquisition Mode</label>
+<div class="flex bg-surface-container rounded p-1">
+<button class="flex-1 py-2 text-sm font-medium rounded shadow-sm bg-surface-container-lowest text-on-surface min-h-[44px] transition-all" id="btnModeCash" onclick="setAcquisitionMode('cash')" type="button">Cash Purchase</button>
+<button class="flex-1 py-2 text-sm font-medium rounded text-on-surface-variant hover:text-on-surface min-h-[44px] transition-all" id="btnModeInstalment" onclick="setAcquisitionMode('instalment')" type="button">Instalment</button>
+</div>
+</div>
+<!-- Conditional Fields: Cash -->
+<div class="flex flex-col gap-5 transition-all" id="fieldsCash">
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-1">Total Price (PKR)</label>
+<input class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface font-tabular-nums min-h-[44px]" placeholder="0.00" type="number"/>
+</div>
+<div class="p-4 rounded border border-outline-variant bg-surface-bright flex flex-col gap-3">
+<label class="flex items-center gap-2 cursor-pointer min-h-[44px]">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary" id="checkPartner" onchange="togglePartnerField()" type="checkbox"/>
+<span class="font-body-sm text-on-surface">Funded by Partner (Increases Investment)</span>
+</label>
+<div class="hidden" id="fieldPartnerName">
+<label class="block font-body-sm font-medium text-on-surface mb-1">Partner Name</label>
+<select class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface min-h-[44px]">
+<option>Select Partner...</option>
+<option>Global Health Initiative</option>
+<option>MediCorp Holdings</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Conditional Fields: Instalment -->
+<div class="hidden flex-col gap-5 transition-all" id="fieldsInstalment">
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-1">Monthly Amount (PKR)</label>
+<input class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface font-tabular-nums min-h-[44px]" placeholder="0.00" type="number"/>
+</div>
+<div>
+<label class="block font-body-sm font-medium text-on-surface mb-1">Duration (Months)</label>
+<input class="w-full px-3 py-2 rounded bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md text-on-surface font-tabular-nums min-h-[44px]" placeholder="12" type="number"/>
+</div>
+</div>
+<div class="p-3 rounded bg-surface-container-low border-l-2 border-secondary text-body-sm text-on-surface-variant flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary shrink-0">warning</span>
+<span>Note: Instalment payments will be automatically deducted from monthly profit margins.</span>
+</div>
+</div>
+</form>
+</div>
+<!-- Footer Actions -->
+<div class="px-6 py-4 border-t border-outline-variant bg-surface flex justify-end gap-3">
+<button class="px-4 py-2 rounded border border-outline-variant text-secondary font-medium hover:bg-surface-container-low transition-colors min-h-[44px]" onclick="toggleAddAssetForm()" type="button">Cancel</button>
+<button class="px-5 py-2 rounded bg-primary text-on-primary font-medium hover:bg-primary-container transition-colors min-h-[44px]" type="button">Save Asset</button>
+</div>
+</div>
+</div>
+<script>
+        // Micro-interactions for form logic
+        function toggleAddAssetForm() {
+            const modal = document.getElementById('addAssetModal');
+            const panel = document.getElementById('addAssetPanel');
+            
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                // Small delay to allow display:block to apply before animating transform
+                setTimeout(() => {
+                    panel.classList.remove('translate-x-full');
+                }, 10);
+            } else {
+                panel.classList.add('translate-x-full');
+                // Wait for animation to finish before hiding
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        function setAcquisitionMode(mode) {
+            const btnCash = document.getElementById('btnModeCash');
+            const btnInstalment = document.getElementById('btnModeInstalment');
+            const fieldsCash = document.getElementById('fieldsCash');
+            const fieldsInstalment = document.getElementById('fieldsInstalment');
+
+            const activeClass = ['bg-surface-container-lowest', 'shadow-sm', 'text-on-surface'];
+            const inactiveClass = ['bg-transparent', 'text-on-surface-variant', 'shadow-none'];
+
+            if (mode === 'cash') {
+                btnCash.classList.add(...activeClass);
+                btnCash.classList.remove(...inactiveClass);
+                btnInstalment.classList.remove(...activeClass);
+                btnInstalment.classList.add(...inactiveClass);
+                
+                fieldsCash.classList.remove('hidden');
+                fieldsCash.classList.add('flex');
+                fieldsInstalment.classList.add('hidden');
+                fieldsInstalment.classList.remove('flex');
+            } else {
+                btnInstalment.classList.add(...activeClass);
+                btnInstalment.classList.remove(...inactiveClass);
+                btnCash.classList.remove(...activeClass);
+                btnCash.classList.add(...inactiveClass);
+                
+                fieldsInstalment.classList.remove('hidden');
+                fieldsInstalment.classList.add('flex');
+                fieldsCash.classList.add('hidden');
+                fieldsCash.classList.remove('flex');
+            }
+        }
+
+        function togglePartnerField() {
+            const checkbox = document.getElementById('checkPartner');
+            const field = document.getElementById('fieldPartnerName');
+            
+            if (checkbox.checked) {
+                field.classList.remove('hidden');
+            } else {
+                field.classList.add('hidden');
+            }
+        }
+    </script>
+</body></html>

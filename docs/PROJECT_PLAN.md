@@ -65,7 +65,7 @@ Stand up the engineering scaffolding — tooling, validation commands, documenta
 ## Phase 1 — Database and Domain Foundation
 
 ### Objective
-Implement the full 12-table Prisma schema exactly as specified in SRS §6, with every data-integrity rule enforced at the database level, and implement the pure, framework-agnostic calculation logic in `/lib/domain` — unit-testable without a server or live database.
+Implement the full 12-table Prisma schema exactly as specified in SRS §6, with every data-integrity rule enforced at the database level, and implement the pure, framework-agnostic calculation logic in `src/lib/domain` — unit-testable without a server or live database.
 
 ### Exact SRS requirement groups
 - SRS §6 Database Design — all twelve tables: `users`, `parties`, `expense_items`, `expense_categories`, `vendors`, `daily_expenses`, `monthly_expenses`, `party_income`, `counter_income`, `assets`, `capital_contributions`, `audit_log`, `app_settings`.
@@ -79,14 +79,14 @@ Implement the full 12-table Prisma schema exactly as specified in SRS §6, with 
 - Database `CHECK` constraints: `funding_source = PARTNER` requires `funded_by_user_id` (DR-07); asset `acquisition_mode` requires exactly one of `monthly_instalment` or (`purchase_price` + `purchased_by_user_id`), never both, never neither (DR-08).
 - `is_archived` on every financial and master-data table (DR-04, DR-06).
 - Initial migration(s), committed alongside the schema.
-- `/lib/domain` pure functions: funding-source rule application, total income/expense aggregation, net profit/loss, profit-split division, partner investment aggregation — all operating on `Decimal`, all framework-agnostic (no Next.js or Prisma client import required to unit-test).
+- `src/lib/domain` pure functions: funding-source rule application, total income/expense aggregation, net profit/loss, profit-split division, partner investment aggregation — all operating on `Decimal`, all framework-agnostic (no Next.js or Prisma client import required to unit-test).
 - Seed script loading Appendix A master data (parties, expense items, administration categories, vendors, initial users, default 50/50 profit split in `app_settings`) — data only, no CRUD UI yet.
 
 ### Tests
 - `npx prisma validate` and `npx prisma format` pass.
 - Migration applies cleanly to a fresh Postgres instance and is reversible.
 - Constraint tests: inserting a `PARTNER`-funded expense with no `funded_by_user_id` fails; inserting an asset with both `monthly_instalment` and `purchase_price` fails; inserting an asset with neither fails.
-- Vitest unit tests for every `/lib/domain` function against small synthetic (non-July-2026) fixtures, confirming `Decimal` arithmetic (no float coercion) and correct application of BR-01 to BR-15.
+- Vitest unit tests for every `src/lib/domain` function against small synthetic (non-July-2026) fixtures, confirming `Decimal` arithmetic (no float coercion) and correct application of BR-01 to BR-15.
 
 ### Risks
 - Getting the `CHECK` constraint syntax wrong for the funding-source and acquisition-mode rules (DR-07/DR-08) — these must be proven with failing-insert tests, not just declared.
@@ -96,7 +96,7 @@ Implement the full 12-table Prisma schema exactly as specified in SRS §6, with 
 ### Exit criteria
 - Full schema matches SRS §6 table-for-table, column-for-column.
 - Every DR-01 to DR-09 rule is enforced and proven by a failing-insert or type-level test.
-- `/lib/domain` functions are unit-tested and importable with no server or HTTP context.
+- `src/lib/domain` functions are unit-tested and importable with no server or HTTP context.
 - Seed script loads Appendix A data without error.
 
 ### Features that must not be implemented yet
@@ -123,7 +123,7 @@ Implement sign-in, session management, and the three-role permission model (`OPE
 - Better Auth configuration: email/password sign-in, password hashing per FR-AUTH-02, single-use password-reset link expiring after 60 minutes (FR-AUTH-06).
 - Session persistence for 30 days (FR-AUTH-05); HTTP-only, Secure, SameSite cookies (NFR-SEC-08).
 - Account lockout after 10 consecutive failed sign-ins (FR-AUTH-07).
-- `/lib/auth` role-guard helpers (`requireRole`, session verification) usable identically from API routes and server actions — the single place every later endpoint calls into (FR-AUTH-08, NFR-SEC-03).
+- `src/lib/auth` role-guard helpers (`requireRole`, session verification) usable identically from API routes and server actions — the single place every later endpoint calls into (FR-AUTH-08, NFR-SEC-03).
 - Sign-out that ends the server session, with a placeholder hook for the Phase 6 "entries waiting to upload" warning (FR-AUTH-09).
 - `audit_log` writes for `LOGIN`, failed login, and password-change events (FR-AUD-07).
 - A minimal placeholder protected route per role, used only to prove the guard works end-to-end.
@@ -170,10 +170,10 @@ Build the day-to-day entry screens used by reception staff: daily expenses, dail
 - UC-02, UC-03, UC-04, UC-05.
 
 ### Deliverables
-- `/app/(operator)` routes: daily expenses (list + add/edit/archive with running total), daily-billing party income grid (keyboard-operable, matching workbook layout), direct cash receipt form, counter income daily entry.
-- `/lib/validation` Zod schemas for each entry type, rejecting zero/negative/non-numeric amounts with field-level errors (FR-DEXP-06).
+- `src/app/(operator)` routes: daily expenses (list + add/edit/archive with running total), daily-billing party income grid (keyboard-operable, matching workbook layout), direct cash receipt form, counter income daily entry.
+- `src/lib/validation` Zod schemas for each entry type, rejecting zero/negative/non-numeric amounts with field-level errors (FR-DEXP-06).
 - Archive actions requiring confirmation naming the specific record (NFR-USE-06); no physical deletion.
-- Running totals computed via the Phase 1 `/lib/domain` functions, never typed by a user (FR-DEXP-08, FR-PINC-07).
+- Running totals computed via the Phase 1 `src/lib/domain` functions, never typed by a user (FR-DEXP-08, FR-PINC-07).
 - Duplicate-counter-income-for-date warning, non-blocking (FR-CINC-04).
 - Audit-log writes wired for every create/edit/archive of these four entry types.
 
@@ -216,8 +216,8 @@ Build the Partner-only, monthly-cadence workflows: administration and purchasing
 - UC-06, UC-07, UC-08, UC-09, UC-11.
 
 ### Deliverables
-- `/app/(partner)` monthly expenses screen: Administration and Purchasing entered separately, totalled together for display (FR-MEXP-04); the daily-expense total appears automatically as a **read-only** Purchasing line (FR-MEXP-03); recurring-line pre-fill from the previous month requiring confirmation (FR-MEXP-06); same-category-twice-in-a-month allowed with a warning (FR-MEXP-08).
-- Monthly party bill entry screen (FR-PINC-03), feeding the same per-party monthly total calculation as Phase 3's daily grid and cash receipts (FR-PINC-07, reused from `/lib/domain`).
+- `src/app/(partner)` monthly expenses screen: Administration and Purchasing entered separately, totalled together for display (FR-MEXP-04); the daily-expense total appears automatically as a **read-only** Purchasing line (FR-MEXP-03); recurring-line pre-fill from the previous month requiring confirmation (FR-MEXP-06); same-category-twice-in-a-month allowed with a warning (FR-MEXP-08).
+- Monthly party bill entry screen (FR-PINC-03), feeding the same per-party monthly total calculation as Phase 3's daily grid and cash receipts (FR-PINC-07, reused from `src/lib/domain`).
 - Asset register CRUD: `INSTALMENT` vs `CASH` toggle enforced at form, API/Zod, and DB layers (FR-AST-07, DR-08); instalment assets auto-generate their monthly expense line each month with no partner tag (FR-AST-04, BR-09); cash assets record `purchased_by_user_id` and `purchase_price`, adding to that partner's investment, never an expense (FR-AST-06, BR-08); archiving an asset stops future instalment lines without altering past months (FR-AST-08).
 - Capital contribution entry (`INITIAL`/`INJECTION`/`DRAWING`) (FR-INV-03, FR-INV-04).
 - Partner investment statement: itemised, running-balance view combining capital contributions, partner-funded expenses, and cash-bought assets (FR-INV-05), visible to Partners/Admins only (FR-INV-07), never affecting the profit split (FR-INV-06).
@@ -268,7 +268,7 @@ Assemble every entry type recorded so far into the actual monthly result, the da
 - Exports: PDF formatted for A4 in the existing sheet's shape (FR-RPT-06), Excel with one sheet per data type (FR-RPT-07), every export stamped with date produced, range covered, and producing user (FR-RPT-08).
 - Change-history browsing: read-only, filterable list by user/date/record type (FR-AUD-04), per-record history view (FR-AUD-05), highlighting of edits to entries over a month old (FR-AUD-06, should).
 - Server-side withholding of every one of the above from `OPERATOR` (FR-RPT-09, FR-AUTH-04, NFR-SEC-04) — this is where AC-08 is closed out completely, since this is the first phase where every financial endpoint exists to test against.
-- **The July 2026 reconciliation fixture** (`/tests/fixtures`) and its Vitest test against the `/lib/domain` result calculation, asserting exactly: income Rs 1,495,535; expenses Rs 1,295,459; profit Rs 200,076; Rs 100,038 to each partner; daily-expense component Rs 171,190; daily-billing party income Rs 225,650.
+- **The July 2026 reconciliation fixture** (`/tests/fixtures`) and its Vitest test against the `src/lib/domain` result calculation, asserting exactly: income Rs 1,495,535; expenses Rs 1,295,459; profit Rs 200,076; Rs 100,038 to each partner; daily-expense component Rs 171,190; daily-billing party income Rs 225,650.
 
 ### Tests
 - **The AC-02 fixture test itself** — the single most important regression test in the codebase, per `CLAUDE.md` §21.
@@ -364,7 +364,7 @@ Give Admins control over master data, users, and the profit split, and deliver t
 - UC-15, UC-16, UC-17.
 
 ### Deliverables
-- `/app/(admin)` master-list management: parties (with billing-mode assignment), expense items, expense categories (marked recurring or not), vendors — add, rename, archive only, never delete (FR-MST-01 to 05).
+- `src/app/(admin)` master-list management: parties (with billing-mode assignment), expense items, expense categories (marked recurring or not), vendors — add, rename, archive only, never delete (FR-MST-01 to 05).
 - User management: create/deactivate Operator, Partner, and Admin accounts (`is_active` toggle, never a hard delete of a user record).
 - Profit-split settings screen enforcing the two percentages sum to exactly 100 (FR-MST-06).
 - Historical data import: a defined Excel template (FR-IMP-01), upload-and-preview with validation errors marked before anything is saved (FR-IMP-02), all-or-nothing import — any failing row rejects the whole file (FR-IMP-03), imported records flagged as historical imports in the audit log (FR-IMP-04).

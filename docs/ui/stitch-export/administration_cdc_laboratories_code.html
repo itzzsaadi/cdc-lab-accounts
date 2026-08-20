@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Administration Area - LabFinance Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "on-tertiary": "#ffffff",
+                            "surface-container-highest": "#d3e4fe",
+                            "secondary-fixed-dim": "#adcae7",
+                            "secondary": "#46617a",
+                            "primary-fixed-dim": "#80d5cb",
+                            "on-surface-variant": "#3e4947",
+                            "on-secondary-fixed-variant": "#2e4961",
+                            "surface": "#f8f9ff",
+                            "on-error-container": "#93000a",
+                            "secondary-container": "#c3e0fe",
+                            "on-error": "#ffffff",
+                            "inverse-primary": "#80d5cb",
+                            "on-tertiary-fixed": "#07006c",
+                            "on-tertiary-container": "#eae8ff",
+                            "on-secondary-fixed": "#001d32",
+                            "surface-container": "#e5eeff",
+                            "on-secondary-container": "#48637d",
+                            "tertiary-fixed-dim": "#c0c1ff",
+                            "outline-variant": "#bdc9c6",
+                            "tertiary-container": "#5457e2",
+                            "inverse-on-surface": "#eaf1ff",
+                            "surface-container-low": "#eff4ff",
+                            "on-primary-fixed-variant": "#00504a",
+                            "primary-container": "#0f766e",
+                            "on-secondary": "#ffffff",
+                            "surface-bright": "#f8f9ff",
+                            "surface-tint": "#006a63",
+                            "on-primary-fixed": "#00201d",
+                            "surface-container-high": "#dce9ff",
+                            "on-primary-container": "#a3faef",
+                            "on-background": "#0b1c30",
+                            "on-tertiary-fixed-variant": "#2f2ebe",
+                            "inverse-surface": "#213145",
+                            "tertiary": "#3b3bc9",
+                            "surface-variant": "#d3e4fe",
+                            "primary-fixed": "#9cf2e8",
+                            "on-surface": "#0b1c30",
+                            "on-primary": "#ffffff",
+                            "error": "#ba1a1a",
+                            "surface-container-lowest": "#ffffff",
+                            "surface-dim": "#cbdbf5",
+                            "error-container": "#ffdad6",
+                            "outline": "#6e7977",
+                            "secondary-fixed": "#cde5ff",
+                            "primary": "#005c55",
+                            "background": "#f8f9ff",
+                            "tertiary-fixed": "#e1e0ff"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.125rem",
+                            "lg": "0.25rem",
+                            "xl": "0.5rem",
+                            "full": "0.75rem"
+                    },
+                    "spacing": {
+                            "touch-target-min": "44px",
+                            "header-height": "56px",
+                            "base": "4px",
+                            "gutter": "16px",
+                            "container-margin": "24px",
+                            "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                            "body-md": ["Inter"],
+                            "body-sm": ["Inter"],
+                            "label-caps": ["Inter"],
+                            "tabular-nums": ["Inter"],
+                            "display-lg": ["Inter"],
+                            "body-lg": ["Inter"],
+                            "headline-md": ["Inter"],
+                            "headline-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                            "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                            "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                            "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                            "tabular-nums": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                            "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                            "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                            "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                            "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Custom scrollbar for data tables */
+        .table-scroll::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .table-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .table-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen overflow-hidden flex">
+<!-- SideNavBar (from JSON) -->
+<nav class="hidden md:flex flex-col h-full py-gutter px-4 bg-on-background w-sidebar-width fixed left-0 top-0 z-50 transition-all duration-200 ease-in-out">
+<!-- Brand/Header -->
+<div class="mb-8 px-2 flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-primary-fixed-dim flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-background" data-icon="science">science</span>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm text-surface-bright">LabFinance Pro</h1>
+<p class="font-body-sm text-body-sm text-primary-fixed-dim opacity-80">Precision &amp; Control</p>
+</div>
+</div>
+<!-- Main Navigation Tabs -->
+<div class="flex flex-col gap-2 flex-grow">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-body-md text-body-md">Asset Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Financial Ledger</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-body-md text-body-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded border-l-2 border-primary-fixed-dim bg-secondary-container/10 text-primary-fixed-dim font-bold min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined icon-fill" data-icon="manage_accounts">manage_accounts</span>
+<span class="font-body-md text-body-md">User Management</span>
+</a>
+</div>
+<!-- Footer Navigation Tabs -->
+<div class="flex flex-col gap-2 mt-auto pt-4 border-t border-on-secondary-fixed-variant/30">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-secondary-fixed-variant hover:text-surface-bright transition-colors hover:bg-on-secondary-fixed-variant group min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-body-md text-body-md">Logout</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex flex-col w-full md:ml-sidebar-width h-full bg-surface">
+<!-- TopNavBar (from JSON) -->
+<header class="h-header-height sticky top-0 z-40 bg-surface border-b border-outline-variant flex justify-between items-center px-gutter w-full">
+<div class="flex items-center gap-4">
+<!-- Mobile Menu Toggle (hidden on desktop) -->
+<button class="md:hidden p-2 text-on-surface min-h-touch-target-min">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">Financial &amp; Asset Manager</h2>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-full text-body-md font-body-md focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-all h-[44px]" placeholder="Search..." type="text"/>
+</div>
+<div class="flex items-center gap-1 ml-2">
+<button aria-label="Sync" class="p-2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80 rounded-full hover:bg-surface-container-low min-h-touch-target-min min-w-[44px] flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="sync">sync</span>
+</button>
+<button aria-label="Upload" class="p-2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80 rounded-full hover:bg-surface-container-low min-h-touch-target-min min-w-[44px] flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+</button>
+<button aria-label="Notifications" class="p-2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80 rounded-full hover:bg-surface-container-low min-h-touch-target-min min-w-[44px] flex items-center justify-center relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="ml-2 pl-2 border-l border-outline-variant">
+<img alt="Administrator Profile" class="w-10 h-10 rounded-full object-cover border border-outline-variant cursor-pointer" data-alt="Professional headshot of a lab administrator, clean background, modern lighting, sharp focus, conveying competence and reliability." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiKD7LbEcj7PEmRDc3pLJY2ckP7jQZYb-pChGejHphGoueeWe9KgQKo3mql1QFQH6GXtn5vtA6A1008wKhqXOp5Ee34DI0i0LRSEIDE7C73n9bYFHMk0UBBJthSsKOx_bERoAgYcCxGQ3_tkHyYMVv-RV8b8L-do9Hzs-yQuMRVj3ZEkUL3UpsBlyAun07Gw3uoVsc-EQ3E3Ut1y7EO_EiVYA6c73DcU1Oa3oJ-drIW7Agzv9yd714OQ"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Page Content Canvas -->
+<main class="flex-1 overflow-y-auto p-container-margin relative">
+<div class="max-w-[1440px] mx-auto">
+<!-- Page Header & Tabs -->
+<div class="mb-6">
+<h2 class="font-display-lg text-display-lg text-on-background mb-1">Administration Area</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">Manage system settings, users, and data imports.</p>
+<!-- Nav Tabs (Administration Sub-nav) -->
+<div class="flex overflow-x-auto border-b border-outline-variant hide-scrollbar gap-6">
+<button class="font-body-md text-body-md text-primary font-bold border-b-2 border-primary pb-3 px-1 min-h-[44px] whitespace-nowrap">Users</button>
+<button class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-3 px-1 min-h-[44px] whitespace-nowrap">Parties</button>
+<button class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-3 px-1 min-h-[44px] whitespace-nowrap">Expense Items</button>
+<button class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-3 px-1 min-h-[44px] whitespace-nowrap">Vendors</button>
+<button class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-3 px-1 min-h-[44px] whitespace-nowrap">Profit Split</button>
+<button class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors pb-3 px-1 min-h-[44px] whitespace-nowrap">Historical Import</button>
+</div>
+</div>
+<!-- Bento Grid Layout for Admin Sections -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- User Management Section (Spans 2 columns on large screens) -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl p-5 flex flex-col h-[500px]">
+<div class="flex justify-between items-center mb-4">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-background flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="group">group</span>
+                                    User Management
+                                </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Manage system access and roles.</p>
+</div>
+<button class="bg-primary text-on-primary font-tabular-nums text-tabular-nums px-4 py-2 rounded-lg hover:bg-primary-container transition-colors flex items-center gap-2 min-h-touch-target-min">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                                Add User
+                            </button>
+</div>
+<!-- Data Table Container -->
+<div class="flex-1 overflow-auto table-scroll border border-outline-variant rounded-lg">
+<table class="w-full text-left border-collapse min-w-[600px]">
+<thead class="sticky top-0 bg-surface-container-low z-10 border-b border-outline-variant shadow-sm">
+<tr>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 uppercase">Name</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 uppercase">Role</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 uppercase">Status</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 uppercase text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-background divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-body-sm">SJ</div>
+<div>
+<div class="font-medium">Sarah Jenkins</div>
+<div class="text-body-sm text-on-surface-variant">s.jenkins@lab.inc</div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4">Administrator</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface-container border border-outline-variant text-body-sm">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Active
+                                            </span>
+</td>
+<td class="py-3 px-4 text-right">
+<button class="p-1 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center font-bold text-body-sm">MR</div>
+<div>
+<div class="font-medium">Marcus Reed</div>
+<div class="text-body-sm text-on-surface-variant">m.reed@lab.inc</div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4">Financial Auditor</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface-container border border-outline-variant text-body-sm">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Active
+                                            </span>
+</td>
+<td class="py-3 px-4 text-right">
+<button class="p-1 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group opacity-75">
+<td class="py-3 px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-bold text-body-sm">EL</div>
+<div>
+<div class="font-medium">Elena Lopez</div>
+<div class="text-body-sm text-on-surface-variant">e.lopez@lab.inc</div>
+</div>
+</div>
+</td>
+<td class="py-3 px-4">Data Entry Clerk</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface-container border border-outline-variant text-body-sm">
+<span class="w-2 h-2 rounded-full bg-outline"></span> Inactive
+                                            </span>
+</td>
+<td class="py-3 px-4 text-right">
+<button class="p-1 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Side Column: Profit Split & Quick Actions -->
+<div class="flex flex-col gap-6">
+<!-- Profit Split Configuration -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 flex flex-col relative overflow-hidden">
+<!-- Subtle decorative gradient for premium feel -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary-fixed-dim/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+<h3 class="font-headline-sm text-headline-sm text-on-background flex items-center gap-2 mb-4 relative z-10">
+<span class="material-symbols-outlined text-primary" data-icon="pie_chart">pie_chart</span>
+                                Global Profit Split
+                            </h3>
+<div class="space-y-4 relative z-10">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">Internal Stakeholders (%)</label>
+<input class="w-full px-3 py-2 bg-surface border border-outline-variant rounded-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary h-[44px] tabular-nums" type="number" value="50"/>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase">External Partners (%)</label>
+<input class="w-full px-3 py-2 bg-surface border border-outline-variant rounded-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary h-[44px] tabular-nums" type="number" value="50"/>
+</div>
+<div class="p-3 bg-surface-container-low rounded-lg flex justify-between items-center mt-2 border border-outline-variant/50">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Total Validation</span>
+<span class="font-tabular-nums text-tabular-nums text-primary font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="check_circle">check_circle</span>
+                                        100%
+                                    </span>
+</div>
+<button class="w-full mt-2 bg-secondary text-on-secondary font-tabular-nums text-tabular-nums px-4 py-2 rounded-lg hover:bg-secondary-fixed-dim hover:text-on-secondary-fixed transition-colors border border-transparent min-h-touch-target-min">
+                                    Save Configuration
+                                </button>
+</div>
+</div>
+<!-- Historical Import Widget -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 flex-1 flex flex-col border-t-4 border-t-tertiary-container">
+<h3 class="font-headline-sm text-headline-sm text-on-background flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-tertiary-container" data-icon="history">history</span>
+                                Historical Import
+                            </h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-4">Upload legacy Excel data (.xlsx, .csv)</p>
+<!-- Drag & Drop Zone -->
+<div class="flex-1 border-2 border-dashed border-outline-variant rounded-lg flex flex-col items-center justify-center p-6 text-center hover:bg-surface-container-low transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-[40px] text-outline group-hover:text-primary mb-2 transition-colors" data-icon="upload_file">upload_file</span>
+<p class="font-body-md text-body-md text-on-background font-medium mb-1">Drag and drop file here</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-4">or click to browse</p>
+<button class="border border-outline text-on-surface font-tabular-nums text-tabular-nums px-4 py-1.5 rounded-md hover:bg-surface-variant transition-colors min-h-[36px] text-sm">
+                                    Select File
+                                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,17 @@
+// CDC Lab Accounts & Asset Management System — Prisma schema
+//
+// Phase 0 (repository & development foundation) intentionally leaves this
+// schema empty of models. The financial/business schema (users, parties,
+// daily_expenses, monthly_expenses, party_income, counter_income, assets,
+// capital_contributions, audit_log, app_settings, expense_items,
+// expense_categories, vendors) is designed in Phase 1 per docs/SRS.md §6
+// and docs/PROJECT_PLAN.md. Do not add models here until Phase 1 begins.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

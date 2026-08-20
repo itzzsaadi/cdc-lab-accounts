@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Party Income Daily Grid - LabFinance Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary": "#ffffff",
+                    "surface-container-highest": "#d3e4fe",
+                    "secondary-fixed-dim": "#adcae7",
+                    "secondary": "#46617a",
+                    "primary-fixed-dim": "#80d5cb",
+                    "on-surface-variant": "#3e4947",
+                    "on-secondary-fixed-variant": "#2e4961",
+                    "surface": "#f8f9ff",
+                    "on-error-container": "#93000a",
+                    "secondary-container": "#c3e0fe",
+                    "on-error": "#ffffff",
+                    "inverse-primary": "#80d5cb",
+                    "on-tertiary-fixed": "#07006c",
+                    "on-tertiary-container": "#eae8ff",
+                    "on-secondary-fixed": "#001d32",
+                    "surface-container": "#e5eeff",
+                    "on-secondary-container": "#48637d",
+                    "tertiary-fixed-dim": "#c0c1ff",
+                    "outline-variant": "#bdc9c6",
+                    "tertiary-container": "#5457e2",
+                    "inverse-on-surface": "#eaf1ff",
+                    "surface-container-low": "#eff4ff",
+                    "on-primary-fixed-variant": "#00504a",
+                    "primary-container": "#0f766e",
+                    "on-secondary": "#ffffff",
+                    "surface-bright": "#f8f9ff",
+                    "surface-tint": "#006a63",
+                    "on-primary-fixed": "#00201d",
+                    "surface-container-high": "#dce9ff",
+                    "on-primary-container": "#a3faef",
+                    "on-background": "#0b1c30",
+                    "on-tertiary-fixed-variant": "#2f2ebe",
+                    "inverse-surface": "#213145",
+                    "tertiary": "#3b3bc9",
+                    "surface-variant": "#d3e4fe",
+                    "primary-fixed": "#9cf2e8",
+                    "on-surface": "#0b1c30",
+                    "on-primary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-dim": "#cbdbf5",
+                    "error-container": "#ffdad6",
+                    "outline": "#6e7977",
+                    "secondary-fixed": "#cde5ff",
+                    "primary": "#005c55",
+                    "background": "#f8f9ff",
+                    "tertiary-fixed": "#e1e0ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "touch-target-min": "44px",
+                    "header-height": "56px",
+                    "base": "4px",
+                    "gutter": "16px",
+                    "container-margin": "24px",
+                    "sidebar-width": "260px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "tabular-nums": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "tabular-nums": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for data tables to match design system */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #bdc9c6; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6e7977; }
+        
+        .grid-cell-input:focus { outline: none; }
+        .tabular-alignment { font-feature-settings: "tnum" on, "lnum" on; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md overflow-hidden flex">
+<!-- Persistent SideNavBar -->
+<nav class="w-sidebar-width h-screen fixed left-0 top-0 bg-on-background flex flex-col py-gutter px-4 z-50">
+<!-- Brand / Header -->
+<div class="mb-8 px-2 flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">biotech</span>
+</div>
+<div>
+<div class="font-headline-sm text-headline-sm text-surface-bright">LabFinance Pro</div>
+<div class="font-body-sm text-body-sm text-surface-bright/70">Precision &amp; Control</div>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+                Asset Inventory
+            </a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg border-l-2 border-primary-fixed-dim bg-secondary-container/10 text-primary-fixed-dim font-bold transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+                Financial Ledger
+            </a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                Reports
+            </a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">manage_accounts</span>
+                User Management
+            </a>
+</div>
+<!-- Footer Links -->
+<div class="mt-auto space-y-1 pt-4 border-t border-surface-bright/10">
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined">logout</span>
+                Logout
+            </a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<div class="flex-1 ml-sidebar-width flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="h-header-height sticky top-0 z-40 bg-surface border-b border-outline-variant flex justify-between items-center px-gutter w-full shrink-0">
+<div class="flex items-center gap-4">
+<h1 class="font-headline-sm text-headline-sm text-on-surface">Financial &amp; Asset Manager</h1>
+<!-- Search on left per JSON -->
+<div class="relative ml-4 hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-surface-container-low border border-outline-variant rounded-full text-body-sm font-body-sm focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-colors" placeholder="Search entries..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">sync</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer active:opacity-80 relative">
+<span class="material-symbols-outlined">cloud_upload</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-secondary-container ml-2 overflow-hidden border border-outline-variant">
+<img alt="Administrator Profile" class="w-full h-full object-cover" data-alt="A professional, high-resolution portrait photograph of a confident medical laboratory administrator. The administrator is wearing a crisp white lab coat over smart business attire, standing against a blurred, bright clinical laboratory background. Lighting is soft, high-key white light emphasizing cleanliness and modern medical facility aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDS4P4_QkzlV6pfx7okbzQZaI_5IkAaXzmCdu53Gv21u-Qs18weujHEa4K3487Av5D8SP3A4hW4cnoSbmwAYStrOqObZb_SFAyxBQF0qM4AMtFxhUSda67xRQHtHqdkVYyVy_tKNffl76QHijjh7zUZ4qy0gDiw7h3R8-80AiE23BsO2SQpZL8UXVALmt54iG3b1dQhrHkX06xn1YBx3WhHkc-Gm30ayedsodsWbUNOEZlEkwMc7AO22w"/>
+</div>
+</div>
+</header>
+<!-- Main Workspace -->
+<main class="flex-1 overflow-auto p-container-margin bg-surface-container-low flex flex-col gap-6">
+<!-- Page Header & Context Navigation -->
+<div class="flex flex-col gap-4 bg-surface p-4 rounded-xl border border-outline-variant shadow-sm">
+<div class="flex justify-between items-end">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-primary" title="Online"></span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">OCTOBER 2023 BILLING CYCLE</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Party Income Daily Grid</h2>
+</div>
+<div class="flex gap-2">
+<button class="h-touch-target-min px-4 rounded-lg border border-outline-variant text-secondary font-body-md text-body-md hover:bg-surface-container-highest transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">download</span>
+                            Export CSV
+                        </button>
+<button class="h-touch-target-min px-4 rounded-lg bg-primary text-on-primary font-body-md text-body-md hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">save</span>
+                            Save Grid
+                        </button>
+</div>
+</div>
+<!-- Sub-Navigation Tabs -->
+<div class="flex border-b border-outline-variant mt-2">
+<button class="px-4 py-3 border-b-2 border-primary text-primary font-body-md text-body-md font-bold transition-colors">Daily Billing</button>
+<button class="px-4 py-3 border-b-2 border-transparent text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md">Monthly Billing</button>
+<button class="px-4 py-3 border-b-2 border-transparent text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md">Cash Receipts</button>
+<button class="px-4 py-3 border-b-2 border-transparent text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md">Party Totals</button>
+</div>
+</div>
+<!-- Spreadsheet Grid Container -->
+<div class="flex-1 bg-surface rounded-xl border border-outline-variant shadow-sm flex flex-col overflow-hidden">
+<!-- Grid Toolbar -->
+<div class="p-3 border-b border-outline-variant bg-surface-container-lowest flex justify-between items-center">
+<div class="flex gap-4 items-center">
+<div class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">keyboard</span>
+                            Navigate: Tab (Next), Enter (Down)
+                        </div>
+<div class="h-4 w-[1px] bg-outline-variant"></div>
+<div class="flex gap-3">
+<div class="flex items-center gap-1 font-body-sm text-body-sm"><span class="w-2 h-2 rounded-full bg-primary"></span> Saved Online</div>
+<div class="flex items-center gap-1 font-body-sm text-body-sm"><span class="w-2 h-2 rounded-full bg-[#D97706]"></span> Offline Draft</div>
+<div class="flex items-center gap-1 font-body-sm text-body-sm"><span class="w-2 h-2 rounded-full bg-outline-variant"></span> Empty</div>
+</div>
+</div>
+</div>
+<!-- Scrollable Grid Area -->
+<div class="flex-1 overflow-auto relative bg-surface-container-lowest">
+<table class="w-full text-left border-collapse min-w-[800px]">
+<thead class="sticky top-0 z-10 bg-surface-container-low shadow-[0_1px_0_#bdc9c6]">
+<tr>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant border-r border-b border-outline-variant w-16 text-center bg-surface-container-high">DAY</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant border-r border-b border-outline-variant text-right">GIVE LAB</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant border-r border-b border-outline-variant text-right">BEST LAB</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant border-r border-b border-outline-variant text-right">ACCURATE LAB</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant border-r border-b border-outline-variant text-right">SHAHADAT LAB</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant border-b border-outline-variant text-right bg-surface-container text-on-surface font-bold">ROW TOTAL</th>
+</tr>
+</thead>
+<tbody class="font-tabular-nums text-tabular-nums text-on-surface" id="grid-body">
+<!-- Rows generated by JS -->
+</tbody>
+</table>
+</div>
+<!-- Summary Footer -->
+<div class="bg-surface-container-high border-t border-outline-variant p-0 relative z-20 shadow-[0_-2px_4px_rgba(0,0,0,0.02)]">
+<table class="w-full text-left border-collapse min-w-[800px]">
+<tfoot class="font-tabular-nums text-tabular-nums text-on-surface">
+<tr>
+<td class="p-3 font-label-caps text-label-caps text-on-surface-variant border-r border-outline-variant w-16 text-center font-bold">TOTAL</td>
+<td class="p-3 border-r border-outline-variant text-right font-bold text-primary" id="col-total-0">0.00</td>
+<td class="p-3 border-r border-outline-variant text-right font-bold text-primary" id="col-total-1">0.00</td>
+<td class="p-3 border-r border-outline-variant text-right font-bold text-primary" id="col-total-2">0.00</td>
+<td class="p-3 border-r border-outline-variant text-right font-bold text-primary" id="col-total-3">0.00</td>
+<td class="p-3 text-right font-bold bg-primary-container text-on-primary-container" id="grand-total">0.00</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</main>
+</div>
+<script>
+        // Simple Spreadsheet Logic for Demonstration
+        document.addEventListener('DOMContentLoaded', () => {
+            const tbody = document.getElementById('grid-body');
+            const daysInMonth = 31;
+            const columns = 4; // Not including Day and Total
+            
+            // Generate rows
+            for (let day = 1; day <= daysInMonth; day++) {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-surface-container-low transition-colors group';
+                
+                // Day Column
+                let html = `<td class="p-2 border-r border-b border-outline-variant w-16 text-center bg-surface-container-lowest group-hover:bg-surface-container-low text-on-surface-variant">${day}</td>`;
+                
+                // Input Columns
+                for (let col = 0; col < columns; col++) {
+                    // Randomly assign states for demo: empty, saved online, saved offline
+                    const rand = Math.random();
+                    let stateColor = 'bg-outline-variant'; // empty default
+                    let val = '';
+                    if (rand > 0.8) { stateColor = 'bg-primary'; val = (Math.random() * 1000).toFixed(2); } // Online
+                    else if (rand > 0.6) { stateColor = 'bg-[#D97706]'; val = (Math.random() * 500).toFixed(2); } // Offline
+
+                    html += `
+                        <td class="p-0 border-r border-b border-outline-variant relative">
+                            <div class="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full ${stateColor} opacity-50 group-focus-within:opacity-100"></div>
+                            <input type="text" 
+                                class="grid-cell-input w-full h-full px-3 py-2 bg-transparent border-2 border-transparent focus:border-primary focus:bg-surface focus:shadow-[inset_0_0_0_1px_#005c55] text-right text-on-surface tabular-alignment" 
+                                data-row="${day}" data-col="${col}" 
+                                value="${val}"
+                                placeholder="-"
+                                oninput="this.value = this.value.replace(/[^0-9.]/g, '')"
+                            >
+                        </td>
+                    `;
+                }
+                
+                // Row Total Column
+                html += `<td class="p-3 border-b border-outline-variant text-right bg-surface-container-lowest group-hover:bg-surface-container-low font-bold text-on-surface-variant row-total" data-row="${day}">0.00</td>`;
+                
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            }
+
+            // Calculation Logic
+            function calculateTotals() {
+                let colTotals = [0, 0, 0, 0];
+                let grandTotal = 0;
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    let rowTotal = 0;
+                    for (let col = 0; col < columns; col++) {
+                        const input = document.querySelector(`input[data-row="${day}"][data-col="${col}"]`);
+                        const val = parseFloat(input.value) || 0;
+                        rowTotal += val;
+                        colTotals[col] += val;
+                    }
+                    document.querySelector(`.row-total[data-row="${day}"]`).innerText = rowTotal.toFixed(2);
+                    grandTotal += rowTotal;
+                }
+
+                for (let col = 0; col < columns; col++) {
+                    document.getElementById(`col-total-${col}`).innerText = colTotals[col].toFixed(2);
+                }
+                document.getElementById('grand-total').innerText = grandTotal.toFixed(2);
+            }
+
+            // Attach event listeners
+            document.querySelectorAll('.grid-cell-input').forEach(input => {
+                input.addEventListener('input', calculateTotals);
+                
+                // Keyboard Navigation: Enter for Down, Tab handles across natively
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const currentRow = parseInt(this.getAttribute('data-row'));
+                        const currentCol = parseInt(this.getAttribute('data-col'));
+                        if (currentRow < daysInMonth) {
+                            const nextInput = document.querySelector(`input[data-row="${currentRow + 1}"][data-col="${currentCol}"]`);
+                            if (nextInput) {
+                                nextInput.focus();
+                                nextInput.select();
+                            }
+                        }
+                    }
+                    // Handle Arrow keys for spreadsheet feel
+                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        const currentRow = parseInt(this.getAttribute('data-row'));
+                        const currentCol = parseInt(this.getAttribute('data-col'));
+                        let nextRow = currentRow;
+                        let nextCol = currentCol;
+
+                        if (e.key === 'ArrowUp') nextRow = Math.max(1, currentRow - 1);
+                        if (e.key === 'ArrowDown') nextRow = Math.min(daysInMonth, currentRow + 1);
+                        if (e.key === 'ArrowLeft' && this.selectionStart === 0) nextCol = Math.max(0, currentCol - 1);
+                        if (e.key === 'ArrowRight' && this.selectionEnd === this.value.length) nextCol = Math.min(columns - 1, currentCol + 1);
+
+                        if (nextRow !== currentRow || nextCol !== currentCol) {
+                            const nextInput = document.querySelector(`input[data-row="${nextRow}"][data-col="${nextCol}"]`);
+                            if (nextInput) {
+                                e.preventDefault();
+                                nextInput.focus();
+                            }
+                        }
+                    }
+                });
+
+                // Select all on focus for rapid entry
+                input.addEventListener('focus', function() {
+                    this.select();
+                });
+            });
+
+            // Initial calculation
+            calculateTotals();
+        });
+    </script>
+</body></html>

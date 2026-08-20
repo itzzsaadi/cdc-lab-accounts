@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Daily Expenses - LabFinance Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#d3e4fe",
+                        "secondary-fixed-dim": "#adcae7",
+                        "secondary": "#46617a",
+                        "primary-fixed-dim": "#80d5cb",
+                        "on-surface-variant": "#3e4947",
+                        "on-secondary-fixed-variant": "#2e4961",
+                        "surface": "#f8f9ff",
+                        "on-error-container": "#93000a",
+                        "secondary-container": "#c3e0fe",
+                        "on-error": "#ffffff",
+                        "inverse-primary": "#80d5cb",
+                        "on-tertiary-fixed": "#07006c",
+                        "on-tertiary-container": "#eae8ff",
+                        "on-secondary-fixed": "#001d32",
+                        "surface-container": "#e5eeff",
+                        "on-secondary-container": "#48637d",
+                        "tertiary-fixed-dim": "#c0c1ff",
+                        "outline-variant": "#bdc9c6",
+                        "tertiary-container": "#5457e2",
+                        "inverse-on-surface": "#eaf1ff",
+                        "surface-container-low": "#eff4ff",
+                        "on-primary-fixed-variant": "#00504a",
+                        "primary-container": "#0f766e",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f8f9ff",
+                        "surface-tint": "#006a63",
+                        "on-primary-fixed": "#00201d",
+                        "surface-container-high": "#dce9ff",
+                        "on-primary-container": "#a3faef",
+                        "on-background": "#0b1c30",
+                        "on-tertiary-fixed-variant": "#2f2ebe",
+                        "inverse-surface": "#213145",
+                        "tertiary": "#3b3bc9",
+                        "surface-variant": "#d3e4fe",
+                        "primary-fixed": "#9cf2e8",
+                        "on-surface": "#0b1c30",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#cbdbf5",
+                        "error-container": "#ffdad6",
+                        "outline": "#6e7977",
+                        "secondary-fixed": "#cde5ff",
+                        "primary": "#005c55",
+                        "background": "#f8f9ff",
+                        "tertiary-fixed": "#e1e0ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "touch-target-min": "44px",
+                        "header-height": "56px",
+                        "base": "4px",
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "sidebar-width": "260px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "tabular-nums": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "tabular-nums": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        /* Custom scrollbar for data tables */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F6F8FA; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen antialiased flex">
+<!-- SideNavBar -->
+<nav class="bg-on-background w-sidebar-width h-screen fixed left-0 top-0 flex flex-col py-gutter px-4 z-50 hidden md:flex">
+<div class="flex flex-col gap-6 h-full">
+<!-- Header -->
+<div class="flex items-center gap-3 px-2">
+<div class="w-10 h-10 rounded bg-primary flex items-center justify-center text-on-primary font-bold">
+                    LF
+                </div>
+<div>
+<h1 class="text-headline-sm font-headline-sm text-surface-bright">LabFinance Pro</h1>
+<p class="text-body-sm font-body-sm text-surface-variant">Precision &amp; Control</p>
+</div>
+</div>
+<!-- Tabs -->
+<div class="flex flex-col gap-1 flex-1 mt-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                    Dashboard
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+                    Asset Inventory
+                </a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-4 py-3 rounded border-l-2 border-primary-fixed-dim bg-secondary-container/10 text-primary-fixed-dim font-bold transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+                    Financial Ledger
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+                    Reports
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="manage_accounts">manage_accounts</span>
+                    User Management
+                </a>
+</div>
+<!-- Footer Tabs -->
+<div class="flex flex-col gap-1 mt-auto border-t border-outline/20 pt-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                    Settings
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-secondary-fixed-variant hover:text-surface-bright hover:bg-on-secondary-fixed-variant transition-all duration-200 ease-in-out font-body-md text-body-md" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                    Logout
+                </a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col md:ml-sidebar-width min-w-0">
+<!-- TopNavBar -->
+<header class="bg-surface h-header-height sticky top-0 z-40 border-b border-outline-variant flex justify-between items-center px-gutter w-full">
+<div class="flex items-center gap-4">
+<!-- Mobile Menu Button -->
+<button class="md:hidden p-2 text-on-surface hover:bg-surface-container rounded-full">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<span class="font-headline-sm text-headline-sm text-on-surface hidden sm:block">Financial &amp; Asset Manager</span>
+</div>
+<!-- Search Bar (Left aligned logically, but flexible in header) -->
+<div class="flex-1 max-w-md mx-4 hidden md:flex items-center bg-surface-container rounded-full px-4 py-2 border border-outline-variant focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<span class="material-symbols-outlined text-outline mr-2 text-[20px]">search</span>
+<input class="bg-transparent border-none focus:ring-0 p-0 w-full text-body-md text-on-surface placeholder:text-outline h-6" placeholder="Search expenses, assets..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined" data-icon="sync">sync</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined" data-icon="cloud_upload">cloud_upload</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80 rounded-full hover:bg-surface-container relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary-container ml-2 overflow-hidden border border-outline-variant">
+<img alt="Administrator Profile" class="w-full h-full object-cover" data-alt="Professional headshot portrait of an administrator in a clinical lab setting, soft high-key lighting, corporate modern style, sharp focus, neutral background, deep teal and navy accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDomzkTJt09jQX41bBvt5FxaGo9nuef9Ps0VVuLIIh2nroBYaGMWFhreEdbZSaj82twpL8bUucS0pBhaJx2N_tq_3E2VeEPc-lua0tFOH2Ok83FJdMkyhuZATUKuUHxHqOcRbk0nk0EWQKJB-rV0pIzuAt34zH_zmjFFjIqvfPByWWTlqhipenz4ZryhRbbGzB5avezM-dMw52f0UtzFzOowBMZkNk1KQfaVTRkcZIzx3E54rLZ5u0ppw"/>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<main class="flex-1 p-gutter md:p-container-margin max-w-[1440px] mx-auto w-full">
+<!-- Page Header & Global Actions -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+<div>
+<h2 class="text-display-lg font-display-lg text-on-background">Daily Expenses</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-1">Manage and track laboratory operational costs.</p>
+</div>
+<button class="bg-primary hover:bg-primary-container text-on-primary font-body-md font-medium px-4 py-2.5 h-[44px] rounded flex items-center gap-2 transition-colors shadow-sm whitespace-nowrap" onclick="document.getElementById('expense-modal').classList.remove('hidden')">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                    Add Expense
+                </button>
+</div>
+<!-- Filters Section -->
+<div class="bg-surface border border-outline-variant rounded-xl p-4 mb-6 shadow-sm">
+<div class="flex flex-wrap gap-4 items-end">
+<div class="flex-1 min-w-[200px]">
+<label class="block text-label-caps font-label-caps text-on-surface-variant mb-1 uppercase">Date Range</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">calendar_month</span>
+<input class="w-full pl-10 pr-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px]" type="date"/>
+</div>
+</div>
+<div class="flex-1 min-w-[200px]">
+<label class="block text-label-caps font-label-caps text-on-surface-variant mb-1 uppercase">Funding Source</label>
+<select class="w-full px-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px] appearance-none">
+<option>All Sources</option>
+<option>Business</option>
+<option>Partner</option>
+</select>
+</div>
+<div class="flex-1 min-w-[200px]">
+<label class="block text-label-caps font-label-caps text-on-surface-variant mb-1 uppercase">Partner</label>
+<select class="w-full px-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px] appearance-none">
+<option>All Partners</option>
+<option>MediCorp</option>
+<option>HealthTech Solutions</option>
+</select>
+</div>
+<div class="flex-1 min-w-[200px]">
+<label class="block text-label-caps font-label-caps text-on-surface-variant mb-1 uppercase">Item/Category</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
+<input class="w-full pl-10 pr-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px]" placeholder="Search items..." type="text"/>
+</div>
+</div>
+<button class="px-4 py-2 border border-outline-variant text-on-surface font-body-md font-medium rounded hover:bg-surface-container transition-colors h-[44px] flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+                        More Filters
+                    </button>
+</div>
+</div>
+<!-- Data Table (Desktop) / Cards (Mobile) -->
+<div class="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<!-- Desktop Table View -->
+<div class="hidden md:block overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest border-b border-outline-variant">
+<th class="p-4 text-label-caps font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface">Date</th>
+<th class="p-4 text-label-caps font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface">Item</th>
+<th class="p-4 text-label-caps font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface text-right">Amount (PKR)</th>
+<th class="p-4 text-label-caps font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface">Funding Source</th>
+<th class="p-4 text-label-caps font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface">Sync Status</th>
+<th class="p-4 text-label-caps font-label-caps text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/50">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-4 text-body-md text-on-surface whitespace-nowrap">2023-10-24</td>
+<td class="p-4 text-body-md font-medium text-on-surface">Reagents Resupply</td>
+<td class="p-4 text-tabular-nums font-tabular-nums text-on-surface text-right">45,000</td>
+<td class="p-4">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary-container/50 text-on-secondary-container text-body-sm font-medium border border-secondary-fixed-dim">
+                                        Business
+                                    </span>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2 text-body-md text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-[#10b981]"></div>
+                                        Synced
+                                    </div>
+</td>
+<td class="p-4 text-right">
+<button class="text-on-surface-variant hover:text-primary p-1 rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-4 text-body-md text-on-surface whitespace-nowrap">2023-10-24</td>
+<td class="p-4 text-body-md font-medium text-on-surface">Centrifuge Maintenance</td>
+<td class="p-4 text-tabular-nums font-tabular-nums text-on-surface text-right">120,500</td>
+<td class="p-4">
+<span class="inline-flex items-center px-2 py-1 rounded bg-tertiary-container/10 text-tertiary text-body-sm font-medium border border-tertiary-fixed-dim">
+                                        Partner: MediCorp
+                                    </span>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2 text-body-md text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-[#f59e0b]"></div>
+                                        Pending
+                                    </div>
+</td>
+<td class="p-4 text-right">
+<button class="text-on-surface-variant hover:text-primary p-1 rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-4 text-body-md text-on-surface whitespace-nowrap">2023-10-23</td>
+<td class="p-4 text-body-md font-medium text-on-surface">Office Supplies</td>
+<td class="p-4 text-tabular-nums font-tabular-nums text-on-surface text-right">8,200</td>
+<td class="p-4">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary-container/50 text-on-secondary-container text-body-sm font-medium border border-secondary-fixed-dim">
+                                        Business
+                                    </span>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2 text-body-md text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-[#10b981]"></div>
+                                        Synced
+                                    </div>
+</td>
+<td class="p-4 text-right">
+<button class="text-on-surface-variant hover:text-primary p-1 rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Mobile Card View -->
+<div class="md:hidden divide-y divide-outline-variant/50">
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h3 class="text-body-lg font-medium text-on-surface">Reagents Resupply</h3>
+<p class="text-body-sm text-on-surface-variant mt-0.5">2023-10-24</p>
+</div>
+<span class="text-tabular-nums font-tabular-nums font-semibold text-on-surface">45,000 PKR</span>
+</div>
+<div class="flex justify-between items-center mt-3">
+<span class="inline-flex items-center px-2 py-1 rounded bg-secondary-container/50 text-on-secondary-container text-body-sm font-medium border border-secondary-fixed-dim">
+                                Business
+                            </span>
+<div class="flex items-center gap-2 text-body-sm text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-[#10b981]"></div>
+                                Synced
+                            </div>
+</div>
+</div>
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h3 class="text-body-lg font-medium text-on-surface">Centrifuge Maintenance</h3>
+<p class="text-body-sm text-on-surface-variant mt-0.5">2023-10-24</p>
+</div>
+<span class="text-tabular-nums font-tabular-nums font-semibold text-on-surface">120,500 PKR</span>
+</div>
+<div class="flex justify-between items-center mt-3">
+<span class="inline-flex items-center px-2 py-1 rounded bg-tertiary-container/10 text-tertiary text-body-sm font-medium border border-tertiary-fixed-dim">
+                                Partner: MediCorp
+                            </span>
+<div class="flex items-center gap-2 text-body-sm text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-[#f59e0b]"></div>
+                                Pending
+                            </div>
+</div>
+</div>
+</div>
+<!-- Pagination Footer -->
+<div class="bg-surface-container-lowest border-t border-outline-variant p-4 flex items-center justify-between">
+<span class="text-body-sm text-on-surface-variant">Showing 1 to 3 of 42 entries</span>
+<div class="flex gap-1">
+<button class="p-1 rounded text-outline hover:bg-surface-container hover:text-on-surface transition-colors" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded bg-primary text-on-primary font-body-sm flex items-center justify-center">1</button>
+<button class="w-8 h-8 rounded text-on-surface-variant hover:bg-surface-container font-body-sm flex items-center justify-center transition-colors">2</button>
+<button class="w-8 h-8 rounded text-on-surface-variant hover:bg-surface-container font-body-sm flex items-center justify-center transition-colors">3</button>
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Add Expense Modal/Drawer Overlay -->
+<div class="fixed inset-0 z-50 hidden bg-on-background/40 backdrop-blur-sm flex justify-end transition-opacity duration-300" id="expense-modal">
+<!-- Drawer Panel -->
+<div class="bg-surface w-full max-w-md h-full shadow-2xl flex flex-col transform transition-transform duration-300 translate-x-0 border-l border-outline-variant">
+<!-- Drawer Header -->
+<div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container-lowest">
+<h2 class="text-headline-md font-headline-md text-on-surface">Add Expense</h2>
+<button class="text-on-surface-variant hover:text-error p-2 rounded-full hover:bg-surface-container transition-colors h-[44px] w-[44px] flex items-center justify-center" onclick="document.getElementById('expense-modal').classList.add('hidden')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Drawer Body -->
+<div class="p-6 flex-1 overflow-y-auto">
+<form class="flex flex-col gap-5">
+<div>
+<label class="block text-body-sm font-medium text-on-surface mb-1.5">Date</label>
+<input class="w-full px-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px]" type="date" value="2023-10-24"/>
+</div>
+<div>
+<label class="block text-body-sm font-medium text-on-surface mb-1.5">Item</label>
+<div class="relative">
+<input class="w-full px-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px]" list="expense-items" placeholder="Select or type item..." type="text"/>
+<datalist id="expense-items">
+<option value="Reagents Resupply">
+</option><option value="Equipment Maintenance">
+</option><option value="Office Supplies">
+</option><option value="Utilities">
+</option></datalist>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none">arrow_drop_down</span>
+</div>
+</div>
+<div>
+<label class="block text-body-sm font-medium text-on-surface mb-1.5">Amount (PKR)</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-tabular-nums text-body-md">Rs.</span>
+<input class="w-full pl-10 pr-3 py-2 border border-outline-variant rounded bg-surface text-tabular-nums font-tabular-nums text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px] text-right" placeholder="0.00" type="number"/>
+</div>
+</div>
+<div class="pt-2">
+<label class="block text-body-sm font-medium text-on-surface mb-2">Funding Source</label>
+<!-- Segmented Control -->
+<div class="flex p-1 bg-surface-container rounded-lg border border-outline-variant">
+<label class="flex-1 text-center cursor-pointer relative">
+<input checked="" class="sr-only peer" name="funding" onchange="togglePartnerSelector(false)" type="radio" value="business"/>
+<div class="py-2 text-body-md font-medium text-on-surface-variant peer-checked:bg-surface peer-checked:text-primary peer-checked:shadow-sm rounded-md transition-all h-[36px] flex items-center justify-center">
+                                    Business
+                                </div>
+</label>
+<label class="flex-1 text-center cursor-pointer relative">
+<input class="sr-only peer" name="funding" onchange="togglePartnerSelector(true)" type="radio" value="partner"/>
+<div class="py-2 text-body-md font-medium text-on-surface-variant peer-checked:bg-surface peer-checked:text-primary peer-checked:shadow-sm rounded-md transition-all h-[36px] flex items-center justify-center">
+                                    Partner
+                                </div>
+</label>
+</div>
+<!-- Dynamic Note based on selection -->
+<p class="text-body-sm text-on-surface-variant mt-2 flex items-start gap-1" id="funding-note-business">
+<span class="material-symbols-outlined text-[16px] mt-0.5">info</span>
+                            Business funded reduces profit.
+                        </p>
+<p class="text-body-sm text-tertiary mt-2 hidden items-start gap-1" id="funding-note-partner">
+<span class="material-symbols-outlined text-[16px] mt-0.5">info</span>
+                            Partner funded increases investment.
+                        </p>
+</div>
+<!-- Partner Selector (Hidden by default) -->
+<div class="hidden border-l-2 border-tertiary pl-4 mt-2" id="partner-selector">
+<label class="block text-body-sm font-medium text-on-surface mb-1.5">Select Partner</label>
+<select class="w-full px-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary h-[44px] appearance-none">
+<option disabled="" selected="">Choose partner...</option>
+<option>MediCorp</option>
+<option>HealthTech Solutions</option>
+<option>Global Diagnostics</option>
+</select>
+</div>
+<div>
+<label class="block text-body-sm font-medium text-on-surface mb-1.5">Notes (Optional)</label>
+<textarea class="w-full px-3 py-2 border border-outline-variant rounded bg-surface text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary resize-none" placeholder="Add any details..." rows="3"></textarea>
+</div>
+</form>
+</div>
+<!-- Drawer Footer -->
+<div class="p-6 border-t border-outline-variant bg-surface-container-lowest flex justify-end gap-3">
+<button class="px-4 py-2 border border-outline-variant text-on-surface font-body-md font-medium rounded hover:bg-surface-container transition-colors h-[44px]" onclick="document.getElementById('expense-modal').classList.add('hidden')" type="button">
+                    Cancel
+                </button>
+<button class="px-4 py-2 bg-primary text-on-primary font-body-md font-medium rounded hover:bg-primary-container transition-colors h-[44px] shadow-sm" type="button">
+                    Save Expense
+                </button>
+</div>
+</div>
+</div>
+<script>
+        // Simple logic to toggle partner selector and notes
+        function togglePartnerSelector(isPartner) {
+            const partnerDiv = document.getElementById('partner-selector');
+            const noteBusiness = document.getElementById('funding-note-business');
+            const notePartner = document.getElementById('funding-note-partner');
+            
+            if (isPartner) {
+                partnerDiv.classList.remove('hidden');
+                noteBusiness.classList.add('hidden');
+                noteBusiness.classList.remove('flex');
+                notePartner.classList.remove('hidden');
+                notePartner.classList.add('flex');
+            } else {
+                partnerDiv.classList.add('hidden');
+                noteBusiness.classList.remove('hidden');
+                noteBusiness.classList.add('flex');
+                notePartner.classList.add('hidden');
+                notePartner.classList.remove('flex');
+            }
+        }
+        
+        // Close modal on click outside
+        document.getElementById('expense-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+    </script>
+</body></html>
