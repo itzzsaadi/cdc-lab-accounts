@@ -1,8 +1,9 @@
 # Architecture Overview
 
-Status: Phase 1 (database & domain foundation) and Phase 2 (authentication
-& authorization) in place. Updated further as later phases add the
-transaction/reporting/offline UI layers.
+Status: Phase 1 (database & domain foundation), Phase 2 (authentication &
+authorization), and Phase 3A (shared application shell & reusable UI
+foundation) in place. Updated further as later phases add business
+screens, reporting, and offline UI on top of the shell.
 
 ## Data layer (Phase 1)
 
@@ -83,14 +84,53 @@ Full design record: `docs/adr/0003-phase-2-authentication.md`.
 - `scripts/bootstrap-admin.ts` — the one-time, TTY-gated first-Admin
   bootstrap command.
 
+## Shared shell and UI foundation layer (Phase 3A)
+
+Full design record: `docs/adr/0004-phase-3a-shared-shell.md`.
+
+- `src/app/(app)/layout.tsx` wraps the `(operator)`/`(partner)`/`(admin)`
+  route groups (moved one directory level deeper; public URLs unchanged —
+  route groups are never part of the URL) in `AuthenticatedShell`.
+- `src/components/layout/{AuthenticatedShell,ShellChrome,Sidebar,Header,UserMenu}.tsx`
+  — the sidebar/header chrome every authenticated screen shares. The
+  mobile navigation drawer and the user menu are both native `<dialog>`
+  elements opened via `showModal()`, so focus-trapping, Escape-to-close,
+  and focus-return to the trigger element are all browser-native behavior,
+  not hand-rolled JavaScript.
+- `src/lib/navigation/nav-items.ts` — an **incremental** navigation table
+  (only routes that exist today), filtered per role by the same
+  `hasAtLeastRole` rank comparison `src/lib/permissions/guard.ts` already
+  uses. This is presentational filtering only; it never grants access —
+  every page still calls `requirePermission` itself.
+- `src/components/ui/*` — the reusable primitive set (`Button`,
+  `TextInput`, `Select`, `Checkbox`, `Card`, `Table`, `Badge`, `Alert`,
+  `Modal`, `EmptyState`, `LoadingSkeleton`, `Avatar`). `Modal` and the
+  mobile drawer both use the native `<dialog>` element rather than a
+  hand-rolled focus trap.
+- `src/lib/fonts.ts` — Inter and Material Symbols Outlined, self-hosted via
+  `next/font/local` from vendored, OFL-1.1-licensed `.woff2` files under
+  `public/design-assets/fonts/` (never `next/font/google` — no build-time
+  or runtime request to Google Fonts). Provenance, versions, and checksums
+  are recorded in `public/design-assets/fonts/PROVENANCE.md`.
+- `src/app/globals.css` — the complete design-token set (`@theme` block):
+  full color palette, 8-step typography scale (each a `--text-*` token
+  with `--line-height`/`--letter-spacing`/`--font-weight` companions),
+  spacing, and radius (the `full`/pill radius is reserved for
+  avatars/badges only, per the already-approved radius decision — cards,
+  buttons, and dialogs keep the HTML's own `DEFAULT`/`lg`/`xl` values).
+- The four Phase 2 `(auth)` screens (Sign In, Forgot Password, Reset
+  Password, Accept Invitation) were retrofitted onto the new
+  `Button`/`TextInput`/`Card`/`Alert`/`Checkbox` primitives — a
+  behavior-preserving refactor, re-verified against the full Phase 2
+  security test suite (all 127 Vitest + 18 Playwright tests passing).
+
 ## Not yet built
 
-- Transaction/reporting/investment/dashboard/offline-queue UI and their
-  API — Phase 3 onward.
+- Transaction/reporting/investment/dashboard/offline-queue business
+  screens and their API — Phase 3B onward. Phase 3A built only the shell
+  and reusable components these screens will use, not the screens
+  themselves.
 - Full master-data admin UI and profit-split settings screen — Phase 7.
-- UI screens generally — Phase 3 onward, translated from the Google Stitch
-  handoff per `docs/UI_REQUIREMENTS.md` (Phase 2 implements only the Sign
-  In screen and its extended states).
 
 See `docs/PROJECT_PLAN.md` for the phase-by-phase implementation sequence
 this document tracks, and `docs/adr/` for the detailed record of each

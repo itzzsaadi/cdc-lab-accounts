@@ -10,7 +10,7 @@ This matrix traces every Functional Requirement (FR), Non-Functional Requirement
 - **Verification Method** — for NFRs, copied verbatim from the SRS §4 tables (`Test` / `Inspection` / `Analysis` / `Demonstration`). For FRs, the SRS does not assign a per-requirement verification method (only NFRs carry that column), so `Test` is used as the default, consistent with `CLAUDE.md` §5's requirement that the full automated validation suite gates every change; this is noted as inferred, not SRS-specified. For ACs, `Demonstration` is used, matching SRS §9's own framing ("accepted for live use when all of the following are **demonstrated**").
 - **Status** — `Not Started` for all 175 rows, without exception.
 
-Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **1** Database & domain foundation · **2** Authentication & authorization · **3** Operator transaction workflows · **4** Monthly expenses, assets & partner investment · **5** Calculations, dashboard, warnings & reports · **6** Offline operation & synchronization · **7** Administration & historical import · **8** Acceptance testing, deployment & handover.
+Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **1** Database & domain foundation · **2** Authentication & authorization · **3A** Shared application shell & reusable UI foundation (implemented; carries no requirement IDs of its own) · **3B** Operator transaction workflows · **4** Monthly expenses, assets & partner investment · **5** Calculations, dashboard, warnings & reports · **6** Offline operation & synchronization · **7** Administration & historical import · **8** Acceptance testing, deployment & handover. Phase 3 was split into 3A/3B by client decision after this matrix was first written; no requirement ID moved phase as a result — every row previously tracked at "Phase 3" now reads "Phase 3B" (the sub-phase that actually delivers it), and rows Phase 3A's shell work partially touches (FR-AUTH-04, NFR-USE-05/06/07/08) note that contribution without changing their tracked delivery phase.
 
 ---
 
@@ -23,7 +23,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | FR-AUTH-01 | Sign in with email/password required before any data is shown | M | Phase 2 | `src/lib/auth/config.ts`, `src/server/actions/auth.ts` | `tests/e2e/auth.spec.ts` | Test | Implemented | Better Auth email/password sign-in, gated by `emailAndPassword.enabled`/`disableSignUp`; e2e-proven. |
 | FR-AUTH-02 | Passwords hashed with per-user salt, never stored readable | M | Phase 2 | `src/lib/auth/config.ts` | `tests/integration/auth/invitation.test.ts` | Test | Implemented | Better Auth's default Scrypt hashing (per-invocation salt) — never a custom algorithm; confirmed hashed, not plaintext, in the created `account.password` row. |
 | FR-AUTH-03 | Three roles supported — Operator, Partner, Admin — per §2.6 permissions | M | Phase 2 | `src/lib/permissions/roles.ts`, `matrix.ts`, `guard.ts` | `tests/unit/permissions/guard.test.ts` | Test | Implemented | Role inheritance (OPERATOR ⊂ PARTNER ⊂ ADMIN) mechanism complete and unit-tested. Admin-facing user-management *UI* for this role model is delivered in Phase 7. |
-| FR-AUTH-04 | Operator has no route (UI or server) to profit/loss/investment/profit-split | M | Phase 2 | `src/lib/permissions/matrix.ts` | `tests/unit/permissions/guard.test.ts`, `tests/e2e/auth.spec.ts` | Test | Not Started | Guard mechanism proven in Phase 2 (Operator denied Partner/Admin-only permissions, e2e-proven for one placeholder route); full sweep across every financial endpoint only possible once they all exist — closed out via AC-08 in Phase 5. |
+| FR-AUTH-04 | Operator has no route (UI or server) to profit/loss/investment/profit-split | M | Phase 2 | `src/lib/permissions/matrix.ts` | `tests/unit/permissions/guard.test.ts`, `tests/e2e/auth.spec.ts` | Test | Not Started | Guard mechanism proven in Phase 2 (Operator denied Partner/Admin-only permissions, e2e-proven for one placeholder route); full sweep across every financial endpoint only possible once they all exist — closed out via AC-08 in Phase 5. Phase 3A additionally proves the shell's own sidebar navigation never renders a restricted link's markup at all for a given role (`tests/e2e/shell.spec.ts`) — presentational only, the server guard remains the actual enforcement. |
 | FR-AUTH-05 | Signed-in session persists 30 days across browser restarts | M | Phase 2 | `src/lib/auth/config.ts` | `tests/integration/auth/cookies-and-revocation.test.ts` | Test | Implemented | `session.expiresIn = 60*60*24*30`; e2e cookie inspection confirms `Max-Age`. |
 | FR-AUTH-06 | Password reset via single-use email link, expires in 60 minutes | M | Phase 2 | `src/lib/auth/config.ts` | `tests/integration/auth/invitation.test.ts` (shared reset mechanism) | Test | Implemented | `resetPasswordTokenExpiresIn = 3600`; single-use via Better Auth's own atomic `consumeVerificationValue`; identifier stored hashed (`verification.storeIdentifier: "hashed"`). |
 | FR-AUTH-07 | Account temporarily locked after 10 consecutive failed sign-ins | M | Phase 2 | `src/lib/auth/lockout.ts` | `tests/integration/auth/lockout.test.ts` | Test | Implemented | 10-failure/15-minute lockout via one atomic `UPDATE ... RETURNING`; concurrency-tested; no Admin-unlock action built (time-based expiry only, approved). |
@@ -34,15 +34,15 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-DEXP-01 | Record daily expense: date, item, amount, funding source | M | Phase 3 | `prisma/schema.prisma` | — | Test | Not Started | Schema implemented Phase 1 (shape only, `daily_expenses` table); full entry screen Phase 3. |
-| FR-DEXP-02 | Item selectable from managed list; free text also accepted | M | Phase 3 | — | — | Test | Not Started | |
-| FR-DEXP-03 | Admin can add/rename/archive items; never alters recorded expenses | M | Phase 3 | — | — | Test | Not Started | Overlaps with the master-data CRUD delivered generally in Phase 7 (FR-MST-02); daily-expense-item picker itself needed from Phase 3. |
-| FR-DEXP-04 | Date defaults to today, changeable for late entry | M | Phase 3 | — | — | Test | Not Started | |
-| FR-DEXP-05 | Funding source Business or Partner; Partner requires naming the partner | M | Phase 3 | `prisma/migrations/20260820170711_init/migration.sql` | `tests/integration/constraints/funding-source.test.ts` | Test | Not Started | DB-level bidirectional `CHECK` (DR-07) implemented and tested Phase 1; UI/API enforcement Phase 3. |
-| FR-DEXP-06 | Reject zero/negative/non-numeric amounts with field-level message | M | Phase 3 | — | — | Test | Not Started | |
-| FR-DEXP-07 | Show daily expenses for a range, date order, running total, filterable | M | Phase 3 | — | — | Test | Not Started | |
-| FR-DEXP-08 | Period total calculated by system, never typed | M | Phase 3 | `src/lib/domain/result.ts` | `tests/unit/domain/result.test.ts` | Test | Not Started | Pure calculation function implemented and unit-tested Phase 1; wired to a screen in Phase 3. |
-| FR-DEXP-09 | Daily expense editable/archivable any time; history keeps prior values | M | Phase 3 | — | — | Test | Not Started | |
+| FR-DEXP-01 | Record daily expense: date, item, amount, funding source | M | Phase 3B | `prisma/schema.prisma` | — | Test | Not Started | Schema implemented Phase 1 (shape only, `daily_expenses` table); full entry screen Phase 3. |
+| FR-DEXP-02 | Item selectable from managed list; free text also accepted | M | Phase 3B | — | — | Test | Not Started | |
+| FR-DEXP-03 | Admin can add/rename/archive items; never alters recorded expenses | M | Phase 3B | — | — | Test | Not Started | Overlaps with the master-data CRUD delivered generally in Phase 7 (FR-MST-02); daily-expense-item picker itself needed from Phase 3. |
+| FR-DEXP-04 | Date defaults to today, changeable for late entry | M | Phase 3B | — | — | Test | Not Started | |
+| FR-DEXP-05 | Funding source Business or Partner; Partner requires naming the partner | M | Phase 3B | `prisma/migrations/20260820170711_init/migration.sql` | `tests/integration/constraints/funding-source.test.ts` | Test | Not Started | DB-level bidirectional `CHECK` (DR-07) implemented and tested Phase 1; UI/API enforcement Phase 3. |
+| FR-DEXP-06 | Reject zero/negative/non-numeric amounts with field-level message | M | Phase 3B | — | — | Test | Not Started | |
+| FR-DEXP-07 | Show daily expenses for a range, date order, running total, filterable | M | Phase 3B | — | — | Test | Not Started | |
+| FR-DEXP-08 | Period total calculated by system, never typed | M | Phase 3B | `src/lib/domain/result.ts` | `tests/unit/domain/result.test.ts` | Test | Not Started | Pure calculation function implemented and unit-tested Phase 1; wired to a screen in Phase 3. |
+| FR-DEXP-09 | Daily expense editable/archivable any time; history keeps prior values | M | Phase 3B | — | — | Test | Not Started | |
 | FR-DEXP-10 | (Should→Could) Allow a receipt photo attachment to an expense | C | Phase 3 (optional, may defer) | — | — | Test | Not Started | `PROJECT_PLAN.md` explicitly allows deferring this priority-C item past Phase 3 without blocking exit; no firm later phase is committed. |
 
 ### 3.3 Party Income (FR-PINC) — SRS §3.3
@@ -50,24 +50,24 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
 | FR-PINC-01 | Maintain party list, each marked daily-billing or monthly-billing | M | Phase 1 (schema) / Phase 7 (inferred) | `prisma/schema.prisma` | `tests/integration/seed.test.ts` | Test | Not Started | Schema (`parties` table, `billing_mode` enum) and seed data implemented Phase 1. **Gap unchanged:** `PROJECT_PLAN.md` never explicitly re-cites this past Phase 1; Phase 7's FR-MST-01 covers near-identical ground. Recommend `PROJECT_PLAN.md` be updated to explicitly assign this. |
-| FR-PINC-02 | Daily-billing parties shown as grid (days × parties), workbook layout | M | Phase 3 | — | — | Test | Not Started | |
+| FR-PINC-02 | Daily-billing parties shown as grid (days × parties), workbook layout | M | Phase 3B | — | — | Test | Not Started | |
 | FR-PINC-03 | Monthly-billing parties accept one figure per party per month | M | Phase 4 | — | — | Test | Not Started | Partner-only per UC-07, distinct from the Operator-facing daily grid. |
 | FR-PINC-04 | Party addable/renamable/switchable/archivable any time; list may be empty | M | Phase 1 (schema) / Phase 7 (inferred) | `prisma/schema.prisma` | `tests/integration/constraints/physical-delete-protection.test.ts` | Test | Not Started | `is_active` archive field and physical-deletion prevention implemented Phase 1 (schema level only — no admin UI yet). **Gap unchanged** — same as FR-PINC-01. |
 | FR-PINC-05 | Changing/archiving a party never alters recorded income figures | M | Phase 1 (schema) / Phase 7 (inferred) | `prisma/schema.prisma` | — | Test | Not Started | FK-only referential design implemented Phase 1 — see `docs/adr/0002-phase-1-schema-clarifications.md` decision 8 for the precise guarantee (figures/relationships protected; display **labels** are not frozen). **Gap unchanged** — same as FR-PINC-01/04. |
-| FR-PINC-06 | Record direct cash receipt against a party: date, amount, note | M | Phase 3 | — | — | Test | Not Started | The Best Lab evidence case (SRS §2.2) this requirement exists for; prose in §2.2 misnames it "FR-INC-06" — see Ambiguous IDs below. |
-| FR-PINC-07 | Party monthly total = daily entries + monthly figure + cash receipts, system-calculated | M | Phase 3 | — | — | Test | Not Started | Reused again once Phase 4 adds the monthly-bill figure into the same total. |
-| FR-PINC-08 | Show total per party and combined party income for any range | M | Phase 3 | — | — | Test | Not Started | |
-| FR-PINC-09 | Party with no income in a period shown as zero, not omitted | M | Phase 3 | — | — | Test | Not Started | |
+| FR-PINC-06 | Record direct cash receipt against a party: date, amount, note | M | Phase 3B | — | — | Test | Not Started | The Best Lab evidence case (SRS §2.2) this requirement exists for; prose in §2.2 misnames it "FR-INC-06" — see Ambiguous IDs below. |
+| FR-PINC-07 | Party monthly total = daily entries + monthly figure + cash receipts, system-calculated | M | Phase 3B | — | — | Test | Not Started | Reused again once Phase 4 adds the monthly-bill figure into the same total. |
+| FR-PINC-08 | Show total per party and combined party income for any range | M | Phase 3B | — | — | Test | Not Started | |
+| FR-PINC-09 | Party with no income in a period shown as zero, not omitted | M | Phase 3B | — | — | Test | Not Started | |
 
 ### 3.4 Counter Income (FR-CINC) — SRS §3.4
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-CINC-01 | Record counter income daily as one figure per day | M | Phase 3 | — | — | Test | Not Started | |
-| FR-CINC-02 | Monthly counter income total calculated from daily entries, never typed | M | Phase 3 | — | — | Test | Not Started | |
-| FR-CINC-03 | Show counter income as daily list and monthly total | M | Phase 3 | — | — | Test | Not Started | |
-| FR-CINC-04 | Warn (non-blocking) if counter income already exists for chosen date | M | Phase 3 | — | — | Test | Not Started | |
-| FR-CINC-05 | (Should) Show days in current month with no counter income recorded | S | Phase 5 (tentative) | — | — | Test | Not Started | `PROJECT_PLAN.md` Phase 3 says this "may fold into Phase 5's warnings work" — not a firm commitment; treat as tentative. |
+| FR-CINC-01 | Record counter income daily as one figure per day | M | Phase 3B | — | — | Test | Not Started | |
+| FR-CINC-02 | Monthly counter income total calculated from daily entries, never typed | M | Phase 3B | — | — | Test | Not Started | |
+| FR-CINC-03 | Show counter income as daily list and monthly total | M | Phase 3B | — | — | Test | Not Started | |
+| FR-CINC-04 | Warn (non-blocking) if counter income already exists for chosen date | M | Phase 3B | — | — | Test | Not Started | |
+| FR-CINC-05 | (Should) Show days in current month with no counter income recorded | S | Phase 5 (tentative) | — | — | Test | Not Started | `PROJECT_PLAN.md` Phase 3B says this "may fold into Phase 5's warnings work" — not a firm commitment; treat as tentative. |
 
 ### 3.5 Monthly Expenses (FR-MEXP) — SRS §3.5
 
@@ -170,8 +170,8 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| FR-AUD-01 | Record an entry for every creation/change/archiving of any financial record | M | Phase 3 | — | — | Test | Not Started | First substantively exercised with real entry types in Phase 3; extended in Phase 4. |
-| FR-AUD-02 | Each audit entry records user, time, action, record, before/after values | M | Phase 3 | — | — | Test | Not Started | |
+| FR-AUD-01 | Record an entry for every creation/change/archiving of any financial record | M | Phase 3B | — | — | Test | Not Started | First substantively exercised with real entry types in Phase 3; extended in Phase 4. |
+| FR-AUD-02 | Each audit entry records user, time, action, record, before/after values | M | Phase 3B | — | — | Test | Not Started | |
 | FR-AUD-03 | Change history is append-only; no mechanism to alter or delete an entry | M | Phase 1 | `prisma/migrations/20260820170711_init/migration.sql` | `tests/integration/constraints/audit-log-append-only.test.ts` | Test | Not Started | **Gap closed:** implemented via a Postgres `BEFORE UPDATE OR DELETE` trigger on `audit_log` (not merely the absence of update/delete code), proven by a failing-UPDATE and a failing-DELETE test. Status remains "Not Started" because no application code writes to `audit_log` yet (Phase 2 onward). |
 | FR-AUD-04 | Change history shown as read-only list, filterable by user/date/record type | M | Phase 5 | — | — | Test | Not Started | |
 | FR-AUD-05 | User can view an individual record's own change history | M | Phase 5 | — | — | Test | Not Started | |
@@ -210,9 +210,9 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| NFR-PERF-01 | App loads and becomes usable within 5 seconds | N/A | Phase 3 | — | — | Test | Not Started | First real screens to measure against appear in Phase 3. |
-| NFR-PERF-02 | Screen navigation takes no more than 1 second once loaded | N/A | Phase 3 | — | — | Test | Not Started | |
-| NFR-PERF-03 | Save confirms within 2s online / 500ms offline | N/A | Phase 3 | — | — | Test | Not Started | Offline half of this only fully testable once Phase 6 exists. |
+| NFR-PERF-01 | App loads and becomes usable within 5 seconds | N/A | Phase 3B | — | — | Test | Not Started | First real screens to measure against appear in Phase 3. |
+| NFR-PERF-02 | Screen navigation takes no more than 1 second once loaded | N/A | Phase 3B | — | — | Test | Not Started | |
+| NFR-PERF-03 | Save confirms within 2s online / 500ms offline | N/A | Phase 3B | — | — | Test | Not Started | Offline half of this only fully testable once Phase 6 exists. |
 | NFR-PERF-04 | Monthly result calculated and displayed within 3 seconds | N/A | Phase 5 | — | — | Test | Not Started | |
 | NFR-PERF-05 | Report export produced within 15 seconds | N/A | Phase 5 | — | — | Test | Not Started | |
 | NFR-PERF-06 | Screens stay within limits with three years of accumulated data | N/A | Phase 8 | — | — | Test | Not Started | **Minor documentation inconsistency:** cited in Phase 8's Tests/Deliverables prose in `PROJECT_PLAN.md` but omitted from that phase's "Exact SRS requirement groups" header list — flagged for correction. |
@@ -226,7 +226,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | NFR-SEC-02 | Database and backups encrypted at rest | N/A | Phase 8 (inferred) | — | — | Inspection | Not Started | Same as NFR-SEC-01 — hosting/infra, tied to Phase 8 backup work. |
 | NFR-SEC-03 | Every server endpoint verifies identity/role independent of UI | N/A | Phase 2 | — | — | Inspection | Not Started | The role-guard mechanism is Phase 2's central deliverable. |
 | NFR-SEC-04 | Financial results withheld from Operators at the server | N/A | Phase 5 | — | — | Test | Not Started | Closed out together with AC-08, once every financial endpoint exists. |
-| NFR-SEC-05 | All input validated server-side regardless of browser validation | N/A | Phase 3 | — | — | Inspection | Not Started | First substantial Zod-validated write endpoints; principle applies to every later phase's endpoints too. |
+| NFR-SEC-05 | All input validated server-side regardless of browser validation | N/A | Phase 3B | — | — | Inspection | Not Started | First substantial Zod-validated write endpoints; principle applies to every later phase's endpoints too. |
 | NFR-SEC-06 | Protected against OWASP Top 10, esp. injection and broken access control | N/A | Phase 8 (inferred) | — | — | Analysis | Not Started | Holistic, whole-system analysis; `PROJECT_PLAN.md` Phase 8 explicitly reviews this. |
 | NFR-SEC-07 | Secrets/connection strings in environment config, never committed | N/A | Phase 0 | — | — | Inspection | Not Started | |
 | NFR-SEC-08 | Session cookies HTTP-only, Secure, SameSite | N/A | Phase 2 | — | — | Inspection | Not Started | |
@@ -249,14 +249,14 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 
 | Requirement ID | Exact short description | Priority | Planned Phase | Implementation Files | Test Files | Verification Method | Status | Notes |
 |---|---|---|---|---|---|---|---|---|
-| NFR-USE-01 | Routine daily expense recorded in ≤5 interactions from main screen | N/A | Phase 3 | — | — | Demonstration | Not Started | |
-| NFR-USE-02 | Daily party income grid operable by keyboard alone | N/A | Phase 3 | — | — | Demonstration | Not Started | |
-| NFR-USE-03 | Amounts shown with thousands separators and consistent Rs indicator | N/A | Phase 3 | — | — | Inspection | Not Started | Applies to every later money-displaying screen too. |
-| NFR-USE-04 | Every save gives clear visual confirmation of success/failure, incl. offline | N/A | Phase 3 | — | — | Test | Not Started | Offline half fully applicable only once Phase 6 exists. |
-| NFR-USE-05 | Wording matches existing workbook terms (Parties, Counter Income, etc.) | N/A | Phase 3 (inferred) | — | — | Inspection | Not Started | **Gap:** never explicitly cited in any phase's requirement groups in `PROJECT_PLAN.md`, despite being a cross-cutting rule (CLAUDE.md §22) applying to every UI-bearing phase (0, 3, 4, 5, 7). Phase 3 is the first screen-bearing phase, used here as the anchor. |
-| NFR-USE-06 | Archiving requires confirmation naming the affected record | N/A | Phase 3 | — | — | Test | Not Started | |
-| NFR-USE-07 | Interface works on phone screen without horizontal scrolling | N/A | Phase 3 | — | — | Test | Not Started | |
-| NFR-USE-08 | Interface is in English | N/A | Phase 3 (inferred) | — | — | Inspection | Not Started | **Gap — same as NFR-USE-05:** cross-cutting, never explicitly phased in `PROJECT_PLAN.md`. Also the basis for the out-of-scope "no Urdu interface" guard (CLAUDE.md §26). |
+| NFR-USE-01 | Routine daily expense recorded in ≤5 interactions from main screen | N/A | Phase 3B | — | — | Demonstration | Not Started | |
+| NFR-USE-02 | Daily party income grid operable by keyboard alone | N/A | Phase 3B | — | — | Demonstration | Not Started | |
+| NFR-USE-03 | Amounts shown with thousands separators and consistent Rs indicator | N/A | Phase 3B | — | — | Inspection | Not Started | Applies to every later money-displaying screen too. |
+| NFR-USE-04 | Every save gives clear visual confirmation of success/failure, incl. offline | N/A | Phase 3B | — | — | Test | Not Started | Offline half fully applicable only once Phase 6 exists. |
+| NFR-USE-05 | Wording matches existing workbook terms (Parties, Counter Income, etc.) | N/A | Phase 3B (inferred) | — | — | Inspection | Not Started | **Gap:** never explicitly cited in any phase's requirement groups in `PROJECT_PLAN.md`, despite being a cross-cutting rule (CLAUDE.md §22) applying to every UI-bearing phase (0, 3, 4, 5, 7). Phase 3B is the first business-screen-bearing phase, used here as the anchor. Phase 3A's own shell copy ("Home"/"Dashboard"/"Users", no "client"/"customer" wording) is already consistent with this rule, but carries no business terminology of its own to fully satisfy it. |
+| NFR-USE-06 | Archiving requires confirmation naming the affected record | N/A | Phase 3B | — | — | Test | Not Started | Phase 3A built the reusable confirmation building block (`src/components/ui/Modal`, native `<dialog>`) but no screen calls it with real archive copy yet — no business entry exists to archive before Phase 3B. |
+| NFR-USE-07 | Interface works on phone screen without horizontal scrolling | N/A | Phase 3B | — | — | Test | Not Started | Phase 3A's shell itself (sidebar/header/mobile drawer) is proven free of horizontal scroll at a 375px viewport (`tests/e2e/shell.spec.ts`); the requirement remains "Not Started" overall because it must hold for every future business screen too, most of which don't exist yet — see `docs/UI_REQUIREMENTS.md` §7's tablet/mobile visual-verification gate on Phase 3B's own acceptance. |
+| NFR-USE-08 | Interface is in English | N/A | Phase 3B (inferred) | — | — | Inspection | Not Started | **Gap — same as NFR-USE-05:** cross-cutting, never explicitly phased in `PROJECT_PLAN.md`. Also the basis for the out-of-scope "no Urdu interface" guard (CLAUDE.md §26). Phase 3A's shell copy and vendored fonts (Latin subset only, per `public/design-assets/fonts/PROVENANCE.md`) are already English-only/English-scoped, consistent with this rule. |
 
 ### 4.5 Maintainability (NFR-MNT) — SRS §4.5
 
@@ -291,7 +291,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | AC-01 | Every M-priority requirement implemented and verified by its stated method | N/A | Phase 8 | — | — | Demonstration | Not Started | Meta-criterion; depends on every prior phase. |
 | AC-02 | Reproduces July 2026 figures exactly (income/expenses/profit/partner shares) | N/A | Phase 5 | — | — | Demonstration | Not Started | **Gated** on resolving the AT WASTE reconciliation conflict (CLAUDE.md §27, item 1) before the fixture is written. The single most important test in the project. |
 | AC-03 | Two further historical months reconciled line-by-line against client workbooks | N/A | Phase 8 | — | — | Demonstration | Not Started | |
-| AC-04 | Party monthly total shown derived from entries; Best Lab cash receipts recorded as entries | N/A | Phase 8 | — | — | Demonstration | Not Started | Underlying feature (FR-PINC-06/07) is built in Phase 3; formal acceptance sign-off happens in Phase 8. |
+| AC-04 | Party monthly total shown derived from entries; Best Lab cash receipts recorded as entries | N/A | Phase 8 | — | — | Demonstration | Not Started | Underlying feature (FR-PINC-06/07) is built in Phase 3B; formal acceptance sign-off happens in Phase 8. |
 | AC-05 | Funding-source rule demonstrated (profit unaffected, investment raised, still in category report) | N/A | Phase 4 | — | — | Demonstration | Not Started | Explicitly closed out in Phase 4 per `PROJECT_PLAN.md` exit criteria. |
 | AC-06 | Offline entry demonstrated end-to-end incl. browser close/reopen and reconnect | N/A | Phase 6 | — | — | Demonstration | Not Started | |
 | AC-07 | Repeated upload of same entry shown not to duplicate | N/A | Phase 6 | — | — | Demonstration | Not Started | |
@@ -374,7 +374,7 @@ Phase key (from `docs/PROJECT_PLAN.md`): **0** Repository & dev foundation · **
 | Phase 0 — Repository & dev foundation | 0 | 6 | 0 | 6 |
 | Phase 1 — Database & domain foundation | 0 | 1 | 0 | 1 |
 | Phase 2 — Authentication & authorization | 10 | 2 | 0 | 12 |
-| Phase 3 — Operator transaction workflows | 23 | 9 | 0 | 32 |
+| Phase 3B — Operator transaction workflows (Phase 3A, the shared shell, carries no requirement IDs of its own — see `docs/PROJECT_PLAN.md`) | 23 | 9 | 0 | 32 |
 | Phase 4 — Monthly expenses, assets & partner investment | 32 | 0 | 1 | 33 |
 | Phase 5 — Calculations, dashboard, warnings & reports | 33 | 3 | 5 | 41 |
 | Phase 6 — Offline operation & synchronization | 15 | 4 | 2 | 21 |

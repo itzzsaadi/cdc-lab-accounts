@@ -1,30 +1,161 @@
 @import "tailwindcss";
 
 /*
- * Color tokens reproduced from the approved Stitch design (docs/ui/stitch-export/*.html,
- * docs/ui/stitch-export/DESIGN.md) — only the subset the Phase 2 Sign In
- * screen and its extended states actually use. See docs/UI_REQUIREMENTS.md
- * §12 for the full palette and the border-radius discrepancy this project
- * resolved. This is a hand-authored Tailwind v4 `@theme` block, not a copy
- * of the Stitch HTML's CDN-only inline `tailwind.config` script (which is
- * never used in production — CLAUDE.md / docs/UI_REQUIREMENTS.md §27).
+ * Design tokens reproduced from the approved Stitch design
+ * (docs/ui/stitch-export/*.html, docs/ui/stitch-export/DESIGN.md). Values
+ * are taken from the HTML files' embedded `tailwind.config` (byte-identical
+ * across all 11 files) rather than DESIGN.md's prose where the two
+ * disagree — see docs/UI_REQUIREMENTS.md §12/§25 for the documented
+ * `borderRadius` discrepancy this resolves. This is a hand-authored
+ * Tailwind v4 `@theme` block, not a copy of the Stitch HTML's CDN-only
+ * inline `tailwind.config` script (which is never used in production —
+ * CLAUDE.md / docs/UI_REQUIREMENTS.md §27).
  */
 @theme {
-  --color-primary: #005c55;
-  --color-primary-container: #0f766e;
-  --color-on-primary: #ffffff;
-  --color-on-surface: #0b1c30;
-  --color-on-surface-variant: #3e4947;
+  /* Fonts — self-hosted via next/font/local (src/lib/fonts.ts), CSS
+     variables supplied by the layout that applies them. No Google Fonts
+     request at runtime or build time (Phase 3A decision). */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Colors — full palette, DESIGN.md / docs/ui/stitch-export/*.html */
   --color-surface: #f8f9ff;
+  --color-surface-dim: #cbdbf5;
+  --color-surface-bright: #f8f9ff;
   --color-surface-container-lowest: #ffffff;
   --color-surface-container-low: #eff4ff;
+  --color-surface-container: #e5eeff;
+  --color-surface-container-high: #dce9ff;
+  --color-surface-container-highest: #d3e4fe;
+  --color-surface-variant: #d3e4fe;
+  --color-on-surface: #0b1c30;
+  --color-on-surface-variant: #3e4947;
+  --color-inverse-surface: #213145;
+  --color-inverse-on-surface: #eaf1ff;
+  --color-outline: #6e7977;
   --color-outline-variant: #bdc9c6;
+  --color-surface-tint: #006a63;
+  --color-background: #f8f9ff;
+  --color-on-background: #0b1c30;
+
+  --color-primary: #005c55;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #0f766e;
+  --color-on-primary-container: #a3faef;
+  --color-inverse-primary: #80d5cb;
+  --color-primary-fixed: #9cf2e8;
+  --color-primary-fixed-dim: #80d5cb;
+  --color-on-primary-fixed: #00201d;
+  --color-on-primary-fixed-variant: #00504a;
+
+  --color-secondary: #46617a;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #c3e0fe;
+  --color-on-secondary-container: #48637d;
+  --color-secondary-fixed: #cde5ff;
+  --color-secondary-fixed-dim: #adcae7;
+  --color-on-secondary-fixed: #001d32;
+  --color-on-secondary-fixed-variant: #2e4961;
+
+  --color-tertiary: #3b3bc9;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #5457e2;
+  --color-on-tertiary-container: #eae8ff;
+  --color-tertiary-fixed: #e1e0ff;
+  --color-tertiary-fixed-dim: #c0c1ff;
+  --color-on-tertiary-fixed: #07006c;
+  --color-on-tertiary-fixed-variant: #2f2ebe;
+
   --color-error: #ba1a1a;
   --color-on-error: #ffffff;
   --color-error-container: #ffdad6;
   --color-on-error-container: #93000a;
 
-  --font-body-md: 14px;
-  --font-body-sm: 12px;
-  --font-headline-md: 24px;
+  /* Typography — DESIGN.md's named scale, each a --text-* token with its
+     line-height/letter-spacing/weight companions (Tailwind v4 supports
+     --text-*--line-height / --letter-spacing / --font-weight). */
+  --text-display-lg: 32px;
+  --text-display-lg--line-height: 40px;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 700;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-headline-md--font-weight: 600;
+
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 24px;
+  --text-headline-sm--font-weight: 600;
+
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 400;
+
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-body-sm--font-weight: 400;
+
+  --text-tabular-nums: 14px;
+  --text-tabular-nums--line-height: 20px;
+  --text-tabular-nums--font-weight: 500;
+
+  --text-label-caps: 11px;
+  --text-label-caps--line-height: 16px;
+  --text-label-caps--letter-spacing: 0.05em;
+  --text-label-caps--font-weight: 700;
+
+  /* Spacing */
+  --spacing-sidebar-width: 260px;
+  --spacing-header-height: 56px;
+  --spacing-gutter: 16px;
+  --spacing-container-margin: 24px;
+  --spacing-touch-target-min: 44px;
+
+  /* Radius — kept exactly as the HTML's embedded config (not DESIGN.md's
+     prose), per the approved decision: `full` is NOT a default radius —
+     it's reserved for pills/badges/circular avatars only (--radius-pill).
+     Cards/buttons/forms/dialogs keep DEFAULT/lg/xl below, unchanged. */
+  --radius: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-pill: 9999px;
+}
+
+/*
+ * Material Symbols Outlined — ligature icon font, self-hosted via
+ * next/font/local (src/lib/fonts.ts). Standard Google-provided icon-font
+ * CSS shape (not copied from the Stitch demo's inline script — this is the
+ * generic, documented way any consumer of this font applies it). Icons are
+ * used exactly as the Stitch HTML already does: a literal icon name as the
+ * element's text content, e.g. <span class="material-symbols-outlined">menu</span>.
+ */
+.material-symbols-outlined {
+  font-family: var(--font-material-symbols-outlined);
+  font-weight: 400;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+}
+
+/* Respect reduced-motion for the mobile sidebar drawer and shell transitions. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

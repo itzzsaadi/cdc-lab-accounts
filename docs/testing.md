@@ -1,9 +1,10 @@
 # Test Plan and QA Checklist
 
-Status: Phase 1 and Phase 2 test infrastructure in place. Filled in
-further as each later phase's coverage is built — see `docs/PROJECT_PLAN.md`
-for what each phase tests, and `docs/REQUIREMENTS_TRACEABILITY.md` for the
-full requirement-to-test mapping.
+Status: Phase 1, Phase 2, and Phase 3A test infrastructure in place.
+Filled in further as each later phase's coverage is built — see
+`docs/PROJECT_PLAN.md` for what each phase tests, and
+`docs/REQUIREMENTS_TRACEABILITY.md` for the full requirement-to-test
+mapping.
 
 ## Test types
 
@@ -116,12 +117,36 @@ any environment variable itself.
   identical generic error; valid sign-in reaches the role-appropriate
   placeholder; an Operator is denied direct navigation to an Admin-only
   route; the session cookie is `HttpOnly`/`SameSite=Lax`; a cross-origin
-  POST to the auth API is rejected. Fixtures are created through a
-  test-only, `NODE_ENV`-guarded route (`src/app/api/test/seed-user/route.ts`)
-  that exercises the real invitation-acceptance code path, rather than
-  importing server modules directly into the Playwright process (which
-  hits an unrelated ESM/CJS interop mismatch specific to Playwright's own
-  TypeScript transform).
+  POST to the auth API is rejected. Fixtures are created by
+  `scripts/e2e-create-user.ts`, run via `tsx` as a child process from
+  `tests/e2e/helpers/create-user.ts` — this exercises the real
+  invitation-acceptance code path with **no test-only route of any kind**
+  compiled into the Next.js app (the earlier `/api/test/seed-user` route
+  was removed once this mechanism was in place — see
+  `docs/adr/0003-phase-2-authentication.md`'s closure section).
+
+## Current coverage (Phase 3A)
+
+- **Unit** (`tests/unit/navigation/`, `tests/unit/ui/`): the incremental
+  nav-item table's per-role filtering (`visibleNavItems`) and its
+  contextual-title lookup (`titleForPath`); the initials-avatar helpers
+  (deterministic initials and color from a name).
+- **Playwright e2e** (`tests/e2e/shell.spec.ts`): an Operator's sidebar
+  shows only Home, a Partner's shows Home and Dashboard (never Users), an
+  Admin's shows all three — checked by DOM presence/absence, not merely
+  CSS visibility; a Partner is denied direct navigation to the Admin-only
+  `/users` route independent of what the nav shows; the mobile drawer
+  opens via the header's hamburger button, traps Tab focus inside the
+  open native `<dialog>`, closes on Escape, and returns focus to the
+  trigger button; no horizontal page scroll at a 375px viewport; the user
+  menu opens via the avatar, is keyboard-closable (Escape, with focus
+  returned to the trigger), and completes a real sign-out; the
+  skip-navigation link is the first focusable element on the page and
+  targets `#main-content`; a full sign-in-and-navigate flow produces zero
+  requests to `fonts.googleapis.com`/`fonts.gstatic.com` and zero browser
+  console errors. All pre-existing Phase 2 tests (127 Vitest, 9 of the 18
+  Playwright specs) were re-run and still pass after the `(app)` route
+  move and the auth-screen primitive retrofit.
 
 The July 2026 reconciliation fixture (`CLAUDE.md` §21, `AC-02`) — the
 single most important regression test in the project — is built in

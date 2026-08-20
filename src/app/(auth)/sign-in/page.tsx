@@ -1,8 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signInAction } from "../../../server/actions/auth";
+import { Button } from "../../../components/ui/Button";
+import { TextInput } from "../../../components/ui/TextInput";
+import { Checkbox } from "../../../components/ui/Checkbox";
+import { Alert } from "../../../components/ui/Alert";
+
+/**
+ * Reads the `?expired=1` query param set by `AuthenticatedShell`'s
+ * redirect (src/components/layout/AuthenticatedShell.tsx). Isolated in its
+ * own component so `useSearchParams()` doesn't force the whole Sign In
+ * page to opt out of static prerendering — Next.js requires any
+ * `useSearchParams()` consumer to sit inside a `<Suspense>` boundary.
+ */
+function ExpiredBanner() {
+  const searchParams = useSearchParams();
+  if (searchParams.get("expired") !== "1") return null;
+  return <Alert variant="info">Your session expired — please sign in again.</Alert>;
+}
 
 /**
  * Reproduces the approved Stitch Sign In screen
@@ -39,51 +56,45 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="bg-surface min-h-screen flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-[440px] bg-surface-container-lowest border border-outline-variant/30 rounded-xl shadow-md overflow-hidden">
-        <div className="p-8 pb-6 text-center border-b border-outline-variant/20">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-surface-container-low mb-4">
+    <main
+      id="main-content"
+      className="bg-surface flex min-h-screen flex-col items-center justify-center p-4"
+    >
+      <div className="bg-surface-container-lowest border-outline-variant/30 w-full max-w-[440px] overflow-hidden rounded-xl border shadow-md">
+        <div className="border-outline-variant/20 border-b p-8 pb-6 text-center">
+          <div className="bg-surface-container-low mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg">
             <span className="text-primary text-2xl" aria-hidden>
               🧪
             </span>
           </div>
-          <h1 className="text-2xl font-semibold text-on-surface mb-2">CDC Laboratories</h1>
-          <p className="text-sm text-on-surface-variant">Secure Access Gateway</p>
+          <h1 className="text-on-surface mb-2 text-2xl font-semibold">CDC Laboratories</h1>
+          <p className="text-on-surface-variant text-sm">Secure Access Gateway</p>
         </div>
 
-        <form className="p-8 space-y-6" onSubmit={handleSubmit} noValidate>
-          {error ? (
-            <p
-              role="alert"
-              className="text-sm text-error bg-error-container/40 rounded-lg px-3 py-2"
-            >
-              {error}
-            </p>
-          ) : null}
+        <form className="space-y-6 p-8" onSubmit={handleSubmit} noValidate>
+          <Suspense fallback={null}>
+            <ExpiredBanner />
+          </Suspense>
+          {error ? <Alert variant="error">{error}</Alert> : null}
+
+          <TextInput
+            id="email"
+            label="Email Address"
+            name="email"
+            type="email"
+            required
+            autoComplete="username"
+            placeholder="user@cdclabs.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
 
           <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-on-surface">
-              Email Address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="username"
-              placeholder="user@cdclabs.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="block w-full px-3 py-2.5 border border-outline-variant rounded-lg text-on-surface text-sm bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-primary transition-colors h-11"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label htmlFor="password" className="block text-sm font-medium text-on-surface">
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-on-surface block text-sm font-medium">
                 Password
               </label>
-              <a href="/forgot-password" className="text-sm text-primary hover:underline">
+              <a href="/forgot-password" className="text-primary text-sm hover:underline">
                 Forgot Password?
               </a>
             </div>
@@ -97,12 +108,12 @@ export default function SignInPage() {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="block w-full px-3 pr-10 py-2.5 border border-outline-variant rounded-lg text-on-surface text-sm bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-primary transition-colors h-11"
+                className="border-outline-variant text-on-surface bg-surface-container-lowest focus:ring-primary focus:border-primary h-11 block w-full rounded-lg border px-3 py-2.5 pr-10 text-sm transition-colors focus:ring-2"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((value) => !value)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant"
+                className="text-on-surface-variant absolute inset-y-0 right-0 flex items-center pr-3"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? "🙈" : "👁"}
@@ -110,46 +121,36 @@ export default function SignInPage() {
             </div>
           </div>
 
-          <div className="pt-2 space-y-6">
-            <div className="flex items-center">
-              {/*
-                Sessions always last 30 days (FR-AUTH-05) — there is no
-                shorter, user-selectable session. This checkbox is rendered
-                checked and non-interactive so it never implies a second
-                session duration exists (approved correction, Phase 2 plan
-                §11/§19 decision 18).
-              */}
-              <input
-                id="remember-me"
-                type="checkbox"
-                checked
-                disabled
-                readOnly
-                className="h-4 w-4 text-primary border-outline-variant rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-on-surface-variant">
-                Sessions stay signed in for 30 days
-              </label>
-            </div>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full flex justify-center items-center h-11 bg-primary hover:bg-primary-container text-on-primary text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
-            >
+          <div className="space-y-6 pt-2">
+            {/*
+              Sessions always last 30 days (FR-AUTH-05) — there is no
+              shorter, user-selectable session. This checkbox is rendered
+              checked and non-interactive so it never implies a second
+              session duration exists (approved correction, Phase 2 plan
+              §11/§19 decision 18).
+            */}
+            <Checkbox
+              id="remember-me"
+              label="Sessions stay signed in for 30 days"
+              checked
+              disabled
+              readOnly
+            />
+            <Button type="submit" disabled={submitting} className="w-full">
               {submitting ? "Signing in…" : "Sign In"}
-            </button>
+            </Button>
           </div>
         </form>
 
-        <div className="bg-surface-container-low px-8 py-4 border-t border-outline-variant/20 flex justify-center items-center gap-2">
+        <div className="bg-surface-container-low border-outline-variant/20 flex items-center justify-center gap-2 border-t px-8 py-4">
           <span className="relative flex h-2 w-2">
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-xs text-on-surface-variant uppercase tracking-wider">
+          <span className="text-on-surface-variant text-xs tracking-wider uppercase">
             System Status: Online
           </span>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

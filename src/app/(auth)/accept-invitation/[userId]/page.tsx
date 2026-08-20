@@ -3,6 +3,9 @@
 import { use, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthCard } from "../../../../components/layout/AuthCard";
+import { Button } from "../../../../components/ui/Button";
+import { TextInput } from "../../../../components/ui/TextInput";
+import { Alert } from "../../../../components/ui/Alert";
 import { acceptInvitationAction } from "../../../../server/actions/auth";
 
 export default function AcceptInvitationPage({ params }: { params: Promise<{ userId: string }> }) {
@@ -28,15 +31,12 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ use
   if (done) {
     return (
       <AuthCard title="Account ready">
-        <p className="text-sm text-on-surface-variant mb-4">
+        <p className="text-on-surface-variant mb-4 text-sm">
           Your password has been set. Please sign in to continue.
         </p>
-        <button
-          onClick={() => router.push("/sign-in")}
-          className="w-full h-11 bg-primary text-on-primary text-sm font-medium rounded-lg"
-        >
+        <Button onClick={() => router.push("/sign-in")} className="w-full">
           Go to Sign In
-        </button>
+        </Button>
       </AuthCard>
     );
   }
@@ -44,31 +44,19 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ use
   return (
     <AuthCard title="Set your password" subtitle="Complete your CDC Lab Accounts System invitation">
       <form className="space-y-6" onSubmit={handleSubmit}>
-        {error ? (
-          <p role="alert" className="text-sm text-error bg-error-container/40 rounded-lg px-3 py-2">
-            {error}
-          </p>
-        ) : null}
-        <div className="space-y-2">
-          <label htmlFor="newPassword" className="block text-sm font-medium text-on-surface">
-            Choose a password
-          </label>
-          <input
-            id="newPassword"
-            type="password"
-            required
-            minLength={12}
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            className="block w-full px-3 py-2.5 border border-outline-variant rounded-lg text-on-surface text-sm bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-primary h-11"
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full h-11 bg-primary text-on-primary text-sm font-medium rounded-lg"
-        >
+        {error ? <Alert variant="error">{error}</Alert> : null}
+        <TextInput
+          id="newPassword"
+          label="Choose a password"
+          type="password"
+          required
+          minLength={12}
+          value={newPassword}
+          onChange={(event) => setNewPassword(event.target.value)}
+        />
+        <Button type="submit" className="w-full">
           Set password
-        </button>
+        </Button>
       </form>
     </AuthCard>
   );

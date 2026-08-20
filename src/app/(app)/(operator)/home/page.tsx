@@ -1,7 +1,7 @@
 import { headers as nextHeaders } from "next/headers";
 import { redirect } from "next/navigation";
-import { getAuthenticatedUser } from "../../../server/session";
-import { requirePermission, PermissionDeniedError } from "../../../lib/permissions/guard";
+import { getAuthenticatedUser } from "../../../../server/session";
+import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
 
 /**
  * Minimal placeholder proving role protection (Phase 2 scope) — not a real
@@ -20,12 +20,12 @@ export default async function OperatorHomePage() {
   }
 
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-semibold text-on-surface">Operator Home</h1>
-      <p className="text-sm text-on-surface-variant mt-2">
+    <div>
+      <h1 className="text-on-surface text-2xl font-semibold">Operator Home</h1>
+      <p className="text-on-surface-variant mt-2 text-sm">
         Signed in as {user!.role}. This placeholder proves Operator-level access only — no financial
         UI is built in Phase 2.
       </p>
-    </main>
+    </div>
   );
 }

@@ -1,0 +1,78 @@
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Avatar } from "../ui/Avatar";
+import { signOutAction } from "../../server/actions/auth";
+
+/**
+ * Native <dialog>-backed menu — Escape-to-close, focus-trap while open, and
+ * focus return to the trigger button on close all come from `showModal()`
+ * for free (no hand-rolled focus management). Styled as a small anchored
+ * panel near the trigger rather than a centered card, unlike `ui/Modal`.
+ */
+export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel: string }) {
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  function handleSignOut() {
+    startTransition(async () => {
+      await signOutAction();
+      setOpen(false);
+      router.push("/sign-in");
+    });
+  }
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="min-h-touch-target-min flex items-center gap-2 rounded-lg px-2 py-1 transition-colors"
+      >
+        <Avatar fullName={fullName} />
+        <span className="text-on-surface-variant hidden text-sm sm:inline">{roleLabel}</span>
+        <span className="material-symbols-outlined text-on-surface-variant" aria-hidden>
+          expand_more
+        </span>
+      </button>
+      <dialog
+        ref={dialogRef}
+        onClose={() => setOpen(false)}
+        onCancel={() => setOpen(false)}
+        onClick={(event) => {
+          if (event.target === dialogRef.current) setOpen(false);
+        }}
+        aria-label="User menu"
+        className="bg-surface-container-lowest text-on-surface fixed top-16 right-4 m-0 w-56 rounded-lg p-2 shadow-[0px_4px_12px_rgba(18,48,71,0.08)] backdrop:bg-transparent"
+      >
+        <p className="text-on-surface truncate px-3 py-2 text-sm font-medium">{fullName}</p>
+        <p className="text-on-surface-variant px-3 pb-2 text-xs">{roleLabel}</p>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={isPending}
+          className="text-error hover:bg-error-container/40 min-h-touch-target-min flex w-full items-center gap-2 rounded-lg px-3 text-left text-sm disabled:opacity-60"
+        >
+          <span className="material-symbols-outlined" aria-hidden>
+            logout
+          </span>
+          {isPending ? "Signing out…" : "Sign out"}
+        </button>
+      </dialog>
+    </div>
+  );
+}
