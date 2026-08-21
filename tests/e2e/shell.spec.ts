@@ -18,7 +18,9 @@ async function signIn(page: import("@playwright/test").Page, email: string) {
 }
 
 test.describe("Role-specific navigation — incremental, presentational only", () => {
-  test("an Operator's sidebar shows only Home", async ({ page }) => {
+  test("an Operator's sidebar shows Home plus the three Phase 3B entry screens, never Dashboard/Users", async ({
+    page,
+  }) => {
     const user = await createActivatedUser("OPERATOR", TEST_PASSWORD);
     await signIn(page, user.email);
     await expect(page).toHaveURL(/\/home$/);
@@ -30,8 +32,11 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     // {display:none}`) — so only the visible one is queried here, at the
     // default desktop viewport.
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(1);
-    await expect(links.first()).toContainText("Home");
+    await expect(links).toHaveCount(4);
+    await expect(links.nth(0)).toContainText("Home");
+    await expect(links.nth(1)).toContainText("Daily Expenses");
+    await expect(links.nth(2)).toContainText("Party Income");
+    await expect(links.nth(3)).toContainText("Counter Income");
 
     // Absent from the DOM entirely — not merely hidden — in *both* the
     // desktop nav and the (currently closed) mobile drawer's markup.
@@ -39,25 +44,27 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     await expect(page.locator('nav[aria-label="Primary"] a:has-text("Users")')).toHaveCount(0);
   });
 
-  test("a Partner's sidebar shows Home and Dashboard, never Users", async ({ page }) => {
+  test("a Partner's sidebar shows every Operator item plus Dashboard, never Users", async ({
+    page,
+  }) => {
     const user = await createActivatedUser("PARTNER", TEST_PASSWORD);
     await signIn(page, user.email);
     await expect(page).toHaveURL(/\/home$/);
 
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(2);
+    await expect(links).toHaveCount(5);
     await expect(page.locator('nav[aria-label="Primary"] a:visible:has-text("Users")')).toHaveCount(
       0,
     );
   });
 
-  test("an Admin's sidebar shows Home, Dashboard, and Users", async ({ page }) => {
+  test("an Admin's sidebar shows every current item", async ({ page }) => {
     const user = await createActivatedUser("ADMIN", TEST_PASSWORD);
     await signIn(page, user.email);
     await expect(page).toHaveURL(/\/home$/);
 
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(3);
+    await expect(links).toHaveCount(6);
   });
 });
 

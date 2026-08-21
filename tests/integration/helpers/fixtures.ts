@@ -56,3 +56,76 @@ export async function createTestVendor() {
   const prisma = getTestPrismaClient();
   return prisma.vendor.create({ data: { name: `Test Vendor ${randomUUID()}` } });
 }
+
+/** Phase 3B entry fixtures — never seeded through prisma/seed.ts (which seeds zero transactions), only ever created directly by tests that need a pre-existing row to edit/archive/concurrency-test against. */
+export async function createTestDailyExpense(overrides: {
+  userId: string;
+  expenseItemId?: string;
+  expenseDate?: Date;
+  amount?: string;
+  fundingSource?: "BUSINESS" | "PARTNER";
+  fundedByUserId?: string;
+}) {
+  const prisma = getTestPrismaClient();
+  return prisma.dailyExpense.create({
+    data: {
+      clientUuid: randomUUID(),
+      expenseDate: overrides.expenseDate ?? new Date("2026-08-21"),
+      expenseItemId: overrides.expenseItemId,
+      customDescription: overrides.expenseItemId ? undefined : "Test expense",
+      amount: overrides.amount ?? "500",
+      fundingSource: overrides.fundingSource ?? "BUSINESS",
+      fundedByUserId: overrides.fundedByUserId,
+      capturedAt: new Date(),
+      createdBy: overrides.userId,
+      updatedBy: overrides.userId,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function createTestPartyIncome(overrides: {
+  userId: string;
+  partyId: string;
+  incomeDate?: Date;
+  amount?: string;
+  receiptType?: "DAILY" | "MONTHLY" | "CASH_DIRECT";
+  note?: string;
+}) {
+  const prisma = getTestPrismaClient();
+  return prisma.partyIncome.create({
+    data: {
+      clientUuid: randomUUID(),
+      partyId: overrides.partyId,
+      incomeDate: overrides.incomeDate ?? new Date("2026-08-21"),
+      amount: overrides.amount ?? "1000",
+      receiptType: overrides.receiptType ?? "DAILY",
+      note: overrides.note,
+      capturedAt: new Date(),
+      createdBy: overrides.userId,
+      updatedBy: overrides.userId,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function createTestCounterIncome(overrides: {
+  userId: string;
+  incomeDate?: Date;
+  amount?: string;
+  note?: string;
+}) {
+  const prisma = getTestPrismaClient();
+  return prisma.counterIncome.create({
+    data: {
+      clientUuid: randomUUID(),
+      incomeDate: overrides.incomeDate ?? new Date("2026-08-21"),
+      amount: overrides.amount ?? "2000",
+      note: overrides.note,
+      capturedAt: new Date(),
+      createdBy: overrides.userId,
+      updatedBy: overrides.userId,
+      updatedAt: new Date(),
+    },
+  });
+}

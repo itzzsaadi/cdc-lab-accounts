@@ -2,20 +2,33 @@ import { describe, expect, it } from "vitest";
 import { visibleNavItems, titleForPath } from "../../../src/lib/navigation/nav-items";
 
 describe("visibleNavItems", () => {
-  it("shows an Operator only Home", () => {
+  it("shows an Operator Home plus the three Phase 3B entry screens", () => {
     const hrefs = visibleNavItems("OPERATOR").map((item) => item.href);
-    expect(hrefs).toEqual(["/home"]);
+    expect(hrefs).toEqual(["/home", "/daily-expenses", "/party-income", "/counter-income"]);
   });
 
-  it("shows a Partner Home and Dashboard, never Users", () => {
+  it("shows a Partner every Operator item plus Dashboard, never Users", () => {
     const hrefs = visibleNavItems("PARTNER").map((item) => item.href);
-    expect(hrefs).toEqual(["/home", "/dashboard"]);
+    expect(hrefs).toEqual([
+      "/home",
+      "/daily-expenses",
+      "/party-income",
+      "/counter-income",
+      "/dashboard",
+    ]);
     expect(hrefs).not.toContain("/users");
   });
 
   it("shows an Admin every current item", () => {
     const hrefs = visibleNavItems("ADMIN").map((item) => item.href);
-    expect(hrefs).toEqual(["/home", "/dashboard", "/users"]);
+    expect(hrefs).toEqual([
+      "/home",
+      "/daily-expenses",
+      "/party-income",
+      "/counter-income",
+      "/dashboard",
+      "/users",
+    ]);
   });
 
   it("never exposes a Partner/Admin-only item to Operator", () => {
@@ -31,6 +44,12 @@ describe("titleForPath", () => {
 
   it("matches a nested route under a nav item", () => {
     expect(titleForPath("/users/123")).toBe("Users");
+  });
+
+  it("matches the Phase 3B entry routes", () => {
+    expect(titleForPath("/daily-expenses")).toBe("Daily Expenses");
+    expect(titleForPath("/party-income")).toBe("Party Income");
+    expect(titleForPath("/counter-income")).toBe("Counter Income");
   });
 
   it("falls back to the product name for an unknown route", () => {

@@ -4,6 +4,115 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 3B closure: filters, edit/archive UI, and money formatting
+
+- `src/lib/domain/money-format.ts` (`formatMoney`): one shared,
+  Decimal-safe display formatter (`"Rs 1,234.56"`, thousands separators,
+  always two decimals; pure string manipulation, never `Number()`/
+  `parseFloat`/`.toNumber()`), applied across Daily Expenses, Party
+  Income (grid totals, Cash Receipt confirmation), Counter Income (list,
+  total, duplicate warning), and Operator Home's Recent Entries.
+- Daily Expenses filter controls (`src/app/(app)/(operator)/
+daily-expenses/page.tsx`): date range, item-or-description search, and
+  funding source, all reflected in the URL query string and validated
+  server-side (`listDailyExpensesSchema`); a Reset Filters action; a
+  filter-aware empty state.
+- Daily Expense edit/archive UI (`src/components/entries/
+{DailyExpenseFormFields,DailyExpenseRowActions}.tsx`): edit opens a
+  dialog prefilled from the row's own values and submits its
+  `expectedUpdatedAt` for the existing atomic conditional-write check;
+  archive reuses the confirmation `Modal`, naming the exact record; a
+  stale edit/archive shows a clear reload message rather than silently
+  failing.
+- Cash Receipt's confirmation now shows a visible "amount recorded for
+  &lt;party&gt;" state before closing (NFR-USE-04), and its reachability
+  from both Operator Home and the Party Income page is now e2e-proven.
+- Fixed a Turbopack crash on `/party-income`: `formatMoney`'s first
+  version transitively imported the generated Prisma client (a Node-only
+  module) into two Client Components' browser bundles. The `Decimal`
+  import is now type-only; see `docs/adr/0005-phase-3b-operator-
+workflows.md` §13.
+- New tests: `tests/unit/domain/money-format.test.ts`; a Cash Receipt
+  idempotent-replay/concurrency test in `tests/integration/mutations/
+party-income.test.ts`; Playwright coverage in `tests/e2e/entries.spec.ts`
+  for filters, the edit/archive/stale-write lifecycle, and Cash Receipt
+  (reachability, visible confirmation, `CASH_DIRECT` persistence, one
+  audit row) via two new DB-check helper scripts
+  (`scripts/e2e-verify-party-income-row.ts`,
+  `scripts/e2e-touch-daily-expense.ts`) following the existing
+  `scripts/e2e-create-user.ts` child-process pattern.
+
+### Added — Phase 3B: Operator Transaction Workflows
+
+- `src/app/(app)/(operator)/daily-expenses/page.tsx` +
+  `src/components/entries/DailyExpenseDrawer.tsx`: Daily Expense list
+  (current month, date/item/amount/funding-source) and a native-`<dialog>`
+  create drawer — item selectable from the active managed list or "Other"
+  free text, Business/Partner funding-source toggle with a required
+  partner selector when Partner is chosen (DR-07).
+- `src/app/(app)/(operator)/party-income/page.tsx` +
+  `src/components/entries/{PartyIncomeGrid,GridCellInput,CashReceiptModal}.tsx`:
+  the daily-billing party income grid — sticky day column, horizontal
+  scroll, one column per active daily-billing party (plus any archived
+  party with in-month history, rendered read-only) — and a direct Cash
+  Receipt modal (`receipt_type: "CASH_DIRECT"`, required note, any billing
+  mode). Each cell is a full autosave state machine (idle/dirty/saving/
+  saved/error/stale) with Enter-to-move-down and caret-gated arrow-key
+  navigation across the grid.
+- `src/app/(app)/(operator)/counter-income/page.tsx` +
+  `src/components/entries/CounterIncomeForm.tsx`: daily counter-income
+  list/total plus a create form implementing FR-CINC-04's two-step,
+  non-blocking duplicate-date warning ("Record Anyway" resubmits with the
+  same `client_uuid`, never a hard rejection). `counter_income.amount`
+  allows zero — the one table with `CHECK (amount >= 0)`.
+- `src/app/(app)/(operator)/home/page.tsx`: real Quick Actions (Add Daily
+  Expense / Enter Party Income / Add Counter Income / Record Cash Receipt)
+  and a real Recent Entries table (`captured_at DESC, id DESC` across all
+  four entry kinds) — replaces the Phase 2 placeholder. No "Pending
+  Uploads" tile, no per-row sync status — both would fabricate state that
+  doesn't exist until Phase 6's offline queue.
+- `src/lib/domain/calendar-date.ts`: strict `YYYY-MM-DD`/`YYYY-MM` parsing
+  (round-trip validated via `Date.UTC`, never `z.coerce.date()`) and
+  Asia/Karachi "today"/month-boundary helpers via
+  `Intl.DateTimeFormat(...).formatToParts()` — never `.format()`, whose
+  output shape isn't part of the stable `Intl` contract.
+- `src/lib/validation/{money,daily-expense,party-income,counter-income}.ts`:
+  Zod schemas for every Phase 3B write — amounts as regex-validated
+  decimal strings (never `z.coerce.number()`), dates via the calendar-date
+  parser, `client_uuid` required on every create.
+- `src/lib/audit.ts` (`appendBusinessAudit`): the business/financial
+  counterpart to Phase 2's `appendAuthAudit`, accepting **only**
+  `Prisma.TransactionClient` so every audit write commits or rolls back
+  atomically with its business mutation.
+- `src/lib/prisma-errors.ts` (`isUniqueConstraintViolationOn`): identifies
+  which unique constraint a P2002 violation came from (via the Prisma 7
+  driver-adapter error's own `constraint.fields`) — the mechanism behind
+  concurrent-safe create-idempotency (client-generated `client_uuid`,
+  the database's own constraint as the final authority under real
+  concurrency, never `findUnique`-then-`create` alone).
+- `src/server/mutations/{daily-expenses,party-income,counter-income}.ts` +
+  thin `src/server/actions/*.ts` wrappers: framework-independent mutation
+  cores (testable directly against a real database, no Next.js request
+  context needed) implementing create-idempotency, atomic
+  conditional-write stale-write protection (`updateMany` gated on
+  `id`/`expectedUpdatedAt`/`isArchived`), and transactional auditing.
+- `src/server/queries/{daily-expenses,party-income,counter-income,home}.ts`:
+  read-side queries, including the grid's archived-party-with-history
+  visibility rule and its per-party/per-day/grand totals.
+- `prisma/migrations/20260821070503_phase3b_party_income_daily_cell_unique/`:
+  additive migration adding `party_income_active_daily_cell_unique`
+  (mirrors the Phase 1 instalment partial-unique-index pattern), scoped to
+  `receipt_type = 'DAILY'` only — preflight-checked for conflicts before
+  writing (none found), never touching the Phase 1 migration.
+- `docs/adr/0005-phase-3b-operator-workflows.md`: the full design record
+  for the above.
+- Full test coverage: unit (calendar-date, money/validation schemas),
+  integration (business audit atomicity, the new partial unique index,
+  every mutation's idempotency/concurrency/stale-write/duplicate-warning
+  behavior, the grid query's archived-visibility rule), and Playwright e2e
+  (all three new screens, direct-route authorization, updated nav-item
+  counts).
+
 ### Added — Phase 3A: Shared Application Shell and Reusable UI Foundation
 
 - `src/app/(app)/layout.tsx` + `src/components/layout/AuthenticatedShell.tsx`:

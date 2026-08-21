@@ -9,7 +9,7 @@
  *
  * Creates a real, sign-in-capable user through the same invitation-
  * acceptance code path the application itself uses, then prints
- * `{ email, id }` as JSON on stdout. Refuses to run in production as a
+ * `{ email, id, fullName }` as JSON on stdout. Refuses to run in production as a
  * defense-in-depth measure, even though it can never be reached by a
  * deployed app in the first place (it is never imported by `src/`).
  */
@@ -52,7 +52,7 @@ async function main() {
   const { rawToken } = await issueInvitationGate(prisma, user.id);
   await acceptInvitation(prisma, auth, { userId: user.id, rawToken, newPassword: password });
 
-  process.stdout.write(JSON.stringify({ email: user.email, id: user.id }));
+  process.stdout.write(JSON.stringify({ email: user.email, id: user.id, fullName: user.fullName }));
 }
 
 main()

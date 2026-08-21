@@ -1,9 +1,10 @@
 # Architecture Overview
 
 Status: Phase 1 (database & domain foundation), Phase 2 (authentication &
-authorization), and Phase 3A (shared application shell & reusable UI
-foundation) in place. Updated further as later phases add business
-screens, reporting, and offline UI on top of the shell.
+authorization), Phase 3A (shared application shell & reusable UI
+foundation), and Phase 3B (Operator transaction workflows) in place.
+Updated further as later phases add Partner/Admin business screens,
+reporting, and offline UI on top of the shell.
 
 ## Data layer (Phase 1)
 
@@ -124,13 +125,62 @@ Full design record: `docs/adr/0004-phase-3a-shared-shell.md`.
   behavior-preserving refactor, re-verified against the full Phase 2
   security test suite (all 127 Vitest + 18 Playwright tests passing).
 
+## Operator transaction workflows layer (Phase 3B)
+
+Full design record: `docs/adr/0005-phase-3b-operator-workflows.md`.
+
+- **Query/mutation split, not one server-actions file per entity.**
+  `src/server/queries/*.ts` (read) and `src/server/mutations/*.ts` (write,
+  framework-independent — take `prisma`/`currentUser` as plain arguments,
+  directly unit/integration-testable) hold the real logic; thin
+  `"use server"` wrappers in `src/server/actions/*.ts` resolve
+  `currentUser` from real request headers and pass the runtime `prisma`
+  singleton — `currentUser` is never a client-suppliable parameter.
+- **Create-idempotency**: a browser-generated `client_uuid`
+  (`src/lib/client-uuid.ts`) is checked via `findUnique` first, then the
+  database's own unique-constraint violation (`src/lib/prisma-errors.ts`)
+  is the final authority under real concurrency — never the `findUnique`-
+  then-`create` sequence alone. This is the exact protocol Phase 6's
+  offline queue will reuse.
+- **Stale-write protection**: every edit/archive is a single conditional
+  `updateMany` (`where: { id, updatedAt: expectedUpdatedAt, isArchived:
+false }`), never a read-then-write.
+- **Transactional business audit**: `src/lib/audit.ts`'s
+  `appendBusinessAudit` accepts only `Prisma.TransactionClient` — every
+  mutation's audit row commits or rolls back atomically with the business
+  row it describes, diverging deliberately from Phase 2's
+  `appendAuthAudit` (plain `PrismaClient`).
+- **Calendar dates**: `src/lib/domain/calendar-date.ts` — strict
+  `YYYY-MM-DD`/`YYYY-MM` parsing (`Date.UTC` round-trip validated, never
+  `z.coerce.date()`) and Asia/Karachi "today"/month-boundary helpers via
+  `Intl.DateTimeFormat(...).formatToParts()` (never `.format()`).
+- **Screens**: `src/app/(app)/(operator)/{daily-expenses,party-income,
+counter-income}/page.tsx` plus `src/components/entries/*` (the
+  `FundingSourceToggle`, the Party Income grid's per-cell autosave state
+  machine in `GridCellInput`, the Cash Receipt modal, the Counter Income
+  form with its two-step duplicate-confirmation flow). Operator Home
+  (`(operator)/home/page.tsx`) now shows real quick actions and a real
+  Recent Entries table, replacing the Phase 2 placeholder.
+- A new additive migration
+  (`prisma/migrations/20260821070503_phase3b_party_income_daily_cell_unique/`)
+  adds `party_income_active_daily_cell_unique`, scoped to
+  `receipt_type = 'DAILY'` only, mirroring Phase 1's instalment
+  partial-unique-index pattern.
+
 ## Not yet built
 
-- Transaction/reporting/investment/dashboard/offline-queue business
-  screens and their API — Phase 3B onward. Phase 3A built only the shell
-  and reusable components these screens will use, not the screens
-  themselves.
+- Monthly expenses, assets, capital contributions, and the partner
+  investment statement — Phase 4.
+- Results/dashboard/reports/warnings screens — Phase 5.
+- Offline entry queue and synchronization (Dexie, service workers,
+  conflict resolution) — Phase 6. Phase 3B's screens are online-only.
 - Full master-data admin UI and profit-split settings screen — Phase 7.
+- On the Daily Expenses screen specifically: date-range/item/funding-
+  source filter _controls_ (the underlying query already supports them)
+  and edit/archive _UI_ (the mutations exist and are tested, but no
+  screen calls them yet) — tracked as `Partial` rows in
+  `docs/REQUIREMENTS_TRACEABILITY.md` (FR-DEXP-07/09), not silently
+  dropped.
 
 See `docs/PROJECT_PLAN.md` for the phase-by-phase implementation sequence
 this document tracks, and `docs/adr/` for the detailed record of each
