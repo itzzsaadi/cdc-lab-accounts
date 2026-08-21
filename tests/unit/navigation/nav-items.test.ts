@@ -20,6 +20,7 @@ describe("visibleNavItems", () => {
       "/party-income-monthly",
       "/assets",
       "/investment",
+      "/party-income-report",
       "/audit-log",
     ]);
     expect(hrefs).not.toContain("/users");
@@ -38,6 +39,7 @@ describe("visibleNavItems", () => {
       "/party-income-monthly",
       "/assets",
       "/investment",
+      "/party-income-report",
       "/audit-log",
       "/users",
     ]);
@@ -73,6 +75,7 @@ describe("titleForPath", () => {
 
   it("matches the Phase 5 Partner routes", () => {
     expect(titleForPath("/monthly-summary")).toBe("Monthly Summary");
+    expect(titleForPath("/party-income-report")).toBe("Income by Party");
     expect(titleForPath("/audit-log")).toBe("Audit Log");
   });
 

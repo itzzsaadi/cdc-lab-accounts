@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 5 closure: FR-RPT-05, FR-AUD-06, and skip removal
+
+- Income by Party (`src/app/(app)/(partner)/party-income-report`,
+  `getPartyIncomeReport`): FR-RPT-05/FR-PINC-08's "income by party across
+  a chosen range" — daily/monthly/cash-receipt components and a combined
+  total, per party across an arbitrary validated date range, Postgres-side
+  `groupBy`/`SUM` throughout; zero-income parties shown, never omitted;
+  Partner/Admin-only, Operator denied through the UI and a direct call.
+- FR-AUD-06 now covers `asset`/`capital_contribution` audit rows too — a
+  batched (never N+1) live lookup of `acquiredOn`/`entryDate` resolves
+  their business date, since neither is ever written into the audit
+  JSON snapshot. Previously `null` for both entity types; still `null`
+  only when the date is genuinely unset.
+- Removed the one conditional Playwright skip in
+  `tests/e2e/phase5-reporting.spec.ts`: the "History button" test now
+  creates its own Asset fixture through the real form, rather than
+  depending on the shared dev database already containing one.
+- See `docs/adr/0007-phase-5-calculations-dashboard-reports.md` §13/§14
+  for the full record; `docs/REQUIREMENTS_TRACEABILITY.md`'s FR-RPT-05
+  and FR-AUD-06 rows are now both `Implemented` with no disclosed gap.
+
 ### Added — Phase 5: Calculations, Dashboard, Warnings, Reports, and Audit Log
 
 - `app_settings.partner_a_user_id`/`partner_b_user_id` — explicit Partner

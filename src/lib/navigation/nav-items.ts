@@ -51,6 +51,12 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: "Asset Register", href: "/assets", icon: "inventory_2", minRole: "PARTNER" },
   { label: "Partner Investment", href: "/investment", icon: "handshake", minRole: "PARTNER" },
+  {
+    label: "Income by Party",
+    href: "/party-income-report",
+    icon: "groups",
+    minRole: "PARTNER",
+  },
   { label: "Audit Log", href: "/audit-log", icon: "history", minRole: "PARTNER" },
   { label: "Users", href: "/users", icon: "manage_accounts", minRole: "ADMIN" },
 ];

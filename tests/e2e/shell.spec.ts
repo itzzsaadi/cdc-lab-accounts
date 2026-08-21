@@ -52,7 +52,7 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     await expect(page).toHaveURL(/\/home$/);
 
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(11); // 4 Operator + Dashboard + 4 Phase 4 Partner entries + 2 Phase 5 Partner entries
+    await expect(links).toHaveCount(12); // 4 Operator + Dashboard + 4 Phase 4 Partner entries + 3 Phase 5 Partner entries
     await expect(page.locator('nav[aria-label="Primary"] a:visible:has-text("Users")')).toHaveCount(
       0,
     );
@@ -64,7 +64,7 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     await expect(page).toHaveURL(/\/home$/);
 
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(12); // every Partner item plus Users
+    await expect(links).toHaveCount(13); // every Partner item plus Users
   });
 });
 

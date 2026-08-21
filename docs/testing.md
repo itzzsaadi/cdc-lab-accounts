@@ -369,11 +369,44 @@ Full design record: `docs/adr/0007-phase-5-calculations-dashboard-reports.md`.
   `next.config.ts`'s `serverExternalPackages: ["pdfkit"]`. Both were
   caught only because the Playwright suite actually drives a real
   browser against the real dev server, not a mocked/unit-only check.
-- Full suite at Phase 5's close: **367 Vitest tests across 60 files**,
-  **53 Playwright e2e tests** (1 conditionally skipped — no existing
-  asset row on the shared dev database to check history against),
-  `prisma validate`/`prisma format` (zero schema diff), `prisma migrate
-status` (no drift, the new migration applied to both dev and test
-  databases) — all passing. No pre-existing test was weakened, removed,
-  or skipped; the nav-item-count assertions updated for the two new
-  routes are the only earlier-phase test edits.
+- Full suite at Phase 5's original close: **367 Vitest tests across 60
+  files**, **53 Playwright e2e tests** (1 conditionally skipped — no
+  existing asset row on the shared dev database to check history
+  against), `prisma validate`/`prisma format` (zero schema diff),
+  `prisma migrate status` (no drift, the new migration applied to both
+  dev and test databases) — all passing. No pre-existing test was
+  weakened, removed, or skipped; the nav-item-count assertions updated
+  for the two new routes are the only earlier-phase test edits.
+
+### Phase 5 closure — FR-RPT-05, FR-AUD-06, and the conditional test skip
+
+Full design record: `docs/adr/0007-phase-5-calculations-dashboard-reports.md` §13/§14.
+
+- **Integration** (`tests/integration/queries/party-income-report.test.ts`,
+  extended `tests/integration/queries/audit-log.test.ts`, extended
+  `tests/integration/authorization/phase5-authorization-sweep.test.ts`):
+  `getPartyIncomeReport`'s daily/monthly/cash-receipt components and
+  combined total across a custom range spanning two calendar months
+  (proving the `MONTHLY` component's month-truncation rule independently
+  of the `DAILY`/`CASH_DIRECT` literal-range rule), a zero-income party
+  shown rather than omitted, an archived-but-historical party included,
+  and Operator denial; the asset (`acquiredOn`)/capital-contribution
+  (`entryDate`) live business-date resolution — an old business date
+  flags the entry even though `capturedAt` is "now" (proving the flag
+  tracks the entity's own date, not when the audit event fired), a
+  recent one does not, an unset `acquiredOn` yields `null` (never a
+  false negative), and a malformed `entityId` never crashes the lookup.
+- **Playwright e2e** (extended `tests/e2e/phase5-reporting.spec.ts`):
+  Operator denial for `/party-income-report`; a Partner reaching the new
+  screen and applying a custom range. The previously-conditional "History
+  button opens its change history" test now creates its own Asset
+  fixture through the real Add Asset form first — it no longer depends
+  on the shared dev database happening to already contain one, and the
+  suite carries zero conditional/data-dependent skips as a result.
+- Full suite at Phase 5's closure: **375 Vitest tests across 61 files**,
+  **55 Playwright e2e tests, 0 skipped**, `prisma validate`/`prisma format`
+  (zero schema diff, no new migration needed — this closure added no
+  schema change), `prisma migrate status` (no drift on dev or test),
+  production build succeeds — all passing. No pre-existing test was
+  weakened or removed; nav-item-count assertions updated for the one new
+  "Income by Party" sidebar entry are the only earlier-phase test edits.

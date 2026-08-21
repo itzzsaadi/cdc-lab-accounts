@@ -146,6 +146,127 @@ describe("getEntityHistory (FR-AUD-05)", () => {
   });
 });
 
+describe("asset/capital_contribution live business-date resolution (FR-AUD-06 fix)", () => {
+  it("flags an asset audit entry using the asset's real acquiredOn, not capturedAt", async () => {
+    const user = await partnerUser();
+    const category = await prisma.expenseCategory.create({
+      data: { name: "Fixture Purchasing Category", expenseGroup: "PURCHASING" },
+    });
+    const oldAsset = await prisma.asset.create({
+      data: {
+        name: "Old Instalment Machine",
+        classification: "FIXED",
+        acquisitionMode: "INSTALMENT",
+        monthlyInstalment: "5000",
+        defaultCategoryId: category.id,
+        acquiredOn: new Date("2026-01-01"),
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
+    });
+    const recentAsset = await prisma.asset.create({
+      data: {
+        name: "Recent Instalment Machine",
+        classification: "FIXED",
+        acquisitionMode: "INSTALMENT",
+        monthlyInstalment: "5000",
+        defaultCategoryId: category.id,
+        acquiredOn: new Date(),
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
+    });
+    const undatedAsset = await prisma.asset.create({
+      data: {
+        name: "Undated Instalment Machine",
+        classification: "FIXED",
+        acquisitionMode: "INSTALMENT",
+        monthlyInstalment: "5000",
+        defaultCategoryId: category.id,
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
+    });
+
+    // capturedAt is "now" for every row — proving the flag tracks the
+    // asset's own acquiredOn, not when the audit event was captured.
+    await writeAudit({ actorUserId: user.id, entityType: "asset", entityId: oldAsset.id });
+    await writeAudit({ actorUserId: user.id, entityType: "asset", entityId: recentAsset.id });
+    await writeAudit({ actorUserId: user.id, entityType: "asset", entityId: undatedAsset.id });
+
+    const page = await listAuditLog(prisma, user, { entityType: "asset" });
+    const old = page.items.find((i) => i.entityId === oldAsset.id)!;
+    const recent = page.items.find((i) => i.entityId === recentAsset.id)!;
+    const undated = page.items.find((i) => i.entityId === undatedAsset.id)!;
+
+    expect(old.isEntryOverOneMonthOld).toBe(true);
+    expect(recent.isEntryOverOneMonthOld).toBe(false);
+    expect(undated.isEntryOverOneMonthOld).toBeNull();
+  });
+
+  it("flags a capital_contribution audit entry using the contribution's real entryDate, not capturedAt", async () => {
+    const user = await partnerUser();
+    const partner = await createTestUser({ isPartner: true });
+    const oldContribution = await prisma.capitalContribution.create({
+      data: {
+        partnerUserId: partner.id,
+        entryDate: new Date("2026-01-01"),
+        amount: "10000",
+        contributionType: "INJECTION",
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
+    });
+    const recentContribution = await prisma.capitalContribution.create({
+      data: {
+        partnerUserId: partner.id,
+        entryDate: new Date(),
+        amount: "10000",
+        contributionType: "INJECTION",
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
+    });
+
+    await writeAudit({
+      actorUserId: user.id,
+      entityType: "capital_contribution",
+      entityId: oldContribution.id,
+    });
+    await writeAudit({
+      actorUserId: user.id,
+      entityType: "capital_contribution",
+      entityId: recentContribution.id,
+    });
+
+    const history = await getEntityHistory(
+      prisma,
+      user,
+      "capital_contribution",
+      oldContribution.id,
+    );
+    expect(history[0].isEntryOverOneMonthOld).toBe(true);
+
+    const page = await listAuditLog(prisma, user, { entityType: "capital_contribution" });
+    const recent = page.items.find((i) => i.entityId === recentContribution.id)!;
+    expect(recent.isEntryOverOneMonthOld).toBe(false);
+  });
+
+  it("never crashes on a non-UUID entityId for a live-lookup entity type", async () => {
+    const user = await partnerUser();
+    await writeAudit({ actorUserId: user.id, entityType: "asset", entityId: "not-a-real-uuid" });
+
+    const page = await listAuditLog(prisma, user, { entityType: "asset" });
+    const entry = page.items.find((i) => i.entityId === "not-a-real-uuid")!;
+    expect(entry.isEntryOverOneMonthOld).toBeNull();
+  });
+});
+
 describe("listAuditActors (FR-AUD-04's actor filter)", () => {
   it("returns every user, denies an OPERATOR", async () => {
     const user = await partnerUser();
