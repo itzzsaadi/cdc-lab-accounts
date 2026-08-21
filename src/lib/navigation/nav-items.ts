@@ -22,6 +22,14 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/home", icon: "home", minRole: "OPERATOR" },
+  { label: "Daily Expenses", href: "/daily-expenses", icon: "receipt_long", minRole: "OPERATOR" },
+  { label: "Party Income", href: "/party-income", icon: "groups", minRole: "OPERATOR" },
+  {
+    label: "Counter Income",
+    href: "/counter-income",
+    icon: "point_of_sale",
+    minRole: "OPERATOR",
+  },
   { label: "Dashboard", href: "/dashboard", icon: "dashboard", minRole: "PARTNER" },
   { label: "Users", href: "/users", icon: "manage_accounts", minRole: "ADMIN" },
 ];

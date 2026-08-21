@@ -50,14 +50,14 @@ test.describe("Sign In screen", () => {
     expect(unknownEmailError).toBe(wrongPasswordError);
   });
 
-  test("valid sign-in reaches the role-appropriate placeholder home", async ({ page }) => {
+  test("valid sign-in reaches the role-appropriate Operator Home", async ({ page }) => {
     const user = await createActivatedUser("OPERATOR", TEST_PASSWORD);
     await page.goto("/sign-in");
     await page.getByLabel("Email Address").fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(TEST_PASSWORD);
     await page.getByRole("button", { name: "Sign In" }).click();
     await expect(page).toHaveURL(/\/home$/);
-    await expect(page.getByRole("heading", { name: "Operator Home" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Quick Actions" })).toBeVisible();
   });
 });
 

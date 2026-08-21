@@ -1,7 +1,7 @@
 # Test Plan and QA Checklist
 
-Status: Phase 1, Phase 2, and Phase 3A test infrastructure in place.
-Filled in further as each later phase's coverage is built — see
+Status: Phase 1, Phase 2, Phase 3A, and Phase 3B test infrastructure in
+place. Filled in further as each later phase's coverage is built — see
 `docs/PROJECT_PLAN.md` for what each phase tests, and
 `docs/REQUIREMENTS_TRACEABILITY.md` for the full requirement-to-test
 mapping.
@@ -147,6 +147,59 @@ any environment variable itself.
   console errors. All pre-existing Phase 2 tests (127 Vitest, 9 of the 18
   Playwright specs) were re-run and still pass after the `(app)` route
   move and the auth-screen primitive retrofit.
+
+## Current coverage (Phase 3B)
+
+- **Unit** (`tests/unit/domain/calendar-date.test.ts`,
+  `tests/unit/validation/*.test.ts`): strict `YYYY-MM-DD`/`YYYY-MM`
+  parsing and rejection (leap years, malformed shapes, no
+  `z.coerce.date()`-style ambiguity); `todayInKarachi`/
+  `currentYearMonthInKarachi` timezone-independence across a UTC evening/
+  Karachi-next-day boundary and a summer/winter boundary (no DST in
+  Pakistan); the shared decimal-amount validator (zero/negative/
+  precision rejection, `NUMERIC(14,2)` digit limits); every entity's Zod
+  schema (funding-source bidirectional requirement, item-XOR-description,
+  cash-receipt note requirement, counter-income's `>= 0` exception).
+- **Integration** (`tests/integration/audit/business-audit.test.ts`,
+  `tests/integration/constraints/party-income-daily-cell-idempotency.test.ts`,
+  `tests/integration/mutations/*.test.ts`,
+  `tests/integration/queries/party-income-grid.test.ts`): transactional
+  business-audit atomicity in both failure directions; the new partial
+  unique index rejecting a second active `DAILY` cell while never
+  restricting `CASH_DIRECT`/`MONTHLY` rows, and permitting
+  archive-then-correct; every mutation's create-idempotency **including a
+  genuine `Promise.all` concurrency test** (both callers succeed, exactly
+  one row and one audit row exist), the distinct-conflict case (a
+  different `client_uuid` racing for the same party/day cell is a real
+  error, never treated as a replay), atomic stale-write rejection,
+  archived-row edit rejection, and Counter Income's two-step
+  duplicate-confirmation flow (warn → confirm → create, and a retried
+  `client_uuid` never re-shown the warning); the Party Income grid
+  query's archived-party historical-visibility rule in both directions.
+- **Playwright e2e** (`tests/e2e/entries.spec.ts`): a Business-funded and
+  a Partner-funded Daily Expense end to end; a Party Income grid cell
+  surviving a reload and Enter moving focus to the next day down; a Cash
+  Receipt not populating a grid cell; Counter Income's duplicate warning
+  and confirmation, and a zero-amount entry; Operator Home showing no
+  "Pending Uploads"/sync-status chrome; direct-route authorization
+  (unauthenticated requests to all three new screens redirect to Sign
+  In). `tests/e2e/shell.spec.ts`/`auth.spec.ts` were updated (nav-item
+  counts, the real Home heading) to match, not weakened — every existing
+  assertion still holds, only the counts/text that intentionally changed
+  were corrected. Because the dev database is shared and persistent
+  across parallel e2e runs (unlike the `_test` database `tests/
+integration/**` truncates between tests), every new assertion is
+  scoped to that test's own uniquely-marked row rather than a cumulative
+  total or row count.
+- Full suite at Phase 3B's close: **227 Vitest tests across 38 files**,
+  **29 Playwright e2e tests**, `prisma validate`/`prisma format` (zero
+  schema diff), `prisma migrate status` (no drift), and a production
+  build — all passing. No pre-existing Phase 1/2/3A test was weakened,
+  removed, or skipped to make Phase 3B pass; the two shell/auth
+  assertions that referenced now-superseded specifics (the old
+  placeholder's "Operator Home" heading, the pre-Phase-3B nav-item
+  counts) were corrected to match the new, real functionality they now
+  describe.
 
 The July 2026 reconciliation fixture (`CLAUDE.md` §21, `AC-02`) — the
 single most important regression test in the project — is built in

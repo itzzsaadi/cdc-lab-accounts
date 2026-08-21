@@ -17,11 +17,11 @@ const execFileAsync = promisify(execFile);
 export async function createActivatedUser(
   role: "OPERATOR" | "PARTNER" | "ADMIN",
   password: string,
-): Promise<{ email: string; id: string }> {
+): Promise<{ email: string; id: string; fullName: string }> {
   const { stdout } = await execFileAsync(
     "npx",
     ["tsx", "scripts/e2e-create-user.ts", "--role", role, "--password", password],
     { cwd: process.cwd() },
   );
-  return JSON.parse(stdout) as { email: string; id: string };
+  return JSON.parse(stdout) as { email: string; id: string; fullName: string };
 }
