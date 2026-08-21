@@ -7,6 +7,8 @@ import {
   updateDailyPartyIncomeCell,
   archivePartyIncome,
   createCashReceipt,
+  createMonthlyPartyBill,
+  updateMonthlyPartyBill,
 } from "../../../src/server/mutations/party-income";
 
 const prisma = getTestPrismaClient();
@@ -17,6 +19,11 @@ afterEach(async () => {
 
 async function operatorUser() {
   const row = await createTestUser({ role: "OPERATOR" });
+  return { id: row.id, role: row.role, isPartner: row.isPartner, isActive: row.isActive };
+}
+
+async function partnerUser() {
+  const row = await createTestUser({ role: "PARTNER", isPartner: true });
   return { id: row.id, role: row.role, isPartner: row.isPartner, isActive: row.isActive };
 }
 
@@ -258,5 +265,95 @@ describe("createCashReceipt (FR-PINC-06)", () => {
       where: { entityType: "party_income", entityId: rows[0].id },
     });
     expect(auditCount).toBe(1);
+  });
+});
+
+describe("createMonthlyPartyBill (FR-PINC-03, Partner-only, one figure per party per month)", () => {
+  it("creates a MONTHLY row and one audit row", async () => {
+    const user = await partnerUser();
+    const party = await createTestParty({ billingMode: "MONTHLY" });
+    const clientUuid = randomUUID();
+
+    const result = await createMonthlyPartyBill(prisma, user, {
+      clientUuid,
+      partyId: party.id,
+      periodMonth: "2026-08",
+      amount: "50000",
+    });
+    expect(result).toEqual({ ok: true, id: expect.any(String), replayed: false });
+
+    const row = await prisma.partyIncome.findUniqueOrThrow({ where: { clientUuid } });
+    expect(row.receiptType).toBe("MONTHLY");
+    expect(row.incomeDate.toISOString().slice(0, 10)).toBe("2026-08-01");
+  });
+
+  it("rejects a second bill for the same party and month, directing to edit instead", async () => {
+    const user = await partnerUser();
+    const party = await createTestParty({ billingMode: "MONTHLY" });
+
+    await createMonthlyPartyBill(prisma, user, {
+      clientUuid: randomUUID(),
+      partyId: party.id,
+      periodMonth: "2026-08",
+      amount: "50000",
+    });
+    const second = await createMonthlyPartyBill(prisma, user, {
+      clientUuid: randomUUID(),
+      partyId: party.id,
+      periodMonth: "2026-08",
+      amount: "55000",
+    });
+    expect(second.ok).toBe(false);
+
+    const count = await prisma.partyIncome.count({
+      where: { partyId: party.id, receiptType: "MONTHLY", isArchived: false },
+    });
+    expect(count).toBe(1);
+  });
+
+  it("replays a retried create (same clientUuid) without creating a duplicate", async () => {
+    const user = await partnerUser();
+    const party = await createTestParty({ billingMode: "MONTHLY" });
+    const input = {
+      clientUuid: randomUUID(),
+      partyId: party.id,
+      periodMonth: "2026-08",
+      amount: "50000",
+    };
+
+    const first = await createMonthlyPartyBill(prisma, user, input);
+    const second = await createMonthlyPartyBill(prisma, user, input);
+    expect(first.ok).toBe(true);
+    expect(second).toMatchObject({ ok: true, replayed: true });
+
+    const count = await prisma.partyIncome.count({ where: { clientUuid: input.clientUuid } });
+    expect(count).toBe(1);
+  });
+
+  it("correcting an already-recorded month is an ordinary stale-write-protected edit, never a second row", async () => {
+    const user = await partnerUser();
+    const party = await createTestParty({ billingMode: "MONTHLY" });
+    const created = await createMonthlyPartyBill(prisma, user, {
+      clientUuid: randomUUID(),
+      partyId: party.id,
+      periodMonth: "2026-08",
+      amount: "50000",
+    });
+    if (!created.ok) throw new Error("setup failed");
+    const row = await prisma.partyIncome.findUniqueOrThrow({ where: { id: created.id } });
+
+    const result = await updateMonthlyPartyBill(prisma, user, {
+      id: created.id,
+      expectedUpdatedAt: row.updatedAt.toISOString(),
+      amount: "52000",
+    });
+    expect(result.ok).toBe(true);
+
+    const updated = await prisma.partyIncome.findUniqueOrThrow({ where: { id: created.id } });
+    expect(updated.amount.toString()).toBe("52000");
+    const count = await prisma.partyIncome.count({
+      where: { partyId: party.id, receiptType: "MONTHLY" },
+    });
+    expect(count).toBe(1);
   });
 });

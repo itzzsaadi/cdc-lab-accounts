@@ -266,6 +266,8 @@ Build the day-to-day entry screens used by reception staff: daily expenses, dail
 
 ## Phase 4 — Monthly Expenses, Assets, and Partner Investment
 
+**Status: implemented.** See `docs/adr/0006-phase-4-monthly-assets-investment.md` for the full design record — the additive `assets.default_category_id` column and `party_income_active_monthly_party_month_unique` partial unique index (one migration, both changes), the Partner-triggered/previewed/confirmed instalment-generation and recurring-prefill batch actions (per-asset/per-line transactions, never one shared transaction), the new Monthly Party Bill route and permission, and the explicit decision to add only real navigation entries for this phase's screens — no dashboard, report, or warnings functionality, which remain entirely Phase 5's scope.
+
 ### Objective
 Build the Partner-only, monthly-cadence workflows: administration and purchasing expenses, monthly party billing, the asset register with its strict instalment/cash rule, capital contributions, and the partner investment statement.
 

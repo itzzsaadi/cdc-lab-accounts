@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createDailyPartyIncomeCellSchema,
   createCashReceiptSchema,
+  createMonthlyPartyBillSchema,
 } from "../../../src/lib/validation/party-income";
 
 describe("createDailyPartyIncomeCellSchema (FR-PINC-02/07)", () => {
@@ -48,5 +49,28 @@ describe("createCashReceiptSchema (FR-PINC-06)", () => {
   it("requires a non-empty note", () => {
     expect(createCashReceiptSchema.safeParse({ ...base, note: "" }).success).toBe(false);
     expect(createCashReceiptSchema.safeParse(base).success).toBe(false);
+  });
+});
+
+describe("createMonthlyPartyBillSchema (FR-PINC-03, Partner-only)", () => {
+  const base = {
+    clientUuid: randomUUID(),
+    partyId: randomUUID(),
+    periodMonth: "2026-08",
+    amount: "50000",
+  };
+
+  it("accepts a valid monthly bill", () => {
+    expect(createMonthlyPartyBillSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("rejects a zero amount", () => {
+    expect(createMonthlyPartyBillSchema.safeParse({ ...base, amount: "0" }).success).toBe(false);
+  });
+
+  it("rejects a malformed period month", () => {
+    expect(createMonthlyPartyBillSchema.safeParse({ ...base, periodMonth: "2026-8" }).success).toBe(
+      false,
+    );
   });
 });

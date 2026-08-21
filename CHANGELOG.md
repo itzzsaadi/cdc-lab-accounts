@@ -4,6 +4,53 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 4: Monthly Expenses, Assets, and Partner Investment
+
+- `assets.default_category_id` and the extended `assets_acquisition_mode_check`
+  (requires it for `INSTALMENT`, forbids it for `CASH`), plus the
+  `party_income_active_monthly_party_month_unique` partial unique index
+  with a preflight duplicate guard — one additive migration
+  (`20260821170513_phase4_monthly_assets_investment`), no earlier
+  migration touched, no `prisma db push`.
+- Monthly Expenses (`src/app/(app)/(partner)/monthly-expenses`):
+  Administration/Purchasing sections, a read-only system-generated Daily
+  Expenses line, same-category duplicate warning, and two batch actions —
+  Partner-triggered/previewed/confirmed instalment-line generation
+  (`generateInstalmentLines`) and recurring-line pre-fill
+  (`applyRecurringPrefill`), each creating one row per asset/category in
+  its own transaction with its own audit event, concurrency-proven
+  idempotent via the Phase 1 partial unique index.
+- Asset Register (`src/app/(app)/(partner)/assets`): Cash/Instalment
+  acquisition-mode toggle, mutually exclusive at form, Zod, and DB
+  layers; Cash mode requires a purchasing partner as part of the same
+  required field, never an optional checkbox; Instalment mode requires a
+  positive monthly instalment and an active Purchasing default category
+  (server-validated); filterable by classification/mode/status with a
+  Cash purchase-price total; archiving stops future instalment
+  generation only.
+- Monthly Party Bill (`src/app/(app)/(partner)/party-income-monthly`,
+  new `party-income:monthly-bill` permission): one figure per
+  monthly-billing party per month, DB-enforced; completes FR-PINC-07/08's
+  three-way total (daily + monthly + cash receipts) via the new
+  `getPartyMonthlyTotals` query.
+- Partner Investment (`src/app/(app)/(partner)/investment`): Capital
+  Contribution/Drawing entry (amount always positive `Decimal`,
+  `contributionType` conveys the sign) and a per-partner itemised
+  statement with running balance, reusing the unchanged Phase 1
+  `partnerInvestmentTotal`.
+- Four new Partner-only sidebar entries (`nav-items.ts`) for the above —
+  no dashboard, report, or warnings functionality built (explicit
+  approved scope decision; those remain Phase 5).
+- New tests: `tests/integration/mutations/{monthly-expenses,assets,
+capital-contributions}.test.ts`, `tests/integration/constraints/
+party-income-monthly-unique.test.ts`, `tests/integration/queries/
+{party-monthly-totals,capital-contributions}.test.ts`,
+  `tests/unit/validation/{monthly-expense,asset,capital-contribution}.test.ts`,
+  `tests/e2e/monthly-workflows.spec.ts`. Full suite: 298 Vitest tests
+  across 48 files, 44 Playwright e2e tests.
+- See `docs/adr/0006-phase-4-monthly-assets-investment.md` for the full
+  design record.
+
 ### Added — Phase 3B closure: filters, edit/archive UI, and money formatting
 
 - `src/lib/domain/money-format.ts` (`formatMoney`): one shared,

@@ -124,3 +124,82 @@ export async function listActivePartiesForCashReceipt(prisma: PrismaClient) {
     orderBy: [{ billingMode: "asc" }, { sortOrder: "asc" }],
   });
 }
+
+export interface PartyMonthlyTotal {
+  partyId: string;
+  name: string;
+  isActive: boolean;
+  billingMode: "DAILY" | "MONTHLY";
+  dailyTotal: string;
+  monthlyBill: { id: string; amount: string; updatedAt: string } | null;
+  cashReceiptsTotal: string;
+  combinedTotal: string;
+}
+
+/**
+ * FR-PINC-07/08 (Phase 4 completion): the full three-way per-party total —
+ * daily entries + the monthly bill figure (FR-PINC-03, Partner-only) + cash
+ * receipts — for whichever components apply to that party's billing mode.
+ * A daily-billing party never has a monthly bill; a monthly-billing party
+ * never has daily grid rows; every party can carry `CASH_DIRECT` receipts
+ * regardless of mode (FR-PINC-06). Reused by both the Monthly Party Bill
+ * screen (filtered to `billingMode: "MONTHLY"`) and anywhere the complete
+ * combined total is needed. Archived-but-historical parties with a live row
+ * this month are still included (mandatory safeguard #6, same as the grid).
+ */
+export async function getPartyMonthlyTotals(
+  prisma: PrismaClient,
+  currentUser: AuthenticatedUser | null,
+  yearMonth: string,
+): Promise<PartyMonthlyTotal[]> {
+  requirePermission(currentUser, "entry:party-income");
+
+  const { firstDay, lastDay } = monthBounds(yearMonth);
+  const from = parseCalendarDate(firstDay)!;
+  const to = parseCalendarDate(lastDay)!;
+
+  const rows = await prisma.partyIncome.findMany({
+    where: { isArchived: false, incomeDate: { gte: from, lte: to } },
+    select: { id: true, partyId: true, amount: true, receiptType: true, updatedAt: true },
+  });
+
+  const historicalPartyIds = new Set(rows.map((row) => row.partyId));
+  const activeParties = await prisma.party.findMany({
+    where: { isActive: true },
+    orderBy: [{ billingMode: "asc" }, { sortOrder: "asc" }],
+  });
+  const archivedButHistorical = await prisma.party.findMany({
+    where: { isActive: false, id: { in: Array.from(historicalPartyIds) } },
+    orderBy: [{ billingMode: "asc" }, { sortOrder: "asc" }],
+  });
+  const parties = [...activeParties, ...archivedButHistorical];
+
+  return parties.map((party) => {
+    const partyRows = rows.filter((row) => row.partyId === party.id);
+    const dailyTotal = partyRows
+      .filter((row) => row.receiptType === "DAILY")
+      .reduce<Decimal>((sum, row) => sum.plus(row.amount), ZERO);
+    const cashReceiptsTotal = partyRows
+      .filter((row) => row.receiptType === "CASH_DIRECT")
+      .reduce<Decimal>((sum, row) => sum.plus(row.amount), ZERO);
+    const monthlyRow = partyRows.find((row) => row.receiptType === "MONTHLY") ?? null;
+    const monthlyAmount = monthlyRow ? monthlyRow.amount : ZERO;
+
+    return {
+      partyId: party.id,
+      name: party.name,
+      isActive: party.isActive,
+      billingMode: party.billingMode,
+      dailyTotal: dailyTotal.toString(),
+      monthlyBill: monthlyRow
+        ? {
+            id: monthlyRow.id,
+            amount: monthlyRow.amount.toString(),
+            updatedAt: monthlyRow.updatedAt.toISOString(),
+          }
+        : null,
+      cashReceiptsTotal: cashReceiptsTotal.toString(),
+      combinedTotal: dailyTotal.plus(monthlyAmount).plus(cashReceiptsTotal).toString(),
+    };
+  });
+}

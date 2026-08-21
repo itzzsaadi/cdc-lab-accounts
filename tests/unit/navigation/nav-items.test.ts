@@ -7,7 +7,7 @@ describe("visibleNavItems", () => {
     expect(hrefs).toEqual(["/home", "/daily-expenses", "/party-income", "/counter-income"]);
   });
 
-  it("shows a Partner every Operator item plus Dashboard, never Users", () => {
+  it("shows a Partner every Operator item plus the Phase 4 Partner entries, never Users or a Dashboard-only figure", () => {
     const hrefs = visibleNavItems("PARTNER").map((item) => item.href);
     expect(hrefs).toEqual([
       "/home",
@@ -15,6 +15,10 @@ describe("visibleNavItems", () => {
       "/party-income",
       "/counter-income",
       "/dashboard",
+      "/monthly-expenses",
+      "/party-income-monthly",
+      "/assets",
+      "/investment",
     ]);
     expect(hrefs).not.toContain("/users");
   });
@@ -27,6 +31,10 @@ describe("visibleNavItems", () => {
       "/party-income",
       "/counter-income",
       "/dashboard",
+      "/monthly-expenses",
+      "/party-income-monthly",
+      "/assets",
+      "/investment",
       "/users",
     ]);
   });
@@ -50,6 +58,13 @@ describe("titleForPath", () => {
     expect(titleForPath("/daily-expenses")).toBe("Daily Expenses");
     expect(titleForPath("/party-income")).toBe("Party Income");
     expect(titleForPath("/counter-income")).toBe("Counter Income");
+  });
+
+  it("matches the Phase 4 Partner routes", () => {
+    expect(titleForPath("/monthly-expenses")).toBe("Monthly Expenses");
+    expect(titleForPath("/assets")).toBe("Asset Register");
+    expect(titleForPath("/investment")).toBe("Partner Investment");
+    expect(titleForPath("/party-income-monthly")).toBe("Monthly Party Bills");
   });
 
   it("falls back to the product name for an unknown route", () => {

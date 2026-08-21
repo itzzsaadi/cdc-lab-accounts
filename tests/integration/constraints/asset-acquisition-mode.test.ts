@@ -78,14 +78,57 @@ describe("asset acquisition-mode mutual exclusivity (DR-08, FR-AST-07, BR-09)", 
     ).rejects.toThrow();
   });
 
+  it("rejects INSTALMENT with no default_category_id (Phase 4)", async () => {
+    const user = await createTestUser();
+    await expect(
+      prisma.asset.create({
+        data: {
+          name: "Bad Instalment Asset",
+          classification: "FIXED",
+          acquisitionMode: "INSTALMENT",
+          monthlyInstalment: "50000",
+          createdBy: user.id,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects CASH with a default_category_id set (Phase 4)", async () => {
+    const partner = await createTestUser({ isPartner: true });
+    const category = await prisma.expenseCategory.create({
+      data: { name: `Cat ${crypto.randomUUID()}`, expenseGroup: "PURCHASING" },
+    });
+    await expect(
+      prisma.asset.create({
+        data: {
+          name: "Bad Cash Asset",
+          classification: "MOVABLE",
+          acquisitionMode: "CASH",
+          purchasePrice: "150000",
+          purchasedByUserId: partner.id,
+          defaultCategoryId: category.id,
+          createdBy: partner.id,
+          updatedBy: partner.id,
+          updatedAt: new Date(),
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
   it("allows a valid INSTALMENT asset", async () => {
     const user = await createTestUser();
+    const category = await prisma.expenseCategory.create({
+      data: { name: `Cat ${crypto.randomUUID()}`, expenseGroup: "PURCHASING" },
+    });
     const created = await prisma.asset.create({
       data: {
         name: "Good Instalment Asset",
         classification: "FIXED",
         acquisitionMode: "INSTALMENT",
         monthlyInstalment: "50000",
+        defaultCategoryId: category.id,
         createdBy: user.id,
         updatedBy: user.id,
         updatedAt: new Date(),
