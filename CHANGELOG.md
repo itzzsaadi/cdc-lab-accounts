@@ -4,6 +4,67 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 5: Calculations, Dashboard, Warnings, Reports, and Audit Log
+
+- `app_settings.partner_a_user_id`/`partner_b_user_id` — explicit Partner
+  A/B identity for the profit split (never account-creation order), two
+  `CHECK` constraints (both-configured-or-neither; distinct), two
+  `reject_if_not_partner()` triggers, `ON DELETE RESTRICT` — one additive
+  migration (`20260821181426_phase5_partner_mapping`), no earlier
+  migration touched, no `prisma db push`. The Admin-only setup action
+  (`profit-split:configure-partners`) is write-once.
+- Monthly Summary (`src/app/(app)/(partner)/monthly-summary`): any
+  user-chosen date range or one-action month-stepping; itemised
+  Administration/Purchasing breakdown (partner-funded categories shown
+  as their own tagged line, never hidden, per BR-07/FR-RES-06); the
+  50/50-default profit split applied and shown per partner, or an
+  explicit "configuration required" state (never a fabricated split)
+  until both partners are mapped; PDF (A4, `pdfkit@0.19.1`) and Excel
+  (5 sheets, `exceljs@4.4.0`) exports, both stamped with the range,
+  Asia/Karachi generation time, and the producing user.
+- Partner Dashboard (`src/app/(app)/(partner)/dashboard`): real
+  current-vs-previous-month income/expense/result tiles; a plain,
+  accessible SVG/CSS 6-month trend chart (no charting library added);
+  a warnings panel — missing recurring bill, missing instalment line,
+  and marked variance from the prior month (approved formula: `max(Rs
+5,000, previous × 20%)` threshold).
+- Audit Log (`src/app/(app)/(partner)/audit-log`): read-only, filterable
+  by user/record type/date range, keyset (never `OFFSET`) pagination; a
+  reusable "History" action wired into Daily/Monthly Expense, Asset,
+  Monthly Party Bill, Counter Income, and Capital Contribution rows;
+  defensive recursive redaction (case-insensitive substring match on 8
+  keywords) applied inside the query layer itself, before a row's
+  before/after values ever leave it.
+- `src/lib/domain/decimal-export.ts`'s `toSafeExcelNumber` — the sole,
+  six-step-verified boundary where a monetary `Decimal` becomes a JS
+  `number`, only for ExcelJS's numeric-cell API; formula-injection
+  protection (`sanitizeTextCell`) on every free-text export cell.
+- The July 2026 reconciliation fixture (`tests/fixtures/july-2026-corrected.ts`)
+  and its permanent regression test, reproducing the **corrected**,
+  single-AT-WASTE figures (Income Rs 1,495,535; Expenses Rs 1,287,459;
+  Profit Rs 208,076; Rs 104,038 per partner; Daily Expenses Rs 171,190;
+  Daily-billing Party Income Rs 225,650) — see
+  `docs/adr/0007-phase-5-calculations-dashboard-reports.md` for why the
+  corrected figures were used instead of AC-02's literal, uncorrected
+  prose.
+- Full Operator authorization sweep across every new Phase 5
+  query/route (`tests/integration/authorization/phase5-authorization-sweep.test.ts`),
+  and performance tests proving NFR-PERF-04/05 hold with three years of
+  synthetic data loaded (NFR-PERF-06).
+- **Fixed:** `getItemizedExpenseBreakdown` previously summed only
+  Business-funded rows per category, silently hiding a category with
+  only partner-funded spending — a direct contradiction of
+  BR-07/FR-RES-06. Now groups by `(categoryId, fundingSource)`, so a
+  partner-funded line always appears, separately tagged.
+- **Fixed:** the PDF export route threw `ENOENT` on `pdfkit`'s
+  `Helvetica.afm` under Next.js's default server-side dependency
+  bundling. `next.config.ts` now sets `serverExternalPackages: ["pdfkit"]`.
+- **Deferred (approved):** FR-WARN-05 (per-month warning dismissal) —
+  needs new persisted per-user/per-month state outside this phase's
+  data-model scope.
+- **Disclosed gap:** FR-RPT-05 ("income by party across a chosen range")
+  was not built as its own report screen in this phase.
+
 ### Added — Phase 4: Monthly Expenses, Assets, and Partner Investment
 
 - `assets.default_category_id` and the extended `assets_acquisition_mode_check`

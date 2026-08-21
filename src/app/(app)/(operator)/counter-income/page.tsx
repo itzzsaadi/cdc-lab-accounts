@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "../../../../server/session";
 import { prisma } from "../../../../server/prisma";
 import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
+import { hasAtLeastRole } from "../../../../lib/permissions/roles";
 import { listCounterIncome } from "../../../../server/queries/counter-income";
 import { monthBounds, currentYearMonthInKarachi } from "../../../../lib/domain/calendar-date";
 import { formatMoney } from "../../../../lib/domain/money-format";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { CounterIncomeForm } from "../../../../components/entries/CounterIncomeForm";
+import { HistoryButton } from "../../../../components/entries/HistoryButton";
 
 export default async function CounterIncomePage() {
   const user = await getAuthenticatedUser(await nextHeaders());
@@ -23,6 +25,7 @@ export default async function CounterIncomePage() {
 
   const { firstDay, lastDay } = monthBounds(currentYearMonthInKarachi());
   const { items, total } = await listCounterIncome(prisma, user, { from: firstDay, to: lastDay });
+  const canViewHistory = hasAtLeastRole(user!.role, "PARTNER");
 
   return (
     <div>
@@ -50,6 +53,7 @@ export default async function CounterIncomePage() {
                     <Th>Date</Th>
                     <Th className="text-right">Amount</Th>
                     <Th>Note</Th>
+                    {canViewHistory ? <Th className="text-right">History</Th> : null}
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -60,6 +64,15 @@ export default async function CounterIncomePage() {
                       </Td>
                       <Td className="tabular-nums text-right">{formatMoney(item.amount)}</Td>
                       <Td className="text-on-surface-variant">{item.note ?? ""}</Td>
+                      {canViewHistory ? (
+                        <Td className="text-right">
+                          <HistoryButton
+                            entityType="counter_income"
+                            entityId={item.id}
+                            displayLabel={`Counter Income ${item.incomeDate.toISOString().slice(0, 10)}`}
+                          />
+                        </Td>
+                      ) : null}
                     </Tr>
                   ))}
                 </Tbody>

@@ -24,6 +24,7 @@ export const PERMISSIONS = {
   "audit-log:view": { minimumRole: "PARTNER" },
   "master-data:manage": { minimumRole: "ADMIN" },
   "profit-split:manage": { minimumRole: "ADMIN" },
+  "profit-split:configure-partners": { minimumRole: "ADMIN" },
   "user:invite": { minimumRole: "ADMIN" },
   "user:manage-role": { minimumRole: "ADMIN" },
   "user:deactivate": { minimumRole: "ADMIN" },

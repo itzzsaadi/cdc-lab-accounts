@@ -165,6 +165,8 @@ model User {
   updatedAssets               Asset[]               @relation("AssetUpdatedBy")
   auditLogEntries             AuditLog[]            @relation("AuditLogActor")
   appSettingUpdates           AppSetting[]          @relation("AppSettingUpdatedBy")
+  appSettingsAsPartnerA       AppSetting[]          @relation("AppSettingPartnerA")
+  appSettingsAsPartnerB       AppSetting[]          @relation("AppSettingPartnerB")
   sessions                    Session[]
   accounts                    Account[]
 
@@ -466,12 +468,24 @@ model AuditLog {
 /// Configuration held as data. updated_by is nullable — see
 /// docs/adr/0002-phase-1-schema-clarifications.md decision 4 (the seeded
 /// default profit split exists before any user account does).
+///
+/// Phase 5: partner_a_user_id/partner_b_user_id are populated only on the
+/// settingKey = 'profit_split' row — see docs/adr/0007-phase-5-
+/// calculations-dashboard-reports.md. Explicit identity mapping, never inferred
+/// from account creation order; both-or-neither and distinct-partner rules
+/// are enforced by CHECK constraints, partner eligibility by the same
+/// reject_if_not_partner trigger every other partner-tag column uses (see
+/// migration.sql).
 model AppSetting {
-  settingKey    String   @id @map("setting_key") @db.VarChar(80)
-  settingValue  Json     @map("setting_value") @db.JsonB
-  updatedBy     String?  @map("updated_by") @db.Uuid
-  updatedByUser User?    @relation("AppSettingUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
-  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+  settingKey     String   @id @map("setting_key") @db.VarChar(80)
+  settingValue   Json     @map("setting_value") @db.JsonB
+  updatedBy      String?  @map("updated_by") @db.Uuid
+  updatedByUser  User?    @relation("AppSettingUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
+  updatedAt      DateTime @map("updated_at") @db.Timestamptz(6)
+  partnerAUserId String?  @map("partner_a_user_id") @db.Uuid
+  partnerBUserId String?  @map("partner_b_user_id") @db.Uuid
+  partnerA       User?    @relation("AppSettingPartnerA", fields: [partnerAUserId], references: [id], onDelete: Restrict)
+  partnerB       User?    @relation("AppSettingPartnerB", fields: [partnerBUserId], references: [id], onDelete: Restrict)
 
   @@map("app_settings")
 }

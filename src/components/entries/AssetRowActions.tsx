@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import { HistoryButton } from "./HistoryButton";
 import {
   AssetFormFields,
   type AssetFieldsState,
@@ -137,6 +138,7 @@ export function AssetRowActions({
             <span className="material-symbols-outlined text-[20px]">archive</span>
           </button>
         ) : null}
+        <HistoryButton entityType="asset" entityId={asset.id} displayLabel={asset.displayLabel} />
       </div>
 
       <Modal open={mode === "edit"} onClose={() => setMode("none")} title="Edit Asset">

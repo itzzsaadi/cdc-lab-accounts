@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import { HistoryButton } from "./HistoryButton";
 import type { PartnerOption } from "./FundingSourceToggle";
 import {
   MonthlyExpenseFormFields,
@@ -130,6 +131,11 @@ export function MonthlyExpenseRowActions({
         >
           <span className="material-symbols-outlined text-[20px]">archive</span>
         </button>
+        <HistoryButton
+          entityType="monthly_expense"
+          entityId={expense.id}
+          displayLabel={expense.displayLabel}
+        />
       </div>
 
       <Modal open={mode === "edit"} onClose={() => setMode("none")} title="Edit Monthly Expense">

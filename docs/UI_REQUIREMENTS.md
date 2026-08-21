@@ -237,7 +237,9 @@ Full detail in `docs/ui/ASSET_INVENTORY.md`. Summary:
 
 ## 23. Charts and reporting visuals
 
-Partner Dashboard's "Income vs Expenses Trend" chart is a **static CSS/HTML construction** ("Simulated Chart Grid" / "Simulated Chart Bars" in the source comments) — not a real chart produced by any charting library, and not backed by any data-binding logic. No charting library is currently part of the approved technology stack (`CLAUDE.md` §4, `docs/adr/0001-technology-stack.md`) — choosing one is a **Phase 5 decision**, not something to resolve here, and not something this task installs. When that decision is made, match the visual style shown (teal/navy bars, clean axis, card-framed) rather than defaulting to a chart library's out-of-the-box look.
+Partner Dashboard's "Income vs Expenses Trend" chart is a **static CSS/HTML construction** ("Simulated Chart Grid" / "Simulated Chart Bars" in the source comments) — not a real chart produced by any charting library, and not backed by any data-binding logic.
+
+**Resolved in Phase 5:** no charting library was added (CLAUDE.md §4/§24, `docs/adr/0001-technology-stack.md`) — `src/components/dashboard/TrendChart.tsx` is a hand-built, accessible, data-bound SVG/CSS bar chart (real 6-month net-result data via `getDashboardTrend`, an SVG `<title>`/`<desc>` pair, and a visually-hidden data table as the non-SVG accessible alternative). See `docs/adr/0007-phase-5-calculations-dashboard-reports.md` §6.
 
 ## 24. Screen-to-screen workflow mapping
 
@@ -263,13 +265,13 @@ Inferred from quick-action buttons, nav structure, and SRS use cases (no explici
 
 4. **RESOLVED (decision 4).** `DESIGN.md`'s documented `rounded.full: 9999px` didn't match the `0.75rem` actually built into every HTML file's `borderRadius.full`. Resolution: a true `9999px`-equivalent radius is used only for pills/badges/circular avatars/intentionally-fully-rounded controls; every other component type (cards, forms, tables, dialogs, ordinary buttons) keeps its existing non-circular radius exactly as shown in the HTML — see the updated §12.
 5. The connection-state/pending-upload-count indicator required "on every screen" by FR-OFF-03 is inconsistently present — see §18. **Still open** — no client decision recorded yet.
-6. No date-range control is visible on the Monthly Summary Report despite FR-RES-02/03 requiring one (default current month, adjustable, one-action prev/next). **Still open.**
+6. No date-range control is visible on the Monthly Summary Report despite FR-RES-02/03 requiring one (default current month, adjustable, one-action prev/next). **Resolved in Phase 5** — the built Monthly Summary page adds Previous/Next Month links plus a custom `from`/`to` range form, extending the design system since the Stitch handoff itself showed none.
 7. **RESOLVED (decision 1).** The product was branded "LabFinance Pro" throughout every screen's header, which is a Google Stitch placeholder, not an approved name. Resolution: the approved product name is **CDC Lab Accounts System**; the formal descriptive name **Lab Accounts & Asset Management System** is used wherever a fuller description is appropriate — see the updated §9 and §1.
 
 ### Minor
 
 8. Administration Area's "Historical Import" is shown only as a small upload widget, not FR-IMP-02's required "preview with errors marked" screen — likely just an unrendered tab state rather than a real gap, but worth confirming. **Still open.**
-9. No negative-figure (loss) display convention (parentheses, sign, color) is shown anywhere, despite FR-RES-08 requiring the split to "apply the same split to a loss." **Still open.**
+9. No negative-figure (loss) display convention (parentheses, sign, color) is shown anywhere, despite FR-RES-08 requiring the split to "apply the same split to a loss." **Resolved in Phase 5** — `formatMoney` (built Phase 3B, reused unchanged) renders a negative amount as `"Rs -1,234.56"`; no new convention was introduced for Monthly Summary/Dashboard specifically, keeping one money-formatting rule project-wide.
 
 ### No issue
 
@@ -281,7 +283,7 @@ Inferred from quick-action buttons, nav structure, and SRS use cases (no explici
 
 Consolidated from the findings above (see `docs/ui/SCREEN_INVENTORY.md` for the per-screen table version):
 
-- **Missing screen:** Change History / Audit Log browsing (FR-AUD-04, FR-AUD-05, FR-AUD-06, UC-14) — no representation anywhere.
+- **Built in Phase 5 (was "Missing screen"):** Change History / Audit Log browsing (FR-AUD-04, FR-AUD-05, FR-AUD-06, UC-14) — no Stitch mockup existed for this screen, so `src/app/(app)/(partner)/audit-log/page.tsx` was built from the SRS text and the existing design-token components (`Table`, `EmptyState`), not guessed visually; per-record history is a reusable `HistoryButton` action wired into every relevant entity's own row actions.
 - **Missing screen content:** full Parties / Expense Items / Vendors management views and the full Historical Import preview/validation flow (FR-MST-01/02/04, FR-IMP-02) — only tab labels and/or a small widget exist.
 - **Missing state:** empty states, loading states, field-level validation errors, permission-denied, generic error/failed-save, and archive-confirmation dialogs — none shown anywhere (§18).
 - **Missing field/control:** required-partner enforcement for Cash-mode assets (§25, item 2); date-range control on Monthly Summary (§25, item 6); negative/loss figure formatting convention.

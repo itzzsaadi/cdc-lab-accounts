@@ -15,10 +15,12 @@ describe("visibleNavItems", () => {
       "/party-income",
       "/counter-income",
       "/dashboard",
+      "/monthly-summary",
       "/monthly-expenses",
       "/party-income-monthly",
       "/assets",
       "/investment",
+      "/audit-log",
     ]);
     expect(hrefs).not.toContain("/users");
   });
@@ -31,10 +33,12 @@ describe("visibleNavItems", () => {
       "/party-income",
       "/counter-income",
       "/dashboard",
+      "/monthly-summary",
       "/monthly-expenses",
       "/party-income-monthly",
       "/assets",
       "/investment",
+      "/audit-log",
       "/users",
     ]);
   });
@@ -65,6 +69,11 @@ describe("titleForPath", () => {
     expect(titleForPath("/assets")).toBe("Asset Register");
     expect(titleForPath("/investment")).toBe("Partner Investment");
     expect(titleForPath("/party-income-monthly")).toBe("Monthly Party Bills");
+  });
+
+  it("matches the Phase 5 Partner routes", () => {
+    expect(titleForPath("/monthly-summary")).toBe("Monthly Summary");
+    expect(titleForPath("/audit-log")).toBe("Audit Log");
   });
 
   it("falls back to the product name for an unknown route", () => {

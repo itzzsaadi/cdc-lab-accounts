@@ -5,3 +5,4 @@ export * from "./profit-split";
 export * from "./investment";
 export * from "./calendar-date";
 export * from "./money-format";
+export * from "./decimal-export";

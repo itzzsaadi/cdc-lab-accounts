@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/Button";
+import { HistoryButton } from "./HistoryButton";
 import { generateClientUuid } from "../../lib/client-uuid";
 import {
   createMonthlyPartyBillAction,
@@ -107,6 +108,13 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
         >
           Clear
         </Button>
+      ) : null}
+      {row.existing ? (
+        <HistoryButton
+          entityType="party_income"
+          entityId={row.existing.id}
+          displayLabel={`${row.partyName} — ${row.periodMonth}`}
+        />
       ) : null}
       {error ? (
         <span className="text-error text-xs">

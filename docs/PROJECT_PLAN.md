@@ -13,7 +13,7 @@ This plan sequences implementation into controlled phases derived from `docs/SRS
 - Every write is Zod-validated server-side regardless of client validation (NFR-SEC-05, CLAUDE.md §18).
 - The full validation suite (`typecheck`, `lint`, `format:check`, `test`, `test:e2e`, `prisma validate`, `prisma format`, `build`) must pass before any phase is considered exited, not just the checks that seem relevant (CLAUDE.md §5).
 
-**Known open issue that blocks part of Phase 5:** `CLAUDE.md` §27 documents that the Appendix A initial-data set (expenses summing to Rs 1,287,459) does not reconcile with the AC-02 target figures (Rs 1,295,459 expenses / Rs 200,076 profit) because of the corrected `AT WASTE` duplicate line. This must be resolved with the client **before** the Phase 5 reconciliation fixture is written as a permanent regression test — see Phase 5 for how this gates that phase's headline deliverable.
+**Resolved (was a Phase 5 open issue):** `CLAUDE.md` §27 documented that the Appendix A initial-data set (expenses summing to Rs 1,287,459) does not reconcile with AC-02's literal target figures (Rs 1,295,459 expenses / Rs 200,076 profit) because of the corrected `AT WASTE` duplicate line. **Approved resolution:** the Phase 5 reconciliation fixture reproduces the corrected figures (Rs 1,287,459 expenses / Rs 208,076 profit / Rs 104,038 per partner), since SRS §11.3 itself calls the duplicate line an error — see `docs/adr/0007-phase-5-calculations-dashboard-reports.md` §1 for the full record.
 
 **Phase dependency order:** each phase assumes every prior phase's exit criteria are met. Phases are not parallelized against this order without an explicit decision recorded as an ADR (`CLAUDE.md` §23), since later phases depend on schema, auth, and domain logic settled earlier.
 
@@ -321,7 +321,7 @@ Assemble every entry type recorded so far into the actual monthly result, the da
 - FR-AUD-04, FR-AUD-05, FR-AUD-06 (change-history viewing — Partner-visible per UC-14, delivered here alongside the other Partner-facing analytical views).
 - NFR-MNT-06 (result-calculation test coverage, including funding-source rules and the July 2026 fixture).
 - NFR-PERF-04, NFR-PERF-05.
-- AC-02, AC-08 (full and final verification), AC-09, AC-10.
+- AC-02, AC-08 (full and final verification), AC-09, AC-10, AC-13 (fixed here — previously missing from this header list, see `docs/REQUIREMENTS_TRACEABILITY.md`'s gap notes item 5).
 - UC-10, UC-12, UC-13, UC-14, UC-18, UC-21.
 
 ### Deliverables
@@ -343,21 +343,26 @@ Assemble every entry type recorded so far into the actual monthly result, the da
 - NFR-PERF-04/05: result calculation and export timing measured against their stated limits.
 
 ### Risks
-- **Blocking risk, must be resolved before the headline test is written:** per `CLAUDE.md` §27 item 1, Appendix A's initial data (as loaded in Phase 1) sums to Rs 1,287,459 in expenses, not the Rs 1,295,459 AC-02 requires, because the corrected single `AT WASTE` line removes a duplicate Rs 8,000 that the *target* figures still include. Building the fixture against the literal Appendix A seed data will produce Rs 208,076 profit, not Rs 200,076. **Do not guess a resolution.** Raise this with the client first; the fixture's dataset (which may need to be distinct from the literal Phase 1 seed data) is only finalized once the client confirms which figure is correct.
-- Decimal-precision edge cases when the profit split isn't an even 50/50 (rounding remainders must be handled deterministically, not silently dropped).
-- PDF layout fidelity to the original A4 workbook shape is easy to under-scope.
-- Performance with realistic multi-year data volumes (NFR-PERF-06) is only partially testable here; full-scale testing is completed in Phase 8.
+- **Resolved (was a blocking risk):** per `CLAUDE.md` §27 item 1, Appendix A's initial data (as loaded in Phase 1) sums to Rs 1,287,459 in expenses, not the Rs 1,295,459 AC-02's prose requires, because the corrected single `AT WASTE` line removes a duplicate Rs 8,000 that the *target* figures still included. **Approved resolution (`docs/adr/0007-...md` §1):** the permanent reconciliation fixture reproduces the corrected figures (Rs 1,287,459 expenses / Rs 208,076 profit / Rs 104,038 per partner) rather than AC-02's own uncorrected prose, since SRS §11.3 calls the duplicate line an error.
+- Decimal-precision edge cases when the profit split isn't an even 50/50 — covered by Phase 1's existing `splitProfit` unit tests (unchanged, reconfirmed correct here), not re-litigated in Phase 5.
+- PDF layout fidelity to the original A4 workbook shape — delivered as a functional one-pager matching the workbook's section order (Income/Administration/Purchasing/Net Result/Split); pixel-exact layout matching was not a stated requirement and was not pursued beyond that.
+- Performance with realistic multi-year data volumes (NFR-PERF-06) is only partially testable here (NFR-PERF-04/05 specifically, proven against a real 3-year synthetic dataset); full-scope screen-by-screen testing is completed in Phase 8.
+- **Found during implementation, fixed before phase completion (not a residual risk):** an early version of the Administration/Purchasing breakdown summed only Business-funded rows per category, meaning a category with only partner-funded spending never appeared at all — a direct contradiction of BR-07/FR-RES-06. Fixed to show a separately-tagged partner-funded line alongside any business-funded line for the same category, in the Monthly Summary screen, PDF, and Excel Summary sheet alike (`docs/adr/0007-...md` §12).
 
 ### Exit criteria
-- The July 2026 fixture test passes and is committed as a permanent regression guard, only after the AT WASTE conflict above has been resolved with the client.
+- The July 2026 fixture test passes and is committed as a permanent regression guard, built against the corrected figures per the approved AT WASTE resolution above.
 - AC-02, AC-08, AC-09, AC-10, AC-13 all demonstrated.
-- FR-RES-01 to 11, FR-WARN-01 to 05, FR-RPT-01 to 09, FR-AUD-04 to 06 implemented and tested.
+- FR-RES-01 to 11, FR-RPT-01 to 09, FR-AUD-04 to 06 implemented and tested. FR-WARN-01 to 04 implemented and tested; **FR-WARN-05 deferred** (approved, `docs/adr/0007-...md` §5 — needs new per-user/per-month dismissal state, out of this phase's data-model scope).
 
 ### Features that must not be implemented yet
-- No offline entry, PWA installability, or sync (Phase 6) — the pending-upload count on the dashboard is stubbed/placeholder only until then, and "provisional figures while offline" (FR-OFF-12) does not apply yet since there is no offline mode.
-- No master-data admin CRUD or profit-split settings **editing** UI (Phase 7) — the split is read from `app_settings`, not configured here.
+- No offline entry, PWA installability, or sync (Phase 6) — the Dashboard shows no pending-upload count at all yet (never a fabricated/placeholder figure, matching Phase 3B's established precedent), and "provisional figures while offline" (FR-OFF-12) does not apply yet since there is no offline mode.
+- No master-data admin CRUD or profit-split settings **editing** UI (Phase 7) — the split is read from `app_settings`, not configured here; the one Admin-only action this phase adds is the narrow, write-once initial Partner A/B mapping (FR-RES-08), never a re-mapping/percentage-editing screen.
 - No historical Excel import (Phase 7).
 - No production deployment, backup/restore rehearsal, or handover documentation (Phase 8).
+
+### Status
+
+**Implemented.** See `docs/adr/0007-phase-5-calculations-dashboard-reports.md` for the full design record — the approved resolution of the AT WASTE reconciliation conflict (the permanent fixture reproduces the corrected, single-AT-WASTE figures), the explicit `partner_a_user_id`/`partner_b_user_id` FK mapping (never account-creation order), the approved variance-warning formula, the plain SVG/CSS trend chart (no charting library), the Decimal→Excel-number export safety boundary and formula-injection protection, defensive recursive audit redaction, keyset Audit Log pagination, and the exact dependency versions (`pdfkit@0.19.1`, `@types/pdfkit@0.17.6`, `exceljs@4.4.0`) plus the `next.config.ts` `serverExternalPackages` fix pdfkit needed under Next.js's default bundling. Not everything originally scoped is fully delivered: **FR-WARN-05** (per-month warning dismissal) is deferred — it needs new persisted per-user/per-month state outside this phase's approved data-model scope; **FR-RPT-05** ("income by party across a chosen range") was not built as its own report screen — Phase 4's per-party monthly total serves the Monthly Party Bill screen's own need, but a chosen-arbitrary-range party-income report remains a gap, disclosed rather than silently skipped. A genuine correctness issue was found and fixed during implementation, not merely documented: an early version of the Administration/Purchasing breakdown excluded partner-funded categories entirely, contradicting BR-07/FR-RES-06 — fixed before this phase's completion (ADR-0007 §12). See `docs/REQUIREMENTS_TRACEABILITY.md` for the row-by-row detail.
 
 ---
 

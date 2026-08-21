@@ -167,14 +167,97 @@ counter-income}/page.tsx` plus `src/components/entries/*` (the
   `receipt_type = 'DAILY'` only, mirroring Phase 1's instalment
   partial-unique-index pattern.
 
+## Monthly-cadence Partner workflows layer (Phase 4)
+
+Full design record: `docs/adr/0006-phase-4-monthly-assets-investment.md`.
+
+- Same query/mutation/action split, `client_uuid`/stale-write/transactional-audit
+  discipline as Phase 3B — no new protocol invented, only new entities
+  (`monthly_expenses`, `assets`, `capital_contributions`) wired through it.
+- **Asset acquisition-mode rule** (DR-08): a database `CHECK` constraint,
+  not application logic alone, enforces `INSTALMENT` XOR `CASH` — each
+  mode requires its own fields and forbids the other's.
+- **Instalment generation**: Partner-triggered, previewed, and explicitly
+  confirmed — never a silent background job (so FR-WARN-02's "missing
+  instalment line" warning, built in Phase 5, stays meaningful). One
+  `monthly_expenses` create per asset, each in its own transaction with
+  its own audit row; a concurrent double-generation is caught as a P2002
+  unique-constraint violation and treated as "already generated," the
+  same idiom Phase 3B established for `client_uuid` replay safety.
+- **Investment total**: `src/lib/domain/investment.ts`'s
+  `partnerInvestmentTotal` takes no split/result input at all — it is
+  structurally incapable of affecting the profit split (FR-INV-06).
+
+## Calculations, dashboard, and reporting layer (Phase 5)
+
+Full design record: `docs/adr/0007-phase-5-calculations-dashboard-reports.md`.
+
+- **Postgres-side aggregation, always.** Every headline total
+  (`src/server/queries/results.ts`'s `computeMonthlyResultTotals`) is a
+  Prisma `aggregate`/`groupBy` (`SUM`), never a Node-side `reduce` over
+  fetched rows — required for NFR-PERF-04/06 at realistic (multi-year)
+  data volumes; proven directly against a synthetic 3-year, ~10,000-row
+  dataset (`tests/integration/performance/phase5-performance.test.ts`).
+- **Shared unchecked compute, independently gated wrappers.**
+  `computeMonthlyResultTotals` itself performs no permission check — it is
+  wrapped by two separately-gated callers, `getMonthlyResultTotals`
+  (`report:financial-summary`, Monthly Summary) and the Dashboard's own
+  call (`report:dashboard`), so two different screens/roles share one
+  calculation path without sharing one authorization decision.
+- **Explicit Partner A/B identity**, never account-creation order:
+  `app_settings.partner_a_user_id`/`partner_b_user_id`, two `CHECK`
+  constraints (both-configured-or-neither; distinct), two
+  `reject_if_not_partner()` triggers, `ON DELETE RESTRICT`. The
+  mapping-setup action is write-once — refuses a second call once both
+  are set; re-mapping is Phase 7 settings-screen scope.
+- **Decimal→number conversion happens at exactly one boundary**:
+  `src/lib/domain/decimal-export.ts`'s `toSafeExcelNumber`, a six-step
+  verified process (fractional-digit check, safe-integer check, convert,
+  round-trip-reconstruct-and-compare, throw on any mismatch, no further
+  arithmetic on the result) — the only place a monetary `Decimal` ever
+  becomes a JS `number`, and only because ExcelJS's own numeric-cell API
+  requires one.
+- **Defensive audit redaction at the query layer, not render time**:
+  `src/lib/audit-redaction.ts`'s `redactSensitiveValues` runs inside
+  `listAuditLog`/`getEntityHistory` themselves, before a row's
+  `oldValues`/`newValues` ever leave the query function — no caller can
+  forget to redact. Case-insensitive substring match against 8 keywords,
+  recursing through nested objects/arrays.
+- **Keyset, never offset, pagination**: `audit_log.id` (`BigInt`
+  autoincrement) drives `WHERE id < cursor ORDER BY id DESC` — exact and
+  index-backed at any table size.
+- **In-memory export buffers only**: both `pdfkit` (stream→`Buffer.concat`)
+  and `exceljs` (`workbook.xlsx.writeBuffer()`) generators return a
+  `Buffer` directly to the Route Handler — no temp file, ever.
+  `next.config.ts` opts `pdfkit` out of Next.js's default server-bundling
+  (`serverExternalPackages`) since it reads its `.afm` font files relative
+  to its own package directory at runtime — bundling rewrites that path
+  and breaks the lookup.
+- **No charting library** (CLAUDE.md §24): the Dashboard's trend chart
+  (`src/components/dashboard/TrendChart.tsx`) is a hand-built, accessible
+  SVG bar chart — an SVG `<title>`/`<desc>` pair plus a visually-hidden
+  data table as the non-SVG-dependent accessible alternative.
+- **Correctness note**: `getItemizedExpenseBreakdown` groups by
+  `(categoryId, fundingSource)`, never filtering out `PARTNER`-funded
+  rows — a category with only partner-funded spending must still appear,
+  separately tagged, per BR-07/FR-RES-06 (found and fixed during
+  implementation, ADR-0007 §12).
+
 ## Not yet built
 
-- Monthly expenses, assets, capital contributions, and the partner
-  investment statement — Phase 4.
-- Results/dashboard/reports/warnings screens — Phase 5.
 - Offline entry queue and synchronization (Dexie, service workers,
-  conflict resolution) — Phase 6. Phase 3B's screens are online-only.
-- Full master-data admin UI and profit-split settings screen — Phase 7.
+  conflict resolution) — Phase 6. Every screen through Phase 5 is
+  online-only.
+- Full master-data admin UI, profit-split percentage-editing screen, and
+  Partner A/B re-mapping — Phase 7 (Phase 5 ships only the narrow,
+  write-once initial mapping action).
+- Historical Excel import — Phase 7.
+- FR-WARN-05 (per-month warning dismissal) — deferred; needs new
+  persisted per-user/per-month dismissal state outside Phase 5's approved
+  data-model scope (ADR-0007 §5).
+- FR-RPT-05 ("income by party across a chosen range" as its own report
+  screen) — not built in Phase 5; disclosed gap, see
+  `docs/REQUIREMENTS_TRACEABILITY.md`.
 - On the Daily Expenses screen specifically: date-range/item/funding-
   source filter _controls_ (the underlying query already supports them)
   and edit/archive _UI_ (the mutations exist and are tested, but no
