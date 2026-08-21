@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { AuthCard } from "../../../components/layout/AuthCard";
+import { Button } from "../../../components/ui/Button";
+import { TextInput } from "../../../components/ui/TextInput";
 import { requestPasswordResetAction } from "../../../server/actions/auth";
 
 export default function ForgotPasswordPage() {
@@ -31,25 +33,17 @@ export default function ForgotPasswordPage() {
   return (
     <AuthCard title="Forgot Password" subtitle="Enter your email to receive a reset link">
       <form className="space-y-6" onSubmit={handleSubmit}>
-        <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-on-surface">
-            Email Address
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="block w-full px-3 py-2.5 border border-outline-variant rounded-lg text-on-surface text-sm bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-primary h-11"
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full h-11 bg-primary text-on-primary text-sm font-medium rounded-lg"
-        >
+        <TextInput
+          id="email"
+          label="Email Address"
+          type="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <Button type="submit" className="w-full">
           Send reset link
-        </button>
+        </Button>
       </form>
     </AuthCard>
   );

@@ -1,11 +1,12 @@
 # `src/components/layout`
 
-Empty placeholder. This directory will hold structural/layout components
-(navigation, page shells, role-specific frames for Operator/Partner/Admin
-areas) translated from the **Google Stitch design** — the authoritative
-visual reference for this project.
+Structural/layout components translated from the Google Stitch design.
+Built in Phase 3A: `AuthenticatedShell` (fetches the current user, wraps
+`(app)` route-group pages), `ShellChrome` (client-side drawer/menu state),
+`Sidebar`, `Header`, `UserMenu` — the sidebar/header chrome every
+Operator/Partner/Admin screen shares from here on. `AuthCard` (Phase 2)
+is the equivalent shared shell for the pre-authentication screens
+(Sign In, Forgot Password, Reset Password, Accept Invitation).
 
-**Nothing is implemented here yet.** No layout components are created based
-on assumptions about what the design looks like. Real components are built
-only after the Stitch exports, screenshots, and design details are handed
-over — see `docs/UI_REQUIREMENTS.md`.
+The mobile navigation drawer and the user menu are both native `<dialog>`
+elements — see `docs/adr/0004-phase-3a-shared-shell.md` for why.

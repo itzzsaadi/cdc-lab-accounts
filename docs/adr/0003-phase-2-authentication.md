@@ -284,3 +284,30 @@ inherit whatever environment `next dev` loaded into its own process, so
 `scripts/e2e-create-user.ts` and `scripts/bootstrap-admin.ts` both needed
 an explicit `import "dotenv/config"` to read `.env` themselves — added to
 both.
+
+## Phase 2 closure: two remaining risks from the plan, now proven empirically
+
+Plan risk item 2 (whether `advanced.database.generateId: "uuid"` actually
+produces RFC 4122-shaped values on every Better-Auth-managed row) and risk
+item 3 (whether `verification.storeIdentifier: "hashed"` really keeps a raw
+reset token out of the `verification` table across the full
+`requestPasswordReset` → `resetPassword` round trip) were flagged as "to be
+proven by a real integration test at implementation time, not assumed."
+Both are now covered:
+
+- `tests/integration/auth/uuid-identifiers.test.ts` drives `account`,
+  `session`, and `verification` row creation through real public Better
+  Auth flows (invitation acceptance, sign-in, password-reset issuance) and
+  asserts every Better-Auth-generated `id`/`user_id` matches a strict UUID
+  regex — proving `generateId: "uuid"` satisfies the Prisma schema's
+  `@db.Uuid` columns, not merely assumed from the config's doc comment.
+- `tests/integration/auth/password-reset-hashed-storage.test.ts` computes
+  the exact SHA-256/base64url digest Better Auth's own
+  `defaultKeyHasher` produces for a real minted token (verified by reading
+  `better-auth/dist/db/verification-token-storage.mjs` directly) and
+  confirms the `verification` table holds only that digest — never the raw
+  token as a full value or as a substring — both before and after a
+  completed reset.
+
+No behavior changed; this closes both plan risks with evidence instead of
+inference.

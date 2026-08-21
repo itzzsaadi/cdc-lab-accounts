@@ -4,6 +4,57 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 3A: Shared Application Shell and Reusable UI Foundation
+
+- `src/app/(app)/layout.tsx` + `src/components/layout/AuthenticatedShell.tsx`:
+  the shared chrome every authenticated screen now renders through. The
+  `(operator)`, `(partner)`, `(admin)` route groups moved one directory
+  level deeper, under `(app)`; public route URLs are unchanged (`/home`,
+  `/dashboard`, `/users`) — route groups never appear in the URL.
+- `src/components/layout/{ShellChrome,Sidebar,Header,UserMenu}.tsx`: fixed
+  desktop sidebar, a mobile navigation drawer, and a header (mobile menu
+  button, contextual page title, initials avatar, role label, user menu
+  with sign-out). No notification bell or sync indicator — both would
+  imply functionality that doesn't exist yet; the sync indicator gets real
+  state in Phase 6. Both the mobile drawer and the user menu are native
+  `<dialog>` elements opened via `showModal()`, so focus-trapping,
+  Escape-to-close, and focus-return to the triggering element are all
+  browser-native behavior.
+- `src/lib/navigation/nav-items.ts`: an **incremental** navigation table —
+  only routes that exist today (Home/Dashboard/Users), filtered per role
+  by the existing `hasAtLeastRole` rank comparison. Presentational only;
+  every page still independently calls `requirePermission`.
+- `src/components/ui/{Button,TextInput,Select,Checkbox,Card,Table,Badge,
+Alert,Modal,EmptyState,LoadingSkeleton,Avatar}.tsx`: the reusable
+  primitive set. `Modal` uses the native `<dialog>` element rather than a
+  hand-rolled focus trap. `Avatar` is a neutral, initials-based component
+  — no external avatar photo anywhere in the app (approved decision).
+- `src/lib/fonts.ts`: Inter and Material Symbols Outlined self-hosted via
+  `next/font/local` from vendored, OFL-1.1-licensed `.woff2` files under
+  `public/design-assets/fonts/` — no `next/font/google`, no request to
+  Google Fonts at build or runtime. Source, version, license, and checksum
+  recorded in `public/design-assets/fonts/PROVENANCE.md`.
+- `src/app/globals.css`: the complete design-token system (full color
+  palette, 8-step typography scale, spacing, radius — `full`/pill reserved
+  for avatars/badges only, per the already-approved radius decision) and
+  `prefers-reduced-motion` handling.
+- The four Phase 2 `(auth)` screens (Sign In, Forgot Password, Reset
+  Password, Accept Invitation) retrofitted onto the new `Button`/
+  `TextInput`/`Card`/`Alert`/`Checkbox` primitives — a behavior-preserving
+  refactor; a session-expired banner (`?expired=1`) added to Sign In,
+  shown only when the shell's redirect finds a stale session cookie.
+  `/forbidden` restyled onto the shared tokens, deliberately kept outside
+  `(app)` (no sidebar for a denied role).
+- `tests/unit/navigation/nav-items.test.ts`, `tests/unit/ui/avatar.test.ts`,
+  `tests/e2e/shell.spec.ts`: role-specific nav DOM presence/absence,
+  direct-URL protection independent of navigation, mobile drawer keyboard/
+  focus behavior, user menu/sign-out, skip-navigation, and a zero-external-
+  font-request/zero-console-error proof. All pre-existing Phase 2 tests
+  (127 Vitest, 9 of 18 Playwright specs) re-verified passing.
+- `docs/adr/0004-phase-3a-shared-shell.md`: the design record for the
+  route-group restructuring, the native-`<dialog>` mechanism choice, and
+  the locally-hosted font decision.
+
 ### Added — Phase 2: Authentication and Authorization
 
 - Better Auth integration (`src/lib/auth/config.ts`, `src/server/auth.ts`):

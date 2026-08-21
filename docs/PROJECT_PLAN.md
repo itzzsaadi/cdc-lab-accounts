@@ -163,12 +163,64 @@ Implement sign-in, session management, and the three-role permission model (`OPE
 
 ---
 
-## Phase 3 — Operator Transaction Workflows
+## Phase 3: Shared Application Shell and Operator Transaction Workflows
 
-### Objective
+Split, by client decision, into two sub-phases sharing one exit gate: **Phase 3A** (the authenticated application shell and reusable UI foundation every later business screen builds on) and **Phase 3B** (the Operator transaction entry screens themselves). This split does not renumber any later phase — Phase 4 onward still assumes "Phase 3" in its entirety (3A + 3B) is complete.
+
+---
+
+### Phase 3A — Shared Authenticated Shell and Reusable UI Foundation
+
+**Status: implemented.** See `docs/adr/0004-phase-3a-shared-shell.md` for the full design record — the `(app)` route-group restructuring, the native-`<dialog>`-based mobile drawer and user menu, the locally-hosted Inter/Material Symbols Outlined fonts, and the incremental (never-speculative) navigation model.
+
+#### Objective
+Build the sidebar/header chrome, the reusable `src/components/ui/` primitive set, and the completed design-token system every Operator/Partner/Admin screen shares — with no business/financial functionality of its own, so Phase 3B (and every later phase) plugs into a stable shell rather than each screen re-deriving layout, navigation, and component styling independently.
+
+#### Exact SRS requirement groups
+- FR-AUTH-04/08 (navigation never exposes a restricted area to Operator; server-side permission checks remain the only real enforcement — the shell's nav filtering is presentational only).
+- NFR-USE-01, NFR-USE-03, NFR-USE-05, NFR-USE-06, NFR-USE-07, NFR-USE-08 (terminology, money-formatting groundwork via `tabular-nums`, a reusable confirmation/modal primitive, 44px touch targets, English-only).
+- NFR-CMP-01/02 (cross-browser baseline established early; full verification remains Phase 8).
+
+#### Deliverables
+- `src/app/(app)/layout.tsx` wrapping `(operator)`, `(partner)`, `(admin)` route groups (moved one level deeper, public URLs unchanged) in `AuthenticatedShell`.
+- `src/components/layout/{AuthenticatedShell,ShellChrome,Sidebar,Header,UserMenu}.tsx` — fixed desktop sidebar, a native-`<dialog>` mobile drawer (Escape-to-close/focus-trap/focus-return all come from `showModal()`, not hand-rolled), and a header with a mobile menu button, contextual page title, initials avatar, role label, and a user menu with sign-out. No notification bell or sync indicator — real sync state is Phase 6's job, and a non-functional icon was rejected as implying a feature that doesn't exist.
+- `src/lib/navigation/nav-items.ts` — an **incremental** nav table (only routes that exist today: Home/Dashboard/Users), filtered per role by the existing `hasAtLeastRole` rank comparison; never pre-populated against not-yet-built routes.
+- `src/components/ui/{Button,TextInput,Select,Checkbox,Card,Table,Badge,Alert,Modal,EmptyState,LoadingSkeleton,Avatar}.tsx` — minimal, accessible primitives; `Modal` and the mobile drawer both use the native `<dialog>` element rather than a hand-rolled focus trap.
+- `src/lib/fonts.ts` — Inter and Material Symbols Outlined self-hosted via `next/font/local` from vendored, OFL-1.1-licensed `.woff2` files under `public/design-assets/fonts/` (never `next/font/google` — no Google Fonts request at build or runtime). Full provenance/checksums in `public/design-assets/fonts/PROVENANCE.md`.
+- `src/app/globals.css` — the complete DESIGN.md/Stitch-HTML token set (full color palette, 8-step typography scale, spacing, radius — `full`/pill reserved for avatars/badges only, per the already-approved radius decision), plus `prefers-reduced-motion` handling.
+- The four existing `(auth)` screens (Sign In, Forgot Password, Reset Password, Accept Invitation) retrofitted onto the new `Button`/`TextInput`/`Card`/`Alert`/`Checkbox` primitives — a behavior-preserving refactor, re-verified against the full Phase 2 security test suite.
+- A session-expired banner on Sign In, shown only when the shell's own redirect finds a stale/invalidated session cookie (never for a plain not-yet-signed-in visit).
+- `/forbidden` restyled onto the shared design tokens; deliberately kept outside `(app)` (no sidebar chrome for a denied role).
+
+#### Tests
+- Unit: `nav-items.test.ts` (role-filtering and contextual-title lookup), `avatar.test.ts` (initials/deterministic color).
+- Playwright (`tests/e2e/shell.spec.ts`): per-role nav-item DOM presence/absence (not merely CSS-hidden) for Operator/Partner/Admin; a Partner denied direct navigation to `/users`; mobile drawer opens via the hamburger, traps Tab focus, closes on Escape, and returns focus to the trigger; no horizontal scroll at a 375px viewport; user menu opens/closes by keyboard and signs out; the skip-navigation link is the first focusable element and targets `#main-content`; zero requests to `fonts.googleapis.com`/`fonts.gstatic.com` and zero console errors across sign-in + the authenticated shell.
+- All pre-existing Phase 2 Vitest (127) and Playwright (18, including the 9 already-existing auth specs) tests re-run and passing after the retrofit and route move.
+
+#### Risks
+- Two `nav[aria-label="Primary"]` elements exist in the DOM simultaneously by design (the always-present desktop sidebar and the mobile drawer's own copy) — a closed native `<dialog>`'s content is present but not rendered, so this is not an accessibility duplicate in practice, but it is a real thing to remember when writing future DOM-querying tests against the sidebar.
+- `next/font/local`'s vendored files must be kept in sync if Inter/Material Symbols Outlined are ever updated — `PROVENANCE.md` records the exact source/version/checksum specifically so a future update is a deliberate, checkable action, not a silent drift.
+
+#### Exit criteria
+- Shell renders correctly, and role-appropriate navigation is proven by direct DOM inspection, for all three roles.
+- Every required Phase 3A verification item (role nav differences, direct-URL protection, mobile drawer keyboard/focus behavior, user menu/sign-out, skip-navigation, loading/error/not-found/forbidden/session-expired states, no external font/icon request, no console errors, unchanged auth behavior, unchanged public route URLs, byte-for-byte-unchanged Stitch exports) is demonstrated — see the Phase 3A completion report for the full checklist.
+- Full `CLAUDE.md` §5 validation suite passes.
+
+#### Features that must not be implemented yet
+- No daily expense/party income/counter income/cash receipt entry forms (Phase 3B).
+- No monthly expense/asset/investment workflows (Phase 4), no results/dashboard/reports (Phase 5), no master-data admin CRUD (Phase 7).
+- No offline/PWA behavior (Phase 6) — the shell has no sync indicator at all yet, deliberately.
+
+---
+
+### Phase 3B — Operator Transaction Workflows
+
+**Status: not started.** Everything below is unchanged from the original single-phase plan; it begins only once Phase 3A's shell exists for it to build on.
+
+#### Objective
 Build the day-to-day entry screens used by reception staff: daily expenses, daily-billing party income (grid), direct cash receipts, and counter income — entirely online, with no financial-result leakage to the Operator role.
 
-### Exact SRS requirement groups
+#### Exact SRS requirement groups
 - FR-DEXP-01 to FR-DEXP-09 (FR-DEXP-10 receipt photo is priority C — may be deferred past this phase; see below).
 - FR-PINC-02, FR-PINC-06, FR-PINC-07, FR-PINC-08, FR-PINC-09.
 - FR-CINC-01 to FR-CINC-04 (FR-CINC-05, priority S, may be folded into Phase 5's warnings work instead).
@@ -178,31 +230,32 @@ Build the day-to-day entry screens used by reception staff: daily expenses, dail
 - NFR-PERF-01, NFR-PERF-02, NFR-PERF-03 (load, navigation, save-confirmation timing).
 - UC-02, UC-03, UC-04, UC-05.
 
-### Deliverables
-- `src/app/(operator)` routes: daily expenses (list + add/edit/archive with running total), daily-billing party income grid (keyboard-operable, matching workbook layout), direct cash receipt form, counter income daily entry.
+#### Deliverables
+- `src/app/(app)/(operator)` routes (built on Phase 3A's shell): daily expenses (list + add/edit/archive with running total), daily-billing party income grid (keyboard-operable, matching workbook layout), direct cash receipt form, counter income daily entry.
 - `src/lib/validation` Zod schemas for each entry type, rejecting zero/negative/non-numeric amounts with field-level errors (FR-DEXP-06).
 - Archive actions requiring confirmation naming the specific record (NFR-USE-06); no physical deletion.
 - Running totals computed via the Phase 1 `src/lib/domain` functions, never typed by a user (FR-DEXP-08, FR-PINC-07).
 - Duplicate-counter-income-for-date warning, non-blocking (FR-CINC-04).
 - Audit-log writes wired for every create/edit/archive of these four entry types.
 
-### Tests
+#### Tests
 - Vitest: validation schemas reject invalid amounts with correct field-level messages.
 - Integration tests: full CRUD + archive lifecycle for each of the four entry types, confirming `is_archived` is set rather than a row deleted.
 - Playwright e2e: enter a daily expense (including a Partner-funded one naming the partner), enter a full day of grid income by keyboard only (NFR-USE-02), enter a direct cash receipt, enter counter income twice for the same date and confirm the non-blocking warning appears.
 - Spot-check integration test: an Operator session cannot retrieve any endpoint exposing profit/loss/investment introduced so far (full AC-08 sweep happens in Phase 5 once all financial endpoints exist).
 
-### Risks
+#### Risks
 - Keyboard-only grid navigation (NFR-USE-02) is genuinely fiddly to get right and easy to regress silently.
 - The "warn but never block" requirement (FR-CINC-04, FR-WARN-03 in spirit) is easy to accidentally implement as a hard validation error.
 - Confusing "archive" with "delete" in a UI copy or API name, undermining CON-04/DR-04.
+- Tablet/mobile visual verification against real captures (or explicit client sign-off) remains the documented gate on this sub-phase's acceptance (`docs/UI_REQUIREMENTS.md` §7) — Phase 3A's own shell responsive behavior is implementation-derived and tested, but is not itself that visual sign-off.
 
-### Exit criteria
+#### Exit criteria
 - UC-02, UC-03, UC-04, UC-05 fully demonstrated.
 - FR-DEXP-01 to 09, FR-CINC-01 to 04, FR-PINC-02/06/07/08/09 implemented and tested.
 - Audit trail present and correct for every entry type in this phase.
 
-### Features that must not be implemented yet
+#### Features that must not be implemented yet
 - No monthly expenses, assets, capital contributions, or investment statements (Phase 4).
 - No results/dashboard/reports/warnings screens (Phase 5) — beyond the running totals required by FR-DEXP-08/FR-PINC-07 themselves.
 - No offline entry or sync (Phase 6) — these screens are online-only until then.
