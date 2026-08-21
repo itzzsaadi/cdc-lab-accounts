@@ -191,11 +191,46 @@ any environment variable itself.
 integration/**` truncates between tests), every new assertion is
   scoped to that test's own uniquely-marked row rather than a cumulative
   total or row count.
-- Full suite at Phase 3B's close: **227 Vitest tests across 38 files**,
-  **29 Playwright e2e tests**, `prisma validate`/`prisma format` (zero
-  schema diff), `prisma migrate status` (no drift), and a production
-  build — all passing. No pre-existing Phase 1/2/3A test was weakened,
-  removed, or skipped to make Phase 3B pass; the two shell/auth
+
+### Phase 3B closure — filters, edit/archive, money formatting
+
+- **Unit** (`tests/unit/domain/money-format.test.ts`): the shared
+  `formatMoney` helper — zero, whole numbers, two-decimal values, large
+  values (thousands separators), and negative-value display, all via
+  pure string manipulation (no `Number()`/`parseFloat`/`.toNumber()`).
+- **Integration** (`tests/integration/mutations/party-income.test.ts`):
+  `createCashReceipt`'s own retried-`client_uuid` replay (no second row,
+  no second audit row) and a genuine `Promise.all` concurrency case —
+  closing the one idempotency/audit combination the original Phase 3B
+  pass had only proven for the grid-cell and Daily Expense create paths.
+- **Playwright e2e** (`tests/e2e/entries.spec.ts`): Daily Expense filter
+  controls (date range, item-or-description search, funding source), all
+  reflected in the URL and surviving a Reset Filters round trip, plus an
+  empty state when nothing matches; the full Daily Expense edit/archive
+  lifecycle (edit opens prefilled, saves, archive confirmation names the
+  exact record, the row disappears from the active list); a stale Daily
+  Expense edit (a second, out-of-band change simulated via
+  `scripts/e2e-touch-daily-expense.ts`, the same child-process pattern as
+  `scripts/e2e-create-user.ts`) showing a clear reload message and never
+  applying; Cash Receipt reachability from both Operator Home and the
+  Party Income page, its own visible confirmation, and its `CASH_DIRECT`
+  persistence + one audit row (checked via
+  `scripts/e2e-verify-party-income-row.ts`, the same DB-check-via-child-
+  process pattern — no test-only HTTP route was added).
+- A real bug was found and fixed during this pass: `formatMoney`'s first
+  version pulled the generated Prisma client (a Node-only module) into
+  the browser bundle transitively through `Decimal`, crashing Turbopack's
+  compile of `/party-income` outright once two Client Components started
+  calling it. Fixed by making the `Decimal` import type-only and
+  formatting via pure string operations — see
+  `docs/adr/0005-phase-3b-operator-workflows.md` §13 for the full account
+  and the precedent it sets for any future shared Server/Client module.
+- Full suite at Phase 3B's close (including this closure pass): **236
+  Vitest tests across 39 files**, **34 Playwright e2e tests**,
+  `prisma validate`/`prisma format` (zero schema diff), `prisma migrate
+status` (no drift), and a production build — all passing. No
+  pre-existing Phase 1/2/3A/3B test was weakened, removed, or skipped;
+  the two shell/auth
   assertions that referenced now-superseded specifics (the old
   placeholder's "Operator Home" heading, the pre-Phase-3B nav-item
   counts) were corrected to match the new, real functionality they now

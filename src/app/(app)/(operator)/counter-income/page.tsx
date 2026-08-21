@@ -5,6 +5,7 @@ import { prisma } from "../../../../server/prisma";
 import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
 import { listCounterIncome } from "../../../../server/queries/counter-income";
 import { monthBounds, currentYearMonthInKarachi } from "../../../../lib/domain/calendar-date";
+import { formatMoney } from "../../../../lib/domain/money-format";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { CounterIncomeForm } from "../../../../components/entries/CounterIncomeForm";
@@ -47,7 +48,7 @@ export default async function CounterIncomePage() {
                 <Thead>
                   <Tr>
                     <Th>Date</Th>
-                    <Th className="text-right">Amount (PKR)</Th>
+                    <Th className="text-right">Amount</Th>
                     <Th>Note</Th>
                   </Tr>
                 </Thead>
@@ -57,7 +58,7 @@ export default async function CounterIncomePage() {
                       <Td className="whitespace-nowrap">
                         {item.incomeDate.toISOString().slice(0, 10)}
                       </Td>
-                      <Td className="tabular-nums text-right">{item.amount.toString()}</Td>
+                      <Td className="tabular-nums text-right">{formatMoney(item.amount)}</Td>
                       <Td className="text-on-surface-variant">{item.note ?? ""}</Td>
                     </Tr>
                   ))}
@@ -68,7 +69,7 @@ export default async function CounterIncomePage() {
                   {items.length} {items.length === 1 ? "entry" : "entries"}
                 </span>
                 <span className="tabular-nums text-on-surface font-semibold">
-                  Total: {total.toString()} PKR
+                  Total: {formatMoney(total)}
                 </span>
               </div>
             </>

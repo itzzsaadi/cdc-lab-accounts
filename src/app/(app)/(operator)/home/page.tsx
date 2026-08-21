@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "../../../../server/session";
 import { prisma } from "../../../../server/prisma";
 import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
 import { listRecentEntries, type RecentEntry } from "../../../../server/queries/home";
+import { formatMoney } from "../../../../lib/domain/money-format";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 
@@ -102,7 +103,7 @@ export default async function OperatorHomePage() {
                   <Th>Time</Th>
                   <Th>Type</Th>
                   <Th>Reference</Th>
-                  <Th className="text-right">Amount (PKR)</Th>
+                  <Th className="text-right">Amount</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -116,7 +117,7 @@ export default async function OperatorHomePage() {
                     </Td>
                     <Td>{KIND_LABEL[entry.kind]}</Td>
                     <Td className="text-on-surface-variant">{entry.label}</Td>
-                    <Td className="tabular-nums text-right">{entry.amount}</Td>
+                    <Td className="tabular-nums text-right">{formatMoney(entry.amount)}</Td>
                   </Tr>
                 ))}
               </Tbody>

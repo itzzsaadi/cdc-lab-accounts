@@ -205,19 +205,75 @@ history. Proven in `tests/integration/queries/party-income-grid.test.ts`
 for both directions: an archived party _with_ in-month history appears
 (read-only); one _without_ any does not.
 
+### 13. Closure: Daily Expense filters, edit/archive UI, and the shared money formatter
+
+A follow-up closure pass completed three items this ADR's original
+"Consequences" section had left open:
+
+- **Filter controls** (`src/app/(app)/(operator)/daily-expenses/page.tsx`):
+  a plain GET `<form>` (date range, item-or-description search, funding
+  source) — no client JS needed, every value lands in the URL query string
+  automatically and survives refresh/navigation for free. Server-side,
+  `listDailyExpensesSchema` validates the raw query values (NFR-SEC-05);
+  an invalid/malformed value is dropped, never thrown, since a filter
+  narrows the view rather than being a required input. A "Reset Filters"
+  link (plain `<a href="/daily-expenses">`) and a filter-aware empty-state
+  message complete FR-DEXP-07.
+- **Edit/archive UI** (`src/components/entries/{DailyExpenseFormFields,
+DailyExpenseRowActions}.tsx`): the create drawer's five fields were
+  extracted into a shared, purely presentational `DailyExpenseFormFields`
+  component so the edit dialog is never a second, drifting copy of the
+  same form. Edit and archive both submit the row's own `updatedAt` for
+  the already-implemented atomic conditional-write check; a stale
+  rejection surfaces the mutation's own error text plus a "Reload" action
+  (`router.refresh()`), the same UX already established for the Party
+  Income grid's stale-cell case.
+- **`formatMoney`** (`src/lib/domain/money-format.ts`): one shared
+  formatter (`"Rs 1,234.56"`, thousands separators, always two decimals)
+  applied everywhere a Phase 3B screen displays an amount.
+
+**A real bug found and fixed during this pass, worth recording**: the
+formatter's first version imported `Decimal` as a _value_ from
+`src/lib/domain/money.ts` (to call `.toFixed()`/`.abs()`/`.isNegative()`),
+and `money.ts` itself imports `Prisma` from the generated Prisma client to
+get that type. Once `formatMoney` was wired into two **Client Components**
+(`PartyIncomeGrid`, `CashReceiptModal`), Turbopack tried to bundle the
+generated Prisma client — a Node-only module — into the browser chunk and
+crashed outright (`the chunking context (unknown) does not support
+external modules (request: node:module)`), taking down `/party-income`
+entirely (a 500 in dev, and the shared Playwright dev server left
+unusable for every later test in the same run once it panicked). **Fix**:
+`formatMoney` now takes only a _type-only_ import of `Decimal` (erased at
+compile time) and formats via pure string manipulation — splitting on `.`,
+padding/truncating the fractional part to 2 digits, regex-inserting
+thousands separators — calling only `.toString()` on a `Decimal` argument
+(a plain method every object has, not Decimal-specific), never
+`.toFixed()`/`.abs()`/`.isNegative()`/`instanceof`. This is also why every
+value actually passed to `formatMoney` from a Client Component is already
+a plain string in practice: a live `Decimal` instance could never
+legally cross the Server→Client props boundary anyway, since Next.js
+requires serializable props. Verified by restarting the dev server after
+the fix and confirming `/party-income` compiles and serves normally
+(no panic), plus the full Playwright suite passing.
+
 ## Consequences
 
 - The idempotency protocol (client-generated `client_uuid`, database-
   constraint-as-final-authority) is the one Phase 6's offline queue must
   reuse, not replace — a design constraint recorded here so it is not
   redesigned by accident later.
-- `router.refresh()` on every successful grid-cell save trades a small
-  amount of network chatter for always-accurate totals — acceptable under
-  CON-07 (a single-maintainer system; correctness of a financial total
-  matters more than avoiding a refresh call), and verified not to disrupt
+- `router.refresh()` on every successful grid-cell save (and now, every
+  successful Daily Expense edit/archive) trades a small amount of network
+  chatter for always-accurate totals — acceptable under CON-07 (a
+  single-maintainer system; correctness of a financial total matters more
+  than avoiding a refresh call), and verified not to disrupt
   keyboard-driven data entry.
-- FR-DEXP-07's filter controls, FR-DEXP-09's edit/archive UI, and FR-PINC-
-  07/08's monthly-bill component (Phase 4) remain open — the underlying
-  queries/mutations exist and are tested, but no UI calls the edit/archive
-  actions yet for Daily Expenses specifically. Tracked in
-  `docs/REQUIREMENTS_TRACEABILITY.md`, not silently dropped.
+- Any future shared module reachable from both Server and Client
+  Components must avoid importing the generated Prisma client as a
+  runtime value, even indirectly — a type-only import is safe (erased),
+  a value import is not, regardless of how "small" the used API surface
+  looks. `src/lib/domain/money-format.ts`'s fix (item above) is the
+  concrete precedent to follow.
+- FR-PINC-07/08's monthly-bill component (Phase 4, FR-PINC-03) remains
+  the one still-open item from this ADR's original scope — tracked as
+  `Partial` in `docs/REQUIREMENTS_TRACEABILITY.md`, not silently dropped.

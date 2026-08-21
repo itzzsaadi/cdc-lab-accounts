@@ -7,6 +7,7 @@ import { TextInput } from "../ui/TextInput";
 import { Textarea } from "../ui/Textarea";
 import { generateClientUuid } from "../../lib/client-uuid";
 import { todayInKarachi } from "../../lib/domain/calendar-date";
+import { formatMoney } from "../../lib/domain/money-format";
 import { createCounterIncomeAction } from "../../server/actions/counter-income";
 
 /**
@@ -54,7 +55,7 @@ export function CounterIncomeForm() {
     if (!result.ok) {
       if ("requiresConfirmation" in result) {
         setDuplicateWarning(
-          `An entry already exists for ${incomeDate} (Rs ${result.existingAmount}). Record this as an additional entry for the same day?`,
+          `An entry already exists for ${incomeDate} (${formatMoney(result.existingAmount)}). Record this as an additional entry for the same day?`,
         );
         return;
       }

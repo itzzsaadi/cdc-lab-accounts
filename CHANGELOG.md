@@ -4,6 +4,44 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 3B closure: filters, edit/archive UI, and money formatting
+
+- `src/lib/domain/money-format.ts` (`formatMoney`): one shared,
+  Decimal-safe display formatter (`"Rs 1,234.56"`, thousands separators,
+  always two decimals; pure string manipulation, never `Number()`/
+  `parseFloat`/`.toNumber()`), applied across Daily Expenses, Party
+  Income (grid totals, Cash Receipt confirmation), Counter Income (list,
+  total, duplicate warning), and Operator Home's Recent Entries.
+- Daily Expenses filter controls (`src/app/(app)/(operator)/
+daily-expenses/page.tsx`): date range, item-or-description search, and
+  funding source, all reflected in the URL query string and validated
+  server-side (`listDailyExpensesSchema`); a Reset Filters action; a
+  filter-aware empty state.
+- Daily Expense edit/archive UI (`src/components/entries/
+{DailyExpenseFormFields,DailyExpenseRowActions}.tsx`): edit opens a
+  dialog prefilled from the row's own values and submits its
+  `expectedUpdatedAt` for the existing atomic conditional-write check;
+  archive reuses the confirmation `Modal`, naming the exact record; a
+  stale edit/archive shows a clear reload message rather than silently
+  failing.
+- Cash Receipt's confirmation now shows a visible "amount recorded for
+  &lt;party&gt;" state before closing (NFR-USE-04), and its reachability
+  from both Operator Home and the Party Income page is now e2e-proven.
+- Fixed a Turbopack crash on `/party-income`: `formatMoney`'s first
+  version transitively imported the generated Prisma client (a Node-only
+  module) into two Client Components' browser bundles. The `Decimal`
+  import is now type-only; see `docs/adr/0005-phase-3b-operator-
+workflows.md` §13.
+- New tests: `tests/unit/domain/money-format.test.ts`; a Cash Receipt
+  idempotent-replay/concurrency test in `tests/integration/mutations/
+party-income.test.ts`; Playwright coverage in `tests/e2e/entries.spec.ts`
+  for filters, the edit/archive/stale-write lifecycle, and Cash Receipt
+  (reachability, visible confirmation, `CASH_DIRECT` persistence, one
+  audit row) via two new DB-check helper scripts
+  (`scripts/e2e-verify-party-income-row.ts`,
+  `scripts/e2e-touch-daily-expense.ts`) following the existing
+  `scripts/e2e-create-user.ts` child-process pattern.
+
 ### Added — Phase 3B: Operator Transaction Workflows
 
 - `src/app/(app)/(operator)/daily-expenses/page.tsx` +

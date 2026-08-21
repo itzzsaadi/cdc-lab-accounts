@@ -8,6 +8,8 @@ export interface DailyExpenseListFilter {
   to: string;
   expenseItemId?: string;
   fundingSource?: "BUSINESS" | "PARTNER";
+  /** Case-insensitive substring match against the expense item's name or the row's own free-text `customDescription` (FR-DEXP-07's "item or custom description" filter). */
+  search?: string;
 }
 
 /**
@@ -37,6 +39,14 @@ export async function listDailyExpenses(
       expenseDate: { gte: from, lte: to },
       ...(filter.expenseItemId ? { expenseItemId: filter.expenseItemId } : {}),
       ...(filter.fundingSource ? { fundingSource: filter.fundingSource } : {}),
+      ...(filter.search
+        ? {
+            OR: [
+              { customDescription: { contains: filter.search, mode: "insensitive" } },
+              { expenseItem: { name: { contains: filter.search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
     },
     include: {
       expenseItem: { select: { id: true, name: true, isActive: true } },

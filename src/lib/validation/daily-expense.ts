@@ -73,9 +73,11 @@ export const archiveDailyExpenseSchema = z.object({
   expectedUpdatedAt: z.string().datetime({ offset: true }),
 });
 
+/** FR-DEXP-07's filter controls — validated server-side regardless of what the URL query string actually contains (NFR-SEC-05); every field is optional so an absent/malformed value falls back to the page's own default, never a thrown error. */
 export const listDailyExpensesSchema = z.object({
-  from: calendarDateSchema,
-  to: calendarDateSchema,
+  from: calendarDateSchema.optional(),
+  to: calendarDateSchema.optional(),
   expenseItemId: z.string().uuid().optional(),
   fundingSource: z.enum(["BUSINESS", "PARTNER"]).optional(),
+  search: z.string().trim().min(1).max(150).optional(),
 });

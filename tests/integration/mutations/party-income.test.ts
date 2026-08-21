@@ -208,4 +208,55 @@ describe("createCashReceipt (FR-PINC-06)", () => {
     });
     expect(rows).toHaveLength(2);
   });
+
+  it("replays a retried cash receipt (same clientUuid) via the findUnique short-circuit — no second row, no second audit row", async () => {
+    const user = await operatorUser();
+    const party = await createTestParty({ billingMode: "DAILY" });
+    const input = {
+      clientUuid: randomUUID(),
+      partyId: party.id,
+      incomeDate: "2026-08-21",
+      amount: "3300",
+      note: "Reception cash",
+    };
+
+    const first = await createCashReceipt(prisma, user, input);
+    const second = await createCashReceipt(prisma, user, input);
+
+    expect(first.ok).toBe(true);
+    expect(second).toEqual({ ok: true, id: (first as { id: string }).id, replayed: true });
+
+    const rows = await prisma.partyIncome.findMany({ where: { clientUuid: input.clientUuid } });
+    expect(rows).toHaveLength(1);
+    const auditCount = await prisma.auditLog.count({
+      where: { entityType: "party_income", entityId: rows[0].id },
+    });
+    expect(auditCount).toBe(1);
+  });
+
+  it("under genuine concurrency (same clientUuid), exactly one row and one audit row exist and both callers succeed", async () => {
+    const user = await operatorUser();
+    const party = await createTestParty({ billingMode: "DAILY" });
+    const input = {
+      clientUuid: randomUUID(),
+      partyId: party.id,
+      incomeDate: "2026-08-21",
+      amount: "1800",
+      note: "Concurrent receipt",
+    };
+
+    const [a, b] = await Promise.all([
+      createCashReceipt(prisma, user, input),
+      createCashReceipt(prisma, user, input),
+    ]);
+
+    expect(a.ok).toBe(true);
+    expect(b.ok).toBe(true);
+    const rows = await prisma.partyIncome.findMany({ where: { clientUuid: input.clientUuid } });
+    expect(rows).toHaveLength(1);
+    const auditCount = await prisma.auditLog.count({
+      where: { entityType: "party_income", entityId: rows[0].id },
+    });
+    expect(auditCount).toBe(1);
+  });
 });

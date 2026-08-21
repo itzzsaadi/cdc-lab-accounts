@@ -4,19 +4,29 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
-import { TextInput } from "../ui/TextInput";
-import { Select } from "../ui/Select";
-import { FundingSourceToggle, type PartnerOption } from "./FundingSourceToggle";
+import type { PartnerOption } from "./FundingSourceToggle";
+import {
+  DailyExpenseFormFields,
+  OTHER_VALUE,
+  type ExpenseItemOption,
+  type DailyExpenseFieldsState,
+} from "./DailyExpenseFormFields";
 import { generateClientUuid } from "../../lib/client-uuid";
 import { todayInKarachi } from "../../lib/domain/calendar-date";
 import { createDailyExpenseAction } from "../../server/actions/daily-expenses";
 
-export interface ExpenseItemOption {
-  id: string;
-  name: string;
-}
+export type { ExpenseItemOption };
 
-const OTHER_VALUE = "__other__";
+function initialState(expenseItems: ExpenseItemOption[]): DailyExpenseFieldsState {
+  return {
+    expenseDate: todayInKarachi(),
+    itemSelection: expenseItems[0]?.id ?? OTHER_VALUE,
+    customDescription: "",
+    amount: "",
+    fundingSource: "BUSINESS",
+    fundedByUserId: "",
+  };
+}
 
 /**
  * FR-DEXP-01/02/05/06 — translated from the Stitch export's "Add Expense"
@@ -36,25 +46,13 @@ export function DailyExpenseDrawer({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [expenseDate, setExpenseDate] = useState(() => todayInKarachi());
-  const [itemSelection, setItemSelection] = useState<string>(
-    () => expenseItems[0]?.id ?? OTHER_VALUE,
-  );
-  const [customDescription, setCustomDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [fundingSource, setFundingSource] = useState<"BUSINESS" | "PARTNER">("BUSINESS");
-  const [fundedByUserId, setFundedByUserId] = useState("");
+  const [state, setState] = useState<DailyExpenseFieldsState>(() => initialState(expenseItems));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
 
   function resetForm() {
-    setExpenseDate(todayInKarachi());
-    setItemSelection(expenseItems[0]?.id ?? OTHER_VALUE);
-    setCustomDescription("");
-    setAmount("");
-    setFundingSource("BUSINESS");
-    setFundedByUserId("");
+    setState(initialState(expenseItems));
     setError(null);
     clientUuidRef.current = null;
   }
@@ -66,12 +64,12 @@ export function DailyExpenseDrawer({
 
     const result = await createDailyExpenseAction({
       clientUuid: clientUuidRef.current,
-      expenseDate,
-      expenseItemId: itemSelection === OTHER_VALUE ? undefined : itemSelection,
-      customDescription: itemSelection === OTHER_VALUE ? customDescription : undefined,
-      amount,
-      fundingSource,
-      fundedByUserId: fundingSource === "PARTNER" ? fundedByUserId : undefined,
+      expenseDate: state.expenseDate,
+      expenseItemId: state.itemSelection === OTHER_VALUE ? undefined : state.itemSelection,
+      customDescription: state.itemSelection === OTHER_VALUE ? state.customDescription : undefined,
+      amount: state.amount,
+      fundingSource: state.fundingSource,
+      fundedByUserId: state.fundingSource === "PARTNER" ? state.fundedByUserId : undefined,
     });
 
     setSubmitting(false);
@@ -98,52 +96,11 @@ export function DailyExpenseDrawer({
             void handleSubmit(event);
           }}
         >
-          <TextInput
-            id="expense-date"
-            label="Date"
-            type="date"
-            value={expenseDate}
-            onChange={(event) => setExpenseDate(event.target.value)}
-            required
-          />
-          <Select
-            id="expense-item"
-            label="Item"
-            value={itemSelection}
-            onChange={(event) => setItemSelection(event.target.value)}
-          >
-            {expenseItems.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-            <option value={OTHER_VALUE}>Other (type below)</option>
-          </Select>
-          {itemSelection === OTHER_VALUE ? (
-            <TextInput
-              id="expense-custom-description"
-              label="Description"
-              value={customDescription}
-              onChange={(event) => setCustomDescription(event.target.value)}
-              placeholder="Describe the expense…"
-              required
-            />
-          ) : null}
-          <TextInput
-            id="expense-amount"
-            label="Amount (PKR)"
-            inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}
-            placeholder="0.00"
-            required
-          />
-          <FundingSourceToggle
-            name="expense-funding-source"
-            fundingSource={fundingSource}
-            onFundingSourceChange={setFundingSource}
-            fundedByUserId={fundedByUserId}
-            onFundedByUserIdChange={setFundedByUserId}
+          <DailyExpenseFormFields
+            idPrefix="expense"
+            state={state}
+            onChange={(next) => setState((prev) => ({ ...prev, ...next }))}
+            expenseItems={expenseItems}
             partners={partners}
           />
           {error ? <p className="text-error text-sm">{error}</p> : null}

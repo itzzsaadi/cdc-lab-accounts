@@ -1,4 +1,5 @@
 import { GridCellInput } from "./GridCellInput";
+import { formatMoney } from "../../lib/domain/money-format";
 import type { PartyIncomeGrid as PartyIncomeGridData } from "../../server/queries/party-income";
 
 /**
@@ -74,7 +75,7 @@ export function PartyIncomeGrid({ grid }: { grid: PartyIncomeGridData }) {
                   );
                 })}
                 <td className="border-outline-variant text-on-surface-variant border-b p-3 text-right font-bold">
-                  {grid.dayTotals[day] ?? "0"}
+                  {formatMoney(grid.dayTotals[day] ?? "0")}
                 </td>
               </tr>
             ))}
@@ -89,11 +90,11 @@ export function PartyIncomeGrid({ grid }: { grid: PartyIncomeGridData }) {
                   key={party.id}
                   className="text-primary border-outline-variant border-r p-3 text-right font-bold"
                 >
-                  {grid.partyTotals[party.id] ?? "0"}
+                  {formatMoney(grid.partyTotals[party.id] ?? "0")}
                 </td>
               ))}
               <td className="bg-primary-container text-on-primary-container p-3 text-right font-bold">
-                {grid.grandTotal}
+                {formatMoney(grid.grandTotal)}
               </td>
             </tr>
           </tfoot>
