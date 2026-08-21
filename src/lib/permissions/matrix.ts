@@ -14,6 +14,7 @@ export const PERMISSIONS = {
   "entry:counter-income": { minimumRole: "OPERATOR" },
   "entry:cash-receipt": { minimumRole: "OPERATOR" },
   "offline:sync-center": { minimumRole: "OPERATOR" },
+  "party-income:monthly-bill": { minimumRole: "PARTNER" },
   "monthly-expense:manage": { minimumRole: "PARTNER" },
   "asset:manage": { minimumRole: "PARTNER" },
   "report:financial-summary": { minimumRole: "PARTNER" },

@@ -267,7 +267,8 @@ model ExpenseCategory {
   isRecurring  Boolean      @default(false) @map("is_recurring")
   isActive     Boolean      @default(true) @map("is_active")
 
-  monthlyExpenses MonthlyExpense[]
+  monthlyExpenses  MonthlyExpense[]
+  defaultForAssets Asset[]
 
   @@map("expense_categories")
 }
@@ -401,6 +402,13 @@ model Asset {
   purchasedBy       User?               @relation("AssetPurchasedBy", fields: [purchasedByUserId], references: [id], onDelete: Restrict)
   vendorId          String?             @map("vendor_id") @db.Uuid
   vendor            Vendor?             @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  /// Phase 4: required only for INSTALMENT-mode assets (see the
+  /// acquisition-mode CHECK in migration.sql) — the source of
+  /// monthly_expenses.category_id for every system-generated instalment
+  /// line (FR-AST-04), since that column is NOT NULL and no other part of
+  /// an asset carries category information. Always NULL for CASH assets.
+  defaultCategoryId String?             @map("default_category_id") @db.Uuid
+  defaultCategory   ExpenseCategory?    @relation(fields: [defaultCategoryId], references: [id], onDelete: Restrict)
   acquiredOn        DateTime?           @map("acquired_on") @db.Date
   status            AssetStatus         @default(ACTIVE)
   createdBy         String              @map("created_by") @db.Uuid

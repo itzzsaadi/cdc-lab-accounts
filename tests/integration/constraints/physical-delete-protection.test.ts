@@ -135,12 +135,16 @@ describe("physical-deletion prevention (BR-15, DR-04, CON-04) — BEFORE DELETE 
 
   it("rejects DELETE on assets", async () => {
     const user = await createTestUser();
+    const category = await prisma.expenseCategory.create({
+      data: { name: `Cat ${crypto.randomUUID()}`, expenseGroup: "PURCHASING" },
+    });
     const asset = await prisma.asset.create({
       data: {
         name: "Test Asset",
         classification: "FIXED",
         acquisitionMode: "INSTALMENT",
         monthlyInstalment: "1000",
+        defaultCategoryId: category.id,
         createdBy: user.id,
         updatedBy: user.id,
         updatedAt: new Date(),

@@ -47,3 +47,28 @@ export const createCashReceiptSchema = z.object({
 export const partyIncomeGridQuerySchema = z.object({
   yearMonth: yearMonthSchema,
 });
+
+/**
+ * FR-PINC-03 (Partner-only, UC-07): one figure per monthly-billing party per
+ * month. `incomeDate` is always the first day of `periodMonth` — enforced
+ * by the mutation, not the client — matching `receiptType: "MONTHLY"` and
+ * the Phase 4 partial unique index
+ * (`party_income_active_monthly_party_month_unique`).
+ */
+export const createMonthlyPartyBillSchema = z.object({
+  clientUuid: z.string().uuid(),
+  partyId: z.string().uuid(),
+  periodMonth: yearMonthSchema,
+  amount: decimalAmountSchema({ allowZero: false }),
+});
+
+export const updateMonthlyPartyBillSchema = z.object({
+  id: z.string().uuid(),
+  expectedUpdatedAt: z.string().datetime({ offset: true }),
+  amount: decimalAmountSchema({ allowZero: false }),
+});
+
+export const archiveMonthlyPartyBillSchema = z.object({
+  id: z.string().uuid(),
+  expectedUpdatedAt: z.string().datetime({ offset: true }),
+});

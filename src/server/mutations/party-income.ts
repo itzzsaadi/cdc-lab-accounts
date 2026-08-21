@@ -10,6 +10,9 @@ import {
   updateDailyPartyIncomeCellSchema,
   archivePartyIncomeSchema,
   createCashReceiptSchema,
+  createMonthlyPartyBillSchema,
+  updateMonthlyPartyBillSchema,
+  archiveMonthlyPartyBillSchema,
 } from "../../lib/validation/party-income";
 
 export type CreateResult =
@@ -223,4 +226,153 @@ export async function createCashReceipt(
     }
     throw error;
   }
+}
+
+/**
+ * FR-PINC-03 (Partner-only, UC-07): one figure per monthly-billing party
+ * per month. `incomeDate` is always normalized to the first day of
+ * `periodMonth` — never client-supplied — matching the Phase 4 partial
+ * unique index (`party_income_active_monthly_party_month_unique`). Same
+ * `client_uuid` replay-safety shape as every other `party_income` write; a
+ * collision on the monthly unique index instead (a *different* clientUuid
+ * racing to record the same party/month) is a genuine conflict, reported
+ * as a normal error, never silently treated as success — correcting an
+ * already-recorded month's figure is an ordinary edit
+ * (`updateMonthlyPartyBill`), never a second create.
+ */
+export async function createMonthlyPartyBill(
+  prisma: PrismaClient,
+  currentUser: AuthenticatedUser | null,
+  input: unknown,
+): Promise<CreateResult> {
+  const user = requirePermission(currentUser, "party-income:monthly-bill");
+
+  const parsed = createMonthlyPartyBillSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const data = parsed.data;
+
+  const existing = await prisma.partyIncome.findUnique({ where: { clientUuid: data.clientUuid } });
+  if (existing) {
+    return { ok: true, id: existing.id, replayed: true };
+  }
+
+  const incomeDate = parseCalendarDate(`${data.periodMonth}-01`);
+  if (!incomeDate) {
+    return { ok: false, error: "Invalid period month." };
+  }
+
+  const id = randomUUID();
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.partyIncome.create({
+        data: {
+          id,
+          clientUuid: data.clientUuid,
+          partyId: data.partyId,
+          incomeDate,
+          amount: new Decimal(data.amount),
+          receiptType: "MONTHLY",
+          capturedAt: new Date(),
+          createdBy: user.id,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+        },
+      });
+      await appendBusinessAudit(tx, {
+        actorUserId: user.id,
+        action: "CREATE",
+        entityType: "party_income",
+        entityId: id,
+        newValues: {
+          partyId: data.partyId,
+          periodMonth: data.periodMonth,
+          amount: data.amount,
+          receiptType: "MONTHLY",
+        },
+      });
+    });
+    return { ok: true, id, replayed: false };
+  } catch (error) {
+    if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
+      const winner = await prisma.partyIncome.findUniqueOrThrow({
+        where: { clientUuid: data.clientUuid },
+      });
+      return { ok: true, id: winner.id, replayed: true };
+    }
+    if (isUniqueConstraintViolationOn(error, ["party_id", "income_date"])) {
+      return {
+        ok: false,
+        error:
+          "This party already has a monthly bill for this month. Edit the existing figure instead.",
+      };
+    }
+    throw error;
+  }
+}
+
+export async function updateMonthlyPartyBill(
+  prisma: PrismaClient,
+  currentUser: AuthenticatedUser | null,
+  input: unknown,
+): Promise<MutationResult> {
+  const user = requirePermission(currentUser, "party-income:monthly-bill");
+
+  const parsed = updateMonthlyPartyBillSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const data = parsed.data;
+
+  return prisma.$transaction(async (tx) => {
+    const before = await tx.partyIncome.findUnique({ where: { id: data.id } });
+    const result = await tx.partyIncome.updateMany({
+      where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
+      data: { amount: new Decimal(data.amount), updatedBy: user.id, updatedAt: new Date() },
+    });
+    if (result.count !== 1) {
+      return { ok: false, error: "This bill was changed elsewhere. Reload it and try again." };
+    }
+    await appendBusinessAudit(tx, {
+      actorUserId: user.id,
+      action: "UPDATE",
+      entityType: "party_income",
+      entityId: data.id,
+      oldValues: before ? { amount: before.amount.toString() } : undefined,
+      newValues: { amount: data.amount },
+    });
+    return { ok: true };
+  });
+}
+
+export async function archiveMonthlyPartyBill(
+  prisma: PrismaClient,
+  currentUser: AuthenticatedUser | null,
+  input: unknown,
+): Promise<MutationResult> {
+  const user = requirePermission(currentUser, "party-income:monthly-bill");
+
+  const parsed = archiveMonthlyPartyBillSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const data = parsed.data;
+
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.partyIncome.updateMany({
+      where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
+      data: { isArchived: true, updatedBy: user.id, updatedAt: new Date() },
+    });
+    if (result.count !== 1) {
+      return { ok: false, error: "This bill was already changed or archived elsewhere." };
+    }
+    await appendBusinessAudit(tx, {
+      actorUserId: user.id,
+      action: "ARCHIVE",
+      entityType: "party_income",
+      entityId: data.id,
+    });
+    return { ok: true };
+  });
 }

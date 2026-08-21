@@ -131,6 +131,17 @@ export function monthBounds(yearMonth: string): { firstDay: string; lastDay: str
   };
 }
 
+/** The `YYYY-MM` month immediately before the given one (FR-MEXP-06's recurring pre-fill source month) — never computed via `Date` arithmetic on a day-of-month value, since that risks month-length drift; this only ever moves whole months. */
+export function previousYearMonth(yearMonth: string): string {
+  const parsed = parseYearMonth(yearMonth);
+  if (!parsed) {
+    throw new Error(`"${yearMonth}" is not a valid YYYY-MM month.`);
+  }
+  const { year, month } = parsed;
+  const previous = new Date(Date.UTC(year, month - 2, 1));
+  return `${pad(previous.getUTCFullYear(), 4)}-${pad(previous.getUTCMonth() + 1, 2)}`;
+}
+
 /** Every `YYYY-MM-DD` calendar date in the given `YYYY-MM` month, in order — the Party Income grid's day-column source (FR-PINC-07). */
 export function daysInMonth(yearMonth: string): string[] {
   const parsed = parseYearMonth(yearMonth);

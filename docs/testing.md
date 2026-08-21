@@ -242,3 +242,66 @@ single most important regression test in the project — is built in
 resolved with the client. Phase 1's seed data deliberately contains no
 July 2026 transaction amounts at all, so this conflict does not arise in
 any test built so far.
+
+### Phase 4 — Monthly Expenses, Assets, and Partner Investment
+
+- **Migration/constraint tests**: the extended `assets_acquisition_mode_check`
+  (rejects `INSTALMENT` with no `default_category_id`, rejects `CASH` with
+  one set — `tests/integration/constraints/asset-acquisition-mode.test.ts`);
+  the new `party_income_active_monthly_party_month_unique` partial unique
+  index, including archive-then-correct and the DAILY/CASH_DIRECT
+  non-interference proof
+  (`tests/integration/constraints/party-income-monthly-unique.test.ts`).
+  Every pre-existing Phase 1 test that created an `INSTALMENT` asset was
+  updated to supply a `default_category_id`, since the Phase 4 migration
+  makes it a required column for that mode.
+- **Instalment-generation concurrency** (`tests/integration/mutations/monthly-expenses.test.ts`):
+  a genuine `Promise.all` race generating the same asset/month twice
+  proves exactly one row and one audit event survive; a sequential
+  second run against an already-generated month is a query-time no-op
+  (the candidate list itself excludes it); an archived asset is excluded
+  from all future generation; editing an asset's `monthlyInstalment`
+  is proven to leave an already-generated month's row unchanged while a
+  later month picks up the new amount.
+- **Recurring pre-fill** (`FR-MEXP-06`): a recurring category's most
+  recent prior-month row is proven to drive the preview, and confirming
+  creates exactly the previewed line.
+- **Same-category duplicate warning** (`FR-MEXP-08`): the same two-step
+  `confirmedDuplicate` non-blocking flow as Counter Income, proven at
+  both the integration and Playwright layers.
+- **Monthly Party Income** (`FR-PINC-03`): create, the one-figure-per-
+  party-per-month rejection, replay-safety via `client_uuid`, and
+  correcting an already-recorded month as an ordinary edit (never a
+  second row) — `tests/integration/mutations/party-income.test.ts`.
+  `getPartyMonthlyTotals`'s three-way combination (daily + monthly +
+  cash receipts, per billing mode, zero-not-omitted) is proven in
+  `tests/integration/queries/party-monthly-totals.test.ts`, completing
+  FR-PINC-07. FR-PINC-08 stays Partial — the same test proves totals for
+  a calendar month only; no custom date range exists yet.
+- **Assets and Capital Contributions**: full create/edit/archive
+  lifecycles with atomic conditional-write stale-write protection
+  (`tests/integration/mutations/assets.test.ts`,
+  `tests/integration/mutations/capital-contributions.test.ts`); an
+  instalment asset's default category is proven rejected when inactive
+  or when it belongs to Administration rather than Purchasing; a
+  `DRAWING` is proven to always store a positive `Decimal`, with the
+  sign applied only by `partnerInvestmentTotal`
+  (`tests/integration/queries/capital-contributions.test.ts`), never a
+  negative number written anywhere.
+- **Playwright e2e** (`tests/e2e/monthly-workflows.spec.ts`): Operator
+  denial by direct navigation to all four new Partner routes; an
+  Instalment asset created and its line generated via the preview-then-
+  confirm UI; a Cash asset created with a purchasing partner, appearing
+  in the Investment statement and never in Monthly Expenses; the Cash-
+  mode partner field proven to be a required `<select>`, never an
+  optional checkbox; a Monthly Expense and a Monthly Party Bill each
+  created through the real UI; a Capital Contribution and a Drawing
+  both recorded and shown moving the running total in opposite
+  directions. `tests/e2e/shell.spec.ts`'s nav-item-count assertions were
+  updated for the four new Partner sidebar entries.
+- Full suite at Phase 4's close: **298 Vitest tests across 48 files**,
+  **44 Playwright e2e tests**, `prisma validate`/`prisma format` (zero
+  schema diff), `prisma migrate status` (no drift, both migrations
+  applied to dev and test databases) — all passing. No pre-existing
+  test was weakened, removed, or skipped; the nav-item-count assertions
+  updated for the new routes are the only Phase 3 test edits.

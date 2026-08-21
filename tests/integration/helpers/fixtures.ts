@@ -109,6 +109,49 @@ export async function createTestPartyIncome(overrides: {
   });
 }
 
+/** Phase 4 fixtures — never seeded (Phase 1 seeds an empty asset register, FR-AST-01). */
+export async function createTestInstalmentAsset(overrides: {
+  userId: string;
+  defaultCategoryId: string;
+  monthlyInstalment?: string;
+  status?: "ACTIVE" | "ARCHIVED";
+}) {
+  const prisma = getTestPrismaClient();
+  return prisma.asset.create({
+    data: {
+      name: `Test Instalment Asset ${randomUUID()}`,
+      classification: "FIXED",
+      acquisitionMode: "INSTALMENT",
+      monthlyInstalment: overrides.monthlyInstalment ?? "50000",
+      defaultCategoryId: overrides.defaultCategoryId,
+      status: overrides.status ?? "ACTIVE",
+      createdBy: overrides.userId,
+      updatedBy: overrides.userId,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function createTestCashAsset(overrides: {
+  userId: string;
+  purchasedByUserId: string;
+  purchasePrice?: string;
+}) {
+  const prisma = getTestPrismaClient();
+  return prisma.asset.create({
+    data: {
+      name: `Test Cash Asset ${randomUUID()}`,
+      classification: "MOVABLE",
+      acquisitionMode: "CASH",
+      purchasePrice: overrides.purchasePrice ?? "150000",
+      purchasedByUserId: overrides.purchasedByUserId,
+      createdBy: overrides.userId,
+      updatedBy: overrides.userId,
+      updatedAt: new Date(),
+    },
+  });
+}
+
 export async function createTestCounterIncome(overrides: {
   userId: string;
   incomeDate?: Date;

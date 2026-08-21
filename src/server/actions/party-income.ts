@@ -8,6 +8,9 @@ import {
   updateDailyPartyIncomeCell,
   archivePartyIncome,
   createCashReceipt,
+  createMonthlyPartyBill,
+  updateMonthlyPartyBill,
+  archiveMonthlyPartyBill,
   type CreateResult,
   type MutationResult,
 } from "../mutations/party-income";
@@ -34,4 +37,19 @@ export async function archivePartyIncomeAction(input: unknown): Promise<Mutation
 export async function createCashReceiptAction(input: unknown): Promise<CreateResult> {
   const currentUser = await getAuthenticatedUser(await nextHeaders());
   return createCashReceipt(prisma, currentUser, input);
+}
+
+export async function createMonthlyPartyBillAction(input: unknown): Promise<CreateResult> {
+  const currentUser = await getAuthenticatedUser(await nextHeaders());
+  return createMonthlyPartyBill(prisma, currentUser, input);
+}
+
+export async function updateMonthlyPartyBillAction(input: unknown): Promise<MutationResult> {
+  const currentUser = await getAuthenticatedUser(await nextHeaders());
+  return updateMonthlyPartyBill(prisma, currentUser, input);
+}
+
+export async function archiveMonthlyPartyBillAction(input: unknown): Promise<MutationResult> {
+  const currentUser = await getAuthenticatedUser(await nextHeaders());
+  return archiveMonthlyPartyBill(prisma, currentUser, input);
 }

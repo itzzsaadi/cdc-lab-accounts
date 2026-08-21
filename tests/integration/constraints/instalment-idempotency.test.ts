@@ -4,13 +4,14 @@ import { createTestUser } from "../helpers/fixtures";
 
 const prisma = getTestPrismaClient();
 
-async function createInstalmentAsset(userId: string) {
+async function createInstalmentAsset(userId: string, categoryId: string) {
   return prisma.asset.create({
     data: {
       name: "Haematology Analyser",
       classification: "FIXED",
       acquisitionMode: "INSTALMENT",
       monthlyInstalment: "50000",
+      defaultCategoryId: categoryId,
       createdBy: userId,
       updatedBy: userId,
       updatedAt: new Date(),
@@ -25,10 +26,10 @@ describe("instalment idempotency (Phase 1 plan §10) — partial unique index", 
 
   it("rejects a second active instalment row for the same asset and month", async () => {
     const user = await createTestUser();
-    const asset = await createInstalmentAsset(user.id);
     const category = await prisma.expenseCategory.create({
       data: { name: `Cat ${crypto.randomUUID()}`, expenseGroup: "PURCHASING" },
     });
+    const asset = await createInstalmentAsset(user.id, category.id);
     const periodMonth = new Date("2026-07-01");
 
     await prisma.monthlyExpense.create({
@@ -66,10 +67,10 @@ describe("instalment idempotency (Phase 1 plan §10) — partial unique index", 
 
   it("allows archive-then-correct: archiving the wrong row permits a corrected replacement for the same asset+month", async () => {
     const user = await createTestUser();
-    const asset = await createInstalmentAsset(user.id);
     const category = await prisma.expenseCategory.create({
       data: { name: `Cat ${crypto.randomUUID()}`, expenseGroup: "PURCHASING" },
     });
+    const asset = await createInstalmentAsset(user.id, category.id);
     const periodMonth = new Date("2026-07-01");
 
     const wrong = await prisma.monthlyExpense.create({

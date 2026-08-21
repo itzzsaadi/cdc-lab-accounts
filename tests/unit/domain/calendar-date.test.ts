@@ -7,6 +7,7 @@ import {
   parseYearMonth,
   monthBounds,
   daysInMonth,
+  previousYearMonth,
 } from "../../../src/lib/domain/calendar-date";
 
 describe("parseCalendarDate (strict YYYY-MM-DD, no z.coerce.date())", () => {
@@ -116,5 +117,19 @@ describe("daysInMonth", () => {
 
   it("enumerates 31 days for a 31-day month", () => {
     expect(daysInMonth("2026-01")).toHaveLength(31);
+  });
+});
+
+describe("previousYearMonth (FR-MEXP-06's recurring pre-fill source month)", () => {
+  it("moves back one month within the same year", () => {
+    expect(previousYearMonth("2026-08")).toBe("2026-07");
+  });
+
+  it("rolls back across a year boundary", () => {
+    expect(previousYearMonth("2026-01")).toBe("2025-12");
+  });
+
+  it("throws for a malformed month", () => {
+    expect(() => previousYearMonth("2026-13")).toThrow();
   });
 });
