@@ -39,7 +39,7 @@ The identical batch-preview-confirm-per-row-transaction shape is reused for FR-M
 
 **Decision (approved):** FR-PINC-03 (Partner-only, UC-07) is a new route, `src/app/(app)/(partner)/party-income-monthly`, gated by a new permission key `party-income:monthly-bill` (`minimumRole: "PARTNER"`), rather than folded into the Operator-facing Party Income grid (`entry:party-income`, `minimumRole: "OPERATOR"`). No Stitch screen exists for this workflow (it is not one of the 11 handoff screens) — the page was built from the SRS text and the existing design-token components (`Table`, `EmptyState`, `Button`), not guessed visually.
 
-`FR-PINC-07`/`FR-PINC-08` (previously `Partial`, deferred pending this exact feature) are completed here: `src/server/queries/party-income.ts`'s new `getPartyMonthlyTotals` combines daily entries, the monthly bill figure, and cash receipts per party — whichever components apply to that party's billing mode — closing the three-way total FR-PINC-07 describes.
+`FR-PINC-07` (previously `Partial`, deferred pending this exact feature) is completed here: `src/server/queries/party-income.ts`'s new `getPartyMonthlyTotals` combines daily entries, the monthly bill figure, and cash receipts per party — whichever components apply to that party's billing mode — closing the three-way total FR-PINC-07 describes. **`FR-PINC-08` remains `Partial`**: its per-party/combined totals are shown correctly, but only for a whole calendar month — the requirement's literal text ("for any range") also asks for an arbitrary custom date range, which no screen offers yet; that is deferred, most likely to Phase 5's date-range work.
 
 ### 5. No Partner Dashboard or FR-RPT/FR-RES/FR-WARN functionality
 
@@ -50,7 +50,7 @@ The identical batch-preview-confirm-per-row-transaction shape is reused for FR-M
 - Two additive schema changes ship in one migration; no earlier migration was edited; no `prisma db push` was used at any point.
 - `assets.default_category_id`'s "active + Purchasing group" rule is enforced in application code, not a database trigger — a future direct SQL insert bypassing the application layer could violate it; this is an accepted, disclosed trade-off (CON-07), consistent with how master-data active/archived filtering is already enforced everywhere else in this codebase.
 - Capital contributions and assets (both lacking `client_uuid` per ADR-0002 decision 7) rely on their forms' submit-button-disable-while-pending behavior against a double click, not a replay-safe idempotency key — an accepted, disclosed trade-off matching the existing ADR-0002 precedent for these two tables specifically.
-- FR-PINC-07/08 are now `Implemented` in `docs/REQUIREMENTS_TRACEABILITY.md`; no other Phase 5 requirement (FR-RES/FR-WARN/FR-RPT) was touched.
+- FR-PINC-07 is now `Implemented` in `docs/REQUIREMENTS_TRACEABILITY.md`; FR-PINC-08 stays `Partial` (custom date range still missing) and FR-MEXP-02 stays `Partial` (Admin category CRUD is Phase 7's FR-MST-03) — no other Phase 5 requirement (FR-RES/FR-WARN/FR-RPT) was touched.
 
 ## Related SRS Requirements
 

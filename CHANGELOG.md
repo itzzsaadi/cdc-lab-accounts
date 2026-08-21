@@ -30,9 +30,11 @@ All notable changes to this project are documented here.
   generation only.
 - Monthly Party Bill (`src/app/(app)/(partner)/party-income-monthly`,
   new `party-income:monthly-bill` permission): one figure per
-  monthly-billing party per month, DB-enforced; completes FR-PINC-07/08's
+  monthly-billing party per month, DB-enforced; completes FR-PINC-07's
   three-way total (daily + monthly + cash receipts) via the new
-  `getPartyMonthlyTotals` query.
+  `getPartyMonthlyTotals` query. FR-PINC-08 remains Partial — totals are
+  shown for a calendar month only; an arbitrary custom date range is not
+  yet offered.
 - Partner Investment (`src/app/(app)/(partner)/investment`): Capital
   Contribution/Drawing entry (amount always positive `Decimal`,
   `contributionType` conveys the sign) and a per-partner itemised

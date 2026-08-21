@@ -276,7 +276,8 @@ any test built so far.
   `getPartyMonthlyTotals`'s three-way combination (daily + monthly +
   cash receipts, per billing mode, zero-not-omitted) is proven in
   `tests/integration/queries/party-monthly-totals.test.ts`, completing
-  FR-PINC-07/08.
+  FR-PINC-07. FR-PINC-08 stays Partial — the same test proves totals for
+  a calendar month only; no custom date range exists yet.
 - **Assets and Capital Contributions**: full create/edit/archive
   lifecycles with atomic conditional-write stale-write protection
   (`tests/integration/mutations/assets.test.ts`,
