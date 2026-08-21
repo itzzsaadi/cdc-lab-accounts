@@ -305,3 +305,75 @@ any test built so far.
   applied to dev and test databases) — all passing. No pre-existing
   test was weakened, removed, or skipped; the nav-item-count assertions
   updated for the new routes are the only Phase 3 test edits.
+
+### Phase 5 — Calculations, Dashboard, Warnings, Reports, Audit Log
+
+Full design record: `docs/adr/0007-phase-5-calculations-dashboard-reports.md`.
+
+- **Unit** (`tests/unit/domain/decimal-export.test.ts`,
+  `tests/unit/audit-redaction.test.ts`, `tests/unit/server/export-safety.test.ts`,
+  `tests/unit/validation/app-settings.test.ts`, extended
+  `tests/unit/domain/calendar-date.test.ts`): `toSafeExcelNumber`'s full
+  six-step verification (fractional-digit limit, safe-integer bound,
+  round-trip reconstruction, `UnsafeDecimalExportError` on any mismatch);
+  `redactSensitiveValues` against nested objects/arrays, case variations,
+  and substring (not just exact-key) matches on all 8 mandated keywords;
+  `sanitizeTextCell`'s formula-injection prefixing and `safeReportFilename`'s
+  path-traversal-safe naming; the partner-mapping Zod schema (distinct
+  UUIDs, rejection of a shared id, malformed UUID, missing field);
+  `nextYearMonth`/`parseCustomDateRange`'s boundary and rejection cases.
+- **Integration** (`tests/integration/queries/{results,warnings,audit-log}.test.ts`,
+  `tests/integration/mutations/app-settings.test.ts`,
+  `tests/integration/reports/monthly-summary-exports.test.ts`,
+  `tests/integration/authorization/phase5-authorization-sweep.test.ts`,
+  `tests/integration/fixtures/july-2026-reconciliation.test.ts`,
+  `tests/integration/performance/phase5-performance.test.ts`): every
+  headline total, the itemised category breakdown (including the
+  partner-funded-line visibility fix, BR-07/FR-RES-06), the Partner A/B
+  mapping's write-once behavior and its `CHECK`/trigger enforcement at
+  the database level (direct-write tests, not just the mutation path),
+  the approved variance-warning formula, keyset pagination correctness
+  (no duplicate/skipped rows across pages), redaction applied before a
+  row ever leaves the query layer, both exports' real file signatures
+  and content (a crafted formula-injection description round-tripping
+  safely, monetary cells as real numbers never formatted strings, no
+  Audit Log sheet ever generated), a full Operator-denial sweep across
+  every new Phase 5 query, and the July 2026 reconciliation fixture
+  reproducing the corrected figures exactly through the real query layer
+  (Income Rs 1,495,535 / Expenses Rs 1,287,459 / Profit Rs 208,076 /
+  Rs 104,038 per partner / Daily Expenses Rs 171,190 / Daily-billing
+  Party Income Rs 225,650). Performance: a synthetic 3-year (~10,000-row)
+  dataset seeded once via `createMany` bulk inserts; a single month's
+  result computed in ~28ms (NFR-PERF-04 limit: 3,000ms) and a full
+  3-year-range export produced in ~582ms Excel / ~29ms PDF
+  (NFR-PERF-05 limit: 15,000ms).
+- **Playwright e2e** (`tests/e2e/phase5-reporting.spec.ts`): Operator
+  denial for `/monthly-summary`, `/dashboard`, `/audit-log`; the
+  Dashboard's real tiles, SVG trend chart, and warnings section; Monthly
+  Summary's tiles, month-stepping, custom-range form, and both export
+  links, including a real authenticated PDF download; the Partner A/B
+  mapping setup flow (tolerant of the mapping already being configured
+  by an earlier run on the shared dev database — selects by option
+  **value**, i.e. the user's id, never by visible label, since many
+  e2e-created accounts share the exact same `fullName`); the Audit Log's
+  filter form and a record's own History action.
+  `tests/e2e/shell.spec.ts`'s nav-item-count assertions were updated for
+  the two new Partner sidebar entries (Monthly Summary, Audit Log).
+- **Two real bugs found and fixed during this pass, not just documented:**
+  (1) an SVG `<title>` rendered with multiple interpolated children
+  produced a genuine React SSR/CSR hydration-mismatch warning — fixed by
+  passing one template-string child; (2) the PDF export route threw
+  `ENOENT` on `pdfkit`'s `Helvetica.afm` under Next.js's default
+  server-side dependency bundling (which rewrites the package-relative
+  path pdfkit reads its font-metrics files from) — fixed via
+  `next.config.ts`'s `serverExternalPackages: ["pdfkit"]`. Both were
+  caught only because the Playwright suite actually drives a real
+  browser against the real dev server, not a mocked/unit-only check.
+- Full suite at Phase 5's close: **367 Vitest tests across 60 files**,
+  **53 Playwright e2e tests** (1 conditionally skipped — no existing
+  asset row on the shared dev database to check history against),
+  `prisma validate`/`prisma format` (zero schema diff), `prisma migrate
+status` (no drift, the new migration applied to both dev and test
+  databases) — all passing. No pre-existing test was weakened, removed,
+  or skipped; the nav-item-count assertions updated for the two new
+  routes are the only earlier-phase test edits.

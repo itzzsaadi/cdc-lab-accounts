@@ -17,6 +17,8 @@ export interface InvestmentStatementItem {
   description: string;
   amount: string;
   runningBalance: string;
+  /** Only capital-contribution rows (`INITIAL`/`INJECTION`/`DRAWING`) carry an id here — `capital_contribution` is their own directly-editable/archivable entity, so their own audit history is reachable from this statement (FR-AUD-05). `PARTNER_EXPENSE`/`CASH_ASSET` rows are read-only projections of a Daily/Monthly Expense or Asset row and are viewed/history'd from that entity's own screen instead — never duplicated here. */
+  entityId: string | null;
 }
 
 export interface PartnerInvestmentStatement {
@@ -88,6 +90,7 @@ export async function getPartnerInvestmentStatements(
         type: InvestmentStatementItem["type"];
         description: string;
         signed: Decimal;
+        entityId: string | null;
       }[] = [];
 
       for (const c of contributions) {
@@ -98,6 +101,7 @@ export async function getPartnerInvestmentStatements(
           description:
             c.note ?? (c.contributionType === "DRAWING" ? "Withdrawal" : "Capital contribution"),
           signed: c.contributionType === "DRAWING" ? c.amount.negated() : c.amount,
+          entityId: c.id,
         });
       }
       for (const e of fundedDaily) {
@@ -107,6 +111,7 @@ export async function getPartnerInvestmentStatements(
           type: "PARTNER_EXPENSE",
           description: e.expenseItem?.name ?? e.customDescription ?? "Daily expense",
           signed: e.amount,
+          entityId: null,
         });
       }
       for (const e of fundedMonthly) {
@@ -116,6 +121,7 @@ export async function getPartnerInvestmentStatements(
           type: "PARTNER_EXPENSE",
           description: e.category.name,
           signed: e.amount,
+          entityId: null,
         });
       }
       for (const a of cashAssets) {
@@ -125,6 +131,7 @@ export async function getPartnerInvestmentStatements(
           type: "CASH_ASSET",
           description: a.name,
           signed: a.purchasePrice!,
+          entityId: null,
         });
       }
 
@@ -139,6 +146,7 @@ export async function getPartnerInvestmentStatements(
           description: row.description,
           amount: row.signed.abs().toString(),
           runningBalance: running.toString(),
+          entityId: row.entityId,
         };
       });
 

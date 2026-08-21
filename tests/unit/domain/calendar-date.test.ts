@@ -8,6 +8,8 @@ import {
   monthBounds,
   daysInMonth,
   previousYearMonth,
+  nextYearMonth,
+  parseCustomDateRange,
 } from "../../../src/lib/domain/calendar-date";
 
 describe("parseCalendarDate (strict YYYY-MM-DD, no z.coerce.date())", () => {
@@ -131,5 +133,44 @@ describe("previousYearMonth (FR-MEXP-06's recurring pre-fill source month)", () 
 
   it("throws for a malformed month", () => {
     expect(() => previousYearMonth("2026-13")).toThrow();
+  });
+});
+
+describe("nextYearMonth (FR-RES-03's one-action next-month step)", () => {
+  it("moves forward one month within the same year", () => {
+    expect(nextYearMonth("2026-07")).toBe("2026-08");
+  });
+
+  it("rolls forward across a year boundary", () => {
+    expect(nextYearMonth("2025-12")).toBe("2026-01");
+  });
+
+  it("throws for a malformed month", () => {
+    expect(() => nextYearMonth("2026-13")).toThrow();
+  });
+});
+
+describe("parseCustomDateRange (FR-RES-01, BR-12 — any range, no month locking)", () => {
+  it("accepts a valid range", () => {
+    expect(parseCustomDateRange("2026-07-01", "2026-08-15")).toEqual({
+      from: "2026-07-01",
+      to: "2026-08-15",
+    });
+  });
+
+  it("accepts a single-day range", () => {
+    expect(parseCustomDateRange("2026-07-01", "2026-07-01")).toEqual({
+      from: "2026-07-01",
+      to: "2026-07-01",
+    });
+  });
+
+  it("rejects from after to", () => {
+    expect(parseCustomDateRange("2026-08-01", "2026-07-01")).toBeNull();
+  });
+
+  it("rejects a malformed bound", () => {
+    expect(parseCustomDateRange("2026-02-30", "2026-08-01")).toBeNull();
+    expect(parseCustomDateRange("2026-07-01", "not-a-date")).toBeNull();
   });
 });

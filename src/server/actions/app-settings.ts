@@ -1,0 +1,13 @@
+"use server";
+
+import { headers as nextHeaders } from "next/headers";
+import { prisma } from "../prisma";
+import { getAuthenticatedUser } from "../session";
+import { configurePartnerMapping, type MutationResult } from "../mutations/app-settings";
+
+export type { MutationResult };
+
+export async function configurePartnerMappingAction(input: unknown): Promise<MutationResult> {
+  const currentUser = await getAuthenticatedUser(await nextHeaders());
+  return configurePartnerMapping(prisma, currentUser, input);
+}

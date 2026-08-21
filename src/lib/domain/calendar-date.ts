@@ -93,6 +93,21 @@ export function todayInKarachi(referenceDate: Date = new Date()): string {
   return `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}`;
 }
 
+/** A full `YYYY-MM-DD HH:mm` Asia/Karachi timestamp — FR-RPT-08's "date produced" stamp on an export. Same `formatToParts` discipline as `karachiPartsNow`, never `.format()`'s locale-dependent string shape. */
+export function formatKarachiTimestamp(referenceDate: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: KARACHI_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(referenceDate);
+  const read = (type: string): string => parts.find((part) => part.type === type)?.value ?? "";
+  return `${read("year")}-${read("month")}-${read("day")} ${read("hour")}:${read("minute")}`;
+}
+
 /** The current Asia/Karachi calendar month, as `YYYY-MM` (FR-RES-01/02, BR-13's query-time month default). */
 export function currentYearMonthInKarachi(referenceDate: Date = new Date()): string {
   const { year, month } = karachiPartsNow(referenceDate);
@@ -140,6 +155,39 @@ export function previousYearMonth(yearMonth: string): string {
   const { year, month } = parsed;
   const previous = new Date(Date.UTC(year, month - 2, 1));
   return `${pad(previous.getUTCFullYear(), 4)}-${pad(previous.getUTCMonth() + 1, 2)}`;
+}
+
+/** The `YYYY-MM` month immediately after the given one — FR-RES-03's "move to the next month in one action." Mirrors `previousYearMonth` exactly (whole-month arithmetic only, never a day-of-month `Date` offset). */
+export function nextYearMonth(yearMonth: string): string {
+  const parsed = parseYearMonth(yearMonth);
+  if (!parsed) {
+    throw new Error(`"${yearMonth}" is not a valid YYYY-MM month.`);
+  }
+  const { year, month } = parsed;
+  const next = new Date(Date.UTC(year, month, 1));
+  return `${pad(next.getUTCFullYear(), 4)}-${pad(next.getUTCMonth() + 1, 2)}`;
+}
+
+/**
+ * FR-RES-01/BR-13: an arbitrary user-chosen `[from, to]` date range, for
+ * Monthly Summary and Party Income totals — never restricted to a whole
+ * calendar month (unlike `monthBounds`). Both bounds are validated via the
+ * same strict `parseCalendarDate` every other date field in this codebase
+ * uses; `from` must not be after `to`. There is no lower/upper bound check
+ * beyond that — BR-12 (no month locking) means any historical or future
+ * range may legitimately be queried.
+ */
+export function parseCustomDateRange(
+  from: string,
+  to: string,
+): { from: string; to: string } | null {
+  if (!parseCalendarDate(from) || !parseCalendarDate(to)) {
+    return null;
+  }
+  if (from > to) {
+    return null;
+  }
+  return { from, to };
 }
 
 /** Every `YYYY-MM-DD` calendar date in the given `YYYY-MM` month, in order — the Party Income grid's day-column source (FR-PINC-07). */

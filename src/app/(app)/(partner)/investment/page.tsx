@@ -12,6 +12,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { Card } from "../../../../components/ui/Card";
 import { CapitalContributionModal } from "../../../../components/entries/CapitalContributionModal";
+import { HistoryButton } from "../../../../components/entries/HistoryButton";
 
 /** FR-INV-01 to 07. Investment figures are Partner/Admin-only (FR-INV-07) — enforced by `requirePermission` below, never by hiding the link alone. Never affects the profit split (FR-INV-06) — this screen reads only `partnerInvestmentTotal`/contribution data, never a split setting. */
 export default async function InvestmentPage() {
@@ -89,6 +90,7 @@ export default async function InvestmentPage() {
                     <Th>Description</Th>
                     <Th className="text-right">Amount</Th>
                     <Th className="text-right">Running Balance</Th>
+                    <Th className="text-right">History</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -109,6 +111,15 @@ export default async function InvestmentPage() {
                       </Td>
                       <Td className="tabular-nums text-right">
                         {formatMoney(item.runningBalance)}
+                      </Td>
+                      <Td className="text-right">
+                        {item.entityId ? (
+                          <HistoryButton
+                            entityType="capital_contribution"
+                            entityId={item.entityId}
+                            displayLabel={`${statement.fullName} — ${item.description}`}
+                          />
+                        ) : null}
                       </Td>
                     </Tr>
                   ))}
