@@ -59,15 +59,18 @@ export function CounterIncomeForm() {
         setError("Something went wrong. Please try again.");
         return;
       }
-      // FR-CINC-01's duplicate-day warning has no live server round trip
-      // to check against while offline — the entry is queued as-is; a
-      // genuine same-day collision is caught when it syncs (Sync Center).
+      // FR-CINC-04's duplicate-day warning has no live round trip to check
+      // against while offline, and there is no user left to prompt by the
+      // time this syncs later — since the warning is explicitly
+      // non-blocking (FR-CINC-04), the offline path always proceeds as
+      // confirmed rather than rejecting the entry after the fact for
+      // something the user had no way to see or act on at sync time.
       await enqueue({
         operationId: crypto.randomUUID(),
         entityType: "counter_income",
         action: "CREATE",
         clientUuid,
-        payload: { ...payload, capturedAt: new Date().toISOString() },
+        payload: { ...payload, confirmedDuplicate: true, capturedAt: new Date().toISOString() },
       });
       setOfflineNotice("Saved offline — will sync automatically once you're back online.");
       resetForm();

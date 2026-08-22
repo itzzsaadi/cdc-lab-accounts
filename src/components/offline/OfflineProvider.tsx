@@ -1,8 +1,17 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { getOfflineDb, closeOfflineDb } from "../../lib/offline/db";
+import { getOfflineDb } from "../../lib/offline/db";
 import {
   enqueueOperation,
   resolveConflictKeepLocal,
@@ -32,6 +41,26 @@ interface OfflineContextValue {
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
 
+/** `navigator.onLine` via `useSyncExternalStore` — the standard-library
+ * way to read a browser-only external value without an SSR/hydration
+ * mismatch: the server snapshot is a fixed `true` (matching what a
+ * `navigator`-less server render always produces), and the client
+ * snapshot re-subscribes to the real value only after hydration. */
+function subscribeToOnlineStatus(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+function getOnlineSnapshot() {
+  return navigator.onLine;
+}
+function getOnlineServerSnapshot() {
+  return true;
+}
+
 /**
  * The one place every offline-aware entry form and the Sync Center read
  * queue/connection state from, and the one place that actually drives
@@ -50,8 +79,10 @@ export function OfflineProvider({
 }) {
   const db = useMemo(() => getOfflineDb(userId), [userId]);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator === "undefined" ? true : navigator.onLine,
+  const isOnline = useSyncExternalStore(
+    subscribeToOnlineStatus,
+    getOnlineSnapshot,
+    getOnlineServerSnapshot,
   );
   const syncingRef = useRef(false);
 
@@ -83,26 +114,12 @@ export function OfflineProvider({
   }, []);
 
   useEffect(() => {
-    // Closing on unmount (e.g. after signing out and navigating away from
-    // the authenticated shell) only releases the IndexedDB connection —
-    // it never deletes the database itself, so a later sign-in (by the
-    // same or a different user) always finds its own queue intact.
-    return () => {
-      closeOfflineDb();
-    };
-  }, []);
-
-  useEffect(() => {
     refreshReferenceCache(db).catch(() => {});
     pruneRecentRecords(db).catch(() => {});
     void triggerSyncNow(); // app startup
 
     function handleOnline() {
-      setIsOnline(true);
       void triggerSyncNow(); // verified reconnect (runSync re-verifies itself)
-    }
-    function handleOffline() {
-      setIsOnline(false);
     }
     function handleVisibility() {
       if (document.visibilityState === "visible") void triggerSyncNow();
@@ -115,14 +132,12 @@ export function OfflineProvider({
     }
 
     window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", handleFocus);
     navigator.serviceWorker?.addEventListener?.("message", handleMessage);
 
     return () => {
       window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
       navigator.serviceWorker?.removeEventListener?.("message", handleMessage);

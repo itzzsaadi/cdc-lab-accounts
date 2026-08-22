@@ -90,12 +90,16 @@ export function MonthlyExpenseDrawer({
         setError("Something went wrong. Please try again.");
         return;
       }
+      // FR-MEXP-08's same-category-in-month warning has no live round trip
+      // to check against while offline and no user left to prompt by sync
+      // time — the offline path always proceeds as confirmed, matching
+      // Counter Income's identical non-blocking-warning design.
       await enqueue({
         operationId: crypto.randomUUID(),
         entityType: "monthly_expense",
         action: "CREATE",
         clientUuid,
-        payload: { ...payload, capturedAt: new Date().toISOString() },
+        payload: { ...payload, confirmedDuplicate: true, capturedAt: new Date().toISOString() },
       });
       setOpen(false);
       resetForm();

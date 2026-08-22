@@ -376,14 +376,15 @@ test.describe("Counter Income (FR-CINC-01/04)", () => {
 });
 
 test.describe("Operator Home — real quick actions and recent entries", () => {
-  test("shows no Pending Uploads tile and no per-row sync status (mandatory safeguard #7)", async ({
+  test("shows no per-row sync status on its own content (mandatory safeguard #7) — the header's real FR-OFF-03 indicator, added in Phase 6, is a separate, global concern", async ({
     page,
   }) => {
     const operator = await createActivatedUser("OPERATOR", TEST_PASSWORD);
     await signIn(page, operator.email);
 
-    await expect(page.getByText("Pending Uploads")).toHaveCount(0);
-    await expect(page.getByText("Synced")).toHaveCount(0);
+    const main = page.getByRole("main");
+    await expect(main.getByText("Pending Uploads")).toHaveCount(0);
+    await expect(main.getByText("Synced")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Quick Actions" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Add Daily Expense/ })).toBeVisible();
   });

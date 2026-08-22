@@ -64,6 +64,7 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
         onClick={() => setOpen(true)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Account menu"
         className="min-h-touch-target-min flex items-center gap-2 rounded-lg px-2 py-1 transition-colors"
       >
         <Avatar fullName={fullName} />
