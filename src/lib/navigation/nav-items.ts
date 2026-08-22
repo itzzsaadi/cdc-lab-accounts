@@ -30,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "point_of_sale",
     minRole: "OPERATOR",
   },
+  { label: "Sync Center", href: "/sync-center", icon: "sync", minRole: "OPERATOR" },
   { label: "Dashboard", href: "/dashboard", icon: "dashboard", minRole: "PARTNER" },
   {
     label: "Monthly Summary",

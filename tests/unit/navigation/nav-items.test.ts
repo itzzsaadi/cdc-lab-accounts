@@ -4,7 +4,13 @@ import { visibleNavItems, titleForPath } from "../../../src/lib/navigation/nav-i
 describe("visibleNavItems", () => {
   it("shows an Operator Home plus the three Phase 3B entry screens", () => {
     const hrefs = visibleNavItems("OPERATOR").map((item) => item.href);
-    expect(hrefs).toEqual(["/home", "/daily-expenses", "/party-income", "/counter-income"]);
+    expect(hrefs).toEqual([
+      "/home",
+      "/daily-expenses",
+      "/party-income",
+      "/counter-income",
+      "/sync-center",
+    ]);
   });
 
   it("shows a Partner every Operator item plus the Phase 4 Partner entries, never Users or a Dashboard-only figure", () => {
@@ -14,6 +20,7 @@ describe("visibleNavItems", () => {
       "/daily-expenses",
       "/party-income",
       "/counter-income",
+      "/sync-center",
       "/dashboard",
       "/monthly-summary",
       "/monthly-expenses",
@@ -33,6 +40,7 @@ describe("visibleNavItems", () => {
       "/daily-expenses",
       "/party-income",
       "/counter-income",
+      "/sync-center",
       "/dashboard",
       "/monthly-summary",
       "/monthly-expenses",
@@ -64,6 +72,10 @@ describe("titleForPath", () => {
     expect(titleForPath("/daily-expenses")).toBe("Daily Expenses");
     expect(titleForPath("/party-income")).toBe("Party Income");
     expect(titleForPath("/counter-income")).toBe("Counter Income");
+  });
+
+  it("matches the Phase 6 Sync Center route", () => {
+    expect(titleForPath("/sync-center")).toBe("Sync Center");
   });
 
   it("matches the Phase 4 Partner routes", () => {

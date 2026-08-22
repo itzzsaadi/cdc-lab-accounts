@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "../ui/Avatar";
+import { Modal } from "../ui/Modal";
+import { Button } from "../ui/Button";
 import { signOutAction } from "../../server/actions/auth";
+import { useOfflineSync } from "../offline/OfflineProvider";
 
 /**
  * Native <dialog>-backed menu — Escape-to-close, focus-trap while open, and
@@ -13,10 +16,13 @@ import { signOutAction } from "../../server/actions/auth";
  */
 export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel: string }) {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
+  const { pendingCount, failedCount, conflictCount } = useOfflineSync();
+  const unsyncedCount = pendingCount + failedCount + conflictCount;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -25,12 +31,29 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
-  function handleSignOut() {
+  function doSignOut() {
     startTransition(async () => {
       await signOutAction();
       setOpen(false);
+      setConfirmOpen(false);
       router.push("/sign-in");
     });
+  }
+
+  /**
+   * FR-AUTH-09: warn before signing out with entries still waiting to
+   * upload. Signing out never erases anything — the offline queue lives in
+   * this browser's IndexedDB, keyed by user id (src/lib/offline/db.ts), and
+   * is still there the next time this same account signs in on this same
+   * device. The confirmation below is a heads-up, not a destructive-action
+   * prompt, and says so plainly rather than implying deletion.
+   */
+  function handleSignOut() {
+    if (unsyncedCount > 0) {
+      setConfirmOpen(true);
+      return;
+    }
+    doSignOut();
   }
 
   return (
@@ -73,6 +96,26 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
           {isPending ? "Signing out…" : "Sign out"}
         </button>
       </dialog>
+
+      <Modal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="You have entries that haven't synced yet"
+      >
+        <p className="text-on-surface-variant text-sm">
+          {unsyncedCount} {unsyncedCount === 1 ? "entry hasn't" : "entries haven't"} finished
+          syncing to the server yet. They&rsquo;re saved on this device and will try again the
+          next time you sign in here — nothing will be deleted.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="secondary" onClick={() => setConfirmOpen(false)} disabled={isPending}>
+            Stay signed in
+          </Button>
+          <Button variant="destructive-ghost" onClick={doSignOut} disabled={isPending}>
+            {isPending ? "Signing out…" : "Sign out anyway"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -3,12 +3,11 @@
 import { usePathname } from "next/navigation";
 import { titleForPath } from "../../lib/navigation/nav-items";
 import { UserMenu } from "./UserMenu";
+import { SyncStatusIndicator } from "../offline/SyncStatusIndicator";
 
 /**
- * Approved Phase 3A header: mobile menu control, contextual application
- * title, initials avatar, role label, user menu, sign-out. No
- * notification bell and no sync indicator — both would imply a feature
- * that doesn't exist yet (the sync indicator gets real state in Phase 6).
+ * Header: mobile menu control, contextual application title, the FR-OFF-03
+ * connection/pending-count indicator (Phase 6), user menu, sign-out.
  */
 export function Header({
   fullName,
@@ -37,7 +36,10 @@ export function Header({
         </button>
         <span className="text-headline-sm text-on-surface font-semibold">{title}</span>
       </div>
-      <UserMenu fullName={fullName} roleLabel={roleLabel} />
+      <div className="flex items-center gap-3">
+        <SyncStatusIndicator />
+        <UserMenu fullName={fullName} roleLabel={roleLabel} />
+      </div>
     </header>
   );
 }
