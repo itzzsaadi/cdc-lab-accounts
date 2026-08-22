@@ -13,6 +13,8 @@ import {
 } from "./MonthlyExpenseFormFields";
 import { generateClientUuid } from "../../lib/client-uuid";
 import { createMonthlyExpenseAction } from "../../server/actions/monthly-expenses";
+import { useOfflineSync } from "../offline/OfflineProvider";
+import { isLikelyOfflineError } from "../../lib/offline/submit-helpers";
 
 function initialState(): MonthlyExpenseFieldsState {
   return {
@@ -45,9 +47,11 @@ export function MonthlyExpenseDrawer({
   partners: PartnerOption[];
 }) {
   const router = useRouter();
+  const { enqueue } = useOfflineSync();
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<MonthlyExpenseFieldsState>(initialState);
   const [error, setError] = useState<string | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
@@ -63,9 +67,10 @@ export function MonthlyExpenseDrawer({
     clientUuidRef.current ??= generateClientUuid();
     setSubmitting(true);
     setError(null);
-
-    const result = await createMonthlyExpenseAction({
-      clientUuid: clientUuidRef.current,
+    setOfflineNotice(null);
+    const clientUuid = clientUuidRef.current;
+    const payload = {
+      clientUuid,
       periodMonth,
       categoryId: state.categoryId,
       vendorId: state.vendorId || undefined,
@@ -74,7 +79,29 @@ export function MonthlyExpenseDrawer({
       fundingSource: state.fundingSource,
       fundedByUserId: state.fundingSource === "PARTNER" ? state.fundedByUserId : undefined,
       confirmedDuplicate,
-    });
+    };
+
+    let result;
+    try {
+      result = await createMonthlyExpenseAction(payload);
+    } catch (submitError) {
+      setSubmitting(false);
+      if (!isLikelyOfflineError(submitError)) {
+        setError("Something went wrong. Please try again.");
+        return;
+      }
+      await enqueue({
+        operationId: crypto.randomUUID(),
+        entityType: "monthly_expense",
+        action: "CREATE",
+        clientUuid,
+        payload: { ...payload, capturedAt: new Date().toISOString() },
+      });
+      setOpen(false);
+      resetForm();
+      setOfflineNotice("Saved offline — will sync automatically once you're back online.");
+      return;
+    }
 
     setSubmitting(false);
     if (!result.ok) {
@@ -92,10 +119,13 @@ export function MonthlyExpenseDrawer({
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        <span className="material-symbols-outlined text-[20px]">add</span>
-        Add Expense
-      </Button>
+      <div className="flex items-center gap-3">
+        <Button type="button" onClick={() => setOpen(true)}>
+          <span className="material-symbols-outlined text-[20px]">add</span>
+          Add Expense
+        </Button>
+        {offlineNotice ? <p className="text-tertiary text-sm">{offlineNotice}</p> : null}
+      </div>
       <Modal open={open} onClose={() => setOpen(false)} title="Add Monthly Expense">
         <form
           className="flex flex-col gap-5"

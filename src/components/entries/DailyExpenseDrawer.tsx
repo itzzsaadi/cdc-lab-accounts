@@ -14,6 +14,8 @@ import {
 import { generateClientUuid } from "../../lib/client-uuid";
 import { todayInKarachi } from "../../lib/domain/calendar-date";
 import { createDailyExpenseAction } from "../../server/actions/daily-expenses";
+import { useOfflineSync } from "../offline/OfflineProvider";
+import { isLikelyOfflineError } from "../../lib/offline/submit-helpers";
 
 export type { ExpenseItemOption };
 
@@ -45,9 +47,11 @@ export function DailyExpenseDrawer({
   partners: PartnerOption[];
 }) {
   const router = useRouter();
+  const { enqueue } = useOfflineSync();
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<DailyExpenseFieldsState>(() => initialState(expenseItems));
   const [error, setError] = useState<string | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
 
@@ -60,17 +64,40 @@ export function DailyExpenseDrawer({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setOfflineNotice(null);
     clientUuidRef.current ??= generateClientUuid();
-
-    const result = await createDailyExpenseAction({
-      clientUuid: clientUuidRef.current,
+    const clientUuid = clientUuidRef.current;
+    const payload = {
+      clientUuid,
       expenseDate: state.expenseDate,
       expenseItemId: state.itemSelection === OTHER_VALUE ? undefined : state.itemSelection,
       customDescription: state.itemSelection === OTHER_VALUE ? state.customDescription : undefined,
       amount: state.amount,
       fundingSource: state.fundingSource,
       fundedByUserId: state.fundingSource === "PARTNER" ? state.fundedByUserId : undefined,
-    });
+    };
+
+    let result;
+    try {
+      result = await createDailyExpenseAction(payload);
+    } catch (submitError) {
+      setSubmitting(false);
+      if (!isLikelyOfflineError(submitError)) {
+        setError("Something went wrong. Please try again.");
+        return;
+      }
+      await enqueue({
+        operationId: crypto.randomUUID(),
+        entityType: "daily_expense",
+        action: "CREATE",
+        clientUuid,
+        payload: { ...payload, capturedAt: new Date().toISOString() },
+      });
+      setOpen(false);
+      resetForm();
+      setOfflineNotice("Saved offline — will sync automatically once you're back online.");
+      return;
+    }
 
     setSubmitting(false);
     if (!result.ok) {
@@ -84,10 +111,13 @@ export function DailyExpenseDrawer({
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        <span className="material-symbols-outlined text-[20px]">add</span>
-        Add Expense
-      </Button>
+      <div className="flex items-center gap-3">
+        <Button type="button" onClick={() => setOpen(true)}>
+          <span className="material-symbols-outlined text-[20px]">add</span>
+          Add Expense
+        </Button>
+        {offlineNotice ? <p className="text-tertiary text-sm">{offlineNotice}</p> : null}
+      </div>
       <Modal open={open} onClose={() => setOpen(false)} title="Add Expense">
         <form
           className="flex flex-col gap-5"

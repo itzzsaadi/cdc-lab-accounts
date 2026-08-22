@@ -11,6 +11,8 @@ import { generateClientUuid } from "../../lib/client-uuid";
 import { todayInKarachi } from "../../lib/domain/calendar-date";
 import { formatMoney } from "../../lib/domain/money-format";
 import { createCashReceiptAction } from "../../server/actions/party-income";
+import { useOfflineSync } from "../offline/OfflineProvider";
+import { isLikelyOfflineError } from "../../lib/offline/submit-helpers";
 
 export interface PartyOption {
   id: string;
@@ -20,6 +22,7 @@ export interface PartyOption {
 /** FR-PINC-06: date, amount, and a note are all required — money received outside normal billing, against any party regardless of billing mode. */
 export function CashReceiptModal({ parties }: { parties: PartyOption[] }) {
   const router = useRouter();
+  const { enqueue } = useOfflineSync();
   const [open, setOpen] = useState(false);
   const [partyId, setPartyId] = useState(() => parties[0]?.id ?? "");
   const [incomeDate, setIncomeDate] = useState(() => todayInKarachi());
@@ -44,15 +47,32 @@ export function CashReceiptModal({ parties }: { parties: PartyOption[] }) {
     event.preventDefault();
     setError(null);
     clientUuidRef.current ??= generateClientUuid();
+    const clientUuid = clientUuidRef.current;
 
     const partyName = parties.find((p) => p.id === partyId)?.name ?? "the party";
-    const result = await createCashReceiptAction({
-      clientUuid: clientUuidRef.current,
-      partyId,
-      incomeDate,
-      amount,
-      note,
-    });
+    const payload = { clientUuid, partyId, incomeDate, amount, note };
+
+    let result;
+    try {
+      result = await createCashReceiptAction(payload);
+    } catch (submitError) {
+      setSubmitting(false);
+      if (!isLikelyOfflineError(submitError)) {
+        setError("Something went wrong. Please try again.");
+        return;
+      }
+      await enqueue({
+        operationId: crypto.randomUUID(),
+        entityType: "party_income_cash_receipt",
+        action: "CREATE",
+        clientUuid,
+        payload: { ...payload, capturedAt: new Date().toISOString() },
+      });
+      setSavedConfirmation(
+        `${formatMoney(amount)} for ${partyName} saved offline — will sync automatically.`,
+      );
+      return;
+    }
 
     setSubmitting(false);
     if (!result.ok) {
