@@ -62,6 +62,10 @@ export async function createDailyPartyIncomeCell(
   }
 
   const id = randomUUID();
+  // CLAUDE.md Phase 6 mandatory decision #4 — see the identical comment in
+  // mutations/daily-expenses.ts.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
   const run = async (client: Prisma.TransactionClient) => {
     await client.partyIncome.create({
       data: {
@@ -71,7 +75,8 @@ export async function createDailyPartyIncomeCell(
         incomeDate,
         amount: new Decimal(data.amount),
         receiptType: "DAILY",
-        capturedAt: new Date(),
+        capturedAt,
+        syncedAt,
         createdBy: user.id,
         updatedBy: user.id,
         updatedAt: new Date(),
@@ -206,6 +211,10 @@ export async function createCashReceipt(
   }
 
   const id = randomUUID();
+  // CLAUDE.md Phase 6 mandatory decision #4 — see the identical comment in
+  // mutations/daily-expenses.ts.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
   const run = async (client: Prisma.TransactionClient) => {
     await client.partyIncome.create({
       data: {
@@ -216,7 +225,8 @@ export async function createCashReceipt(
         amount: new Decimal(data.amount),
         receiptType: "CASH_DIRECT",
         note: data.note,
-        capturedAt: new Date(),
+        capturedAt,
+        syncedAt,
         createdBy: user.id,
         updatedBy: user.id,
         updatedAt: new Date(),
@@ -291,6 +301,10 @@ export async function createMonthlyPartyBill(
   }
 
   const id = randomUUID();
+  // CLAUDE.md Phase 6 mandatory decision #4 — see the identical comment in
+  // mutations/daily-expenses.ts.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
   const run = async (client: Prisma.TransactionClient) => {
     await client.partyIncome.create({
       data: {
@@ -300,7 +314,8 @@ export async function createMonthlyPartyBill(
         incomeDate,
         amount: new Decimal(data.amount),
         receiptType: "MONTHLY",
-        capturedAt: new Date(),
+        capturedAt,
+        syncedAt,
         createdBy: user.id,
         updatedBy: user.id,
         updatedAt: new Date(),

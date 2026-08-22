@@ -22,6 +22,8 @@ export const createDailyPartyIncomeCellSchema = z.object({
   partyId: z.string().uuid(),
   incomeDate: calendarDateSchema,
   amount: decimalAmountSchema({ allowZero: false }),
+  /** Offline sync only — see the same field on createDailyExpenseSchema. */
+  capturedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export const updateDailyPartyIncomeCellSchema = z.object({
@@ -42,6 +44,8 @@ export const createCashReceiptSchema = z.object({
   incomeDate: calendarDateSchema,
   amount: decimalAmountSchema({ allowZero: false }),
   note: z.string().trim().min(1, "A note is required for a direct cash receipt.").max(300),
+  /** Offline sync only — see the same field on createDailyExpenseSchema. */
+  capturedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export const partyIncomeGridQuerySchema = z.object({
@@ -60,6 +64,8 @@ export const createMonthlyPartyBillSchema = z.object({
   partyId: z.string().uuid(),
   periodMonth: yearMonthSchema,
   amount: decimalAmountSchema({ allowZero: false }),
+  /** Offline sync only — see the same field on createDailyExpenseSchema. */
+  capturedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export const updateMonthlyPartyBillSchema = z.object({

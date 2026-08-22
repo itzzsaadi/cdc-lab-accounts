@@ -51,6 +51,8 @@ export const createMonthlyExpenseSchema = refineFunding(
   z.object({
     clientUuid: z.string().uuid(),
     confirmedDuplicate: z.boolean().optional(),
+    /** Offline sync only — see the same field on createDailyExpenseSchema. */
+    capturedAt: z.string().datetime({ offset: true }).optional(),
     ...monthlyExpenseFields,
   }),
 );

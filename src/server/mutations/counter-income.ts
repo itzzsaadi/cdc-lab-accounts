@@ -66,6 +66,10 @@ export async function createCounterIncome(
   }
 
   const id = randomUUID();
+  // CLAUDE.md Phase 6 mandatory decision #4 — see the identical comment in
+  // mutations/daily-expenses.ts.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
   const run = async (client: Prisma.TransactionClient) => {
     await client.counterIncome.create({
       data: {
@@ -74,7 +78,8 @@ export async function createCounterIncome(
         incomeDate,
         amount: new Decimal(data.amount),
         note: data.note,
-        capturedAt: new Date(),
+        capturedAt,
+        syncedAt,
         createdBy: user.id,
         updatedBy: user.id,
         updatedAt: new Date(),

@@ -69,6 +69,10 @@ export async function createMonthlyExpense(
   }
 
   const id = randomUUID();
+  // CLAUDE.md Phase 6 mandatory decision #4 — see the identical comment in
+  // mutations/daily-expenses.ts.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
   const run = async (client: Prisma.TransactionClient) => {
     await client.monthlyExpense.create({
       data: {
@@ -81,7 +85,8 @@ export async function createMonthlyExpense(
         amount: new Decimal(data.amount),
         fundingSource: data.fundingSource,
         fundedByUserId: data.fundedByUserId,
-        capturedAt: new Date(),
+        capturedAt,
+        syncedAt,
         createdBy: user.id,
         updatedBy: user.id,
         updatedAt: new Date(),

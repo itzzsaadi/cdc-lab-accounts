@@ -42,6 +42,7 @@ export async function createDailyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreateResult> {
   const user = requirePermission(currentUser, "entry:daily-expense");
 
@@ -50,8 +51,9 @@ export async function createDailyExpense(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const data = parsed.data;
+  const reader = tx ?? prisma;
 
-  const existing = await prisma.dailyExpense.findUnique({
+  const existing = await reader.dailyExpense.findUnique({
     where: { clientUuid: data.clientUuid },
   });
   if (existing) {
@@ -64,40 +66,53 @@ export async function createDailyExpense(
   }
 
   const id = randomUUID();
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.dailyExpense.create({
-        data: {
-          id,
-          clientUuid: data.clientUuid,
-          expenseDate,
-          expenseItemId: data.expenseItemId,
-          customDescription: data.customDescription,
-          amount: new Decimal(data.amount),
-          fundingSource: data.fundingSource,
-          fundedByUserId: data.fundedByUserId,
-          capturedAt: new Date(),
-          createdBy: user.id,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-        },
-      });
-      await appendBusinessAudit(tx, {
-        actorUserId: user.id,
-        action: "CREATE",
-        entityType: "daily_expense",
-        entityId: id,
-        newValues: {
-          expenseDate: data.expenseDate,
-          amount: data.amount,
-          fundingSource: data.fundingSource,
-        },
-      });
+  // CLAUDE.md Phase 6 mandatory decision #4: one server timestamp serves as
+  // both capturedAt and syncedAt for an ordinary online create (no distinct
+  // client capture time supplied); an offline upload instead preserves the
+  // device's own capturedAt while syncedAt is still this server-acceptance
+  // instant.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
+  const run = async (client: Prisma.TransactionClient) => {
+    await client.dailyExpense.create({
+      data: {
+        id,
+        clientUuid: data.clientUuid,
+        expenseDate,
+        expenseItemId: data.expenseItemId,
+        customDescription: data.customDescription,
+        amount: new Decimal(data.amount),
+        fundingSource: data.fundingSource,
+        fundedByUserId: data.fundedByUserId,
+        capturedAt,
+        syncedAt,
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
     });
+    await appendBusinessAudit(client, {
+      actorUserId: user.id,
+      action: "CREATE",
+      entityType: "daily_expense",
+      entityId: id,
+      newValues: {
+        expenseDate: data.expenseDate,
+        amount: data.amount,
+        fundingSource: data.fundingSource,
+      },
+    });
+  };
+  try {
+    if (tx) {
+      await run(tx);
+    } else {
+      await prisma.$transaction(run);
+    }
     return { ok: true, id, replayed: false };
   } catch (error) {
     if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
-      const winner = await prisma.dailyExpense.findUniqueOrThrow({
+      const winner = await reader.dailyExpense.findUniqueOrThrow({
         where: { clientUuid: data.clientUuid },
       });
       return { ok: true, id: winner.id, replayed: true };
