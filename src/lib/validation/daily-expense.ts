@@ -56,6 +56,12 @@ function refineItemAndFunding<
 export const createDailyExpenseSchema = refineItemAndFunding(
   z.object({
     clientUuid: z.string().uuid(),
+    /** Offline sync only (CLAUDE.md Phase 6 mandatory decision #4): the
+     * device's own capture time, preserved verbatim when supplied by the
+     * sync-upload endpoint. Omitted for an ordinary online create — the
+     * mutation then uses one server-generated timestamp for both
+     * capturedAt and syncedAt. */
+    capturedAt: z.string().datetime({ offset: true }).optional(),
     ...dailyExpenseFields,
   }),
 );

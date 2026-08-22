@@ -20,6 +20,8 @@ export const createCounterIncomeSchema = z.object({
   amount: decimalAmountSchema({ allowZero: true }),
   note: z.string().trim().max(300).optional(),
   confirmedDuplicate: z.boolean().optional(),
+  /** Offline sync only — see the same field on createDailyExpenseSchema. */
+  capturedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export const updateCounterIncomeSchema = z.object({

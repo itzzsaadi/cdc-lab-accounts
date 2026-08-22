@@ -8,6 +8,7 @@ import {
 } from "../../../src/server/queries/results";
 import { getDashboardWarnings } from "../../../src/server/queries/warnings";
 import { listAuditLog, getEntityHistory } from "../../../src/server/queries/audit-log";
+import { getPartyIncomeReport } from "../../../src/server/queries/party-income";
 
 const prisma = getTestPrismaClient();
 
@@ -33,6 +34,13 @@ describe("Phase 5 authorization sweep — Operator denied on every Partner-minim
     await expect(getItemizedExpenseBreakdown(prisma, operator, range)).rejects.toThrow(
       PermissionDeniedError,
     );
+  });
+
+  it("denies report:financial-summary (getPartyIncomeReport, FR-RPT-05)", async () => {
+    const operator = await createTestUser({ role: "OPERATOR", isPartner: false });
+    await expect(
+      getPartyIncomeReport(prisma, operator, { from: "2026-07-01", to: "2026-07-31" }),
+    ).rejects.toThrow(PermissionDeniedError);
   });
 
   it("denies report:dashboard (getDashboardWarnings)", async () => {

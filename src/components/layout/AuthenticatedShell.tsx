@@ -37,6 +37,7 @@ export async function AuthenticatedShell({ children }: { children: React.ReactNo
       navItems={visibleNavItems(user.role)}
       fullName={profile?.fullName ?? ""}
       role={user.role}
+      userId={user.id}
     >
       {children}
     </ShellChrome>

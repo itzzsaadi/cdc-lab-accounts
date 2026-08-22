@@ -3,6 +3,10 @@ import { requirePermission, type AuthenticatedUser } from "../../lib/permissions
 import { daysInMonth, monthBounds, parseCalendarDate } from "../../lib/domain/calendar-date";
 import { Decimal, ZERO } from "../../lib/domain/money";
 
+function monthTruncate(dateStr: string): string {
+  return `${dateStr.slice(0, 7)}-01`;
+}
+
 export interface PartyIncomeGridCell {
   id: string;
   amount: string;
@@ -202,4 +206,124 @@ export async function getPartyMonthlyTotals(
       combinedTotal: dailyTotal.plus(monthlyAmount).plus(cashReceiptsTotal).toString(),
     };
   });
+}
+
+export interface PartyIncomeRangeTotal {
+  partyId: string;
+  name: string;
+  isActive: boolean;
+  billingMode: "DAILY" | "MONTHLY";
+  dailyTotal: string;
+  monthlyTotal: string;
+  cashReceiptsTotal: string;
+  combinedTotal: string;
+}
+
+export interface PartyIncomeReport {
+  from: string;
+  to: string;
+  parties: PartyIncomeRangeTotal[];
+  grandTotal: string;
+}
+
+/**
+ * FR-RPT-05/FR-PINC-08: income by party across any user-chosen date range
+ * (never restricted to a single calendar month, unlike `getPartyMonthlyTotals`,
+ * which is the Monthly Party Bill screen's own month-scoped concern).
+ * Postgres-side `groupBy`/`SUM`, never a Node-side `reduce` over fetched
+ * rows (the same NFR-PERF-04/06 discipline every other Phase 5 report
+ * total follows). `MONTHLY` rows are month-anchored, so a range's DAILY/
+ * CASH_DIRECT component uses the literal day range while its MONTHLY
+ * component sums every whole month the range touches — identical to
+ * `computeMonthlyResultTotals`'s own month-truncation rule.
+ *
+ * Every active party appears, including one with zero income in the
+ * range (BR-01/FR-PINC-08 — spending/income visibility is never
+ * conditional on activity), plus any archived-but-historical party with
+ * a live row in range (mandatory safeguard #6, same rule the grid and
+ * `getPartyMonthlyTotals` already follow).
+ *
+ * Gated `report:financial-summary` (Partner-minimum) — this is a Dashboard
+ * and Reports family requirement (SRS §3.13), not the Operator-facing
+ * entry screen `getPartyIncomeGrid`/`getPartyMonthlyTotals` serve.
+ */
+export async function getPartyIncomeReport(
+  prisma: PrismaClient,
+  currentUser: AuthenticatedUser | null,
+  range: { from: string; to: string },
+): Promise<PartyIncomeReport> {
+  requirePermission(currentUser, "report:financial-summary");
+
+  const fromDate = parseCalendarDate(range.from)!;
+  const toDate = parseCalendarDate(range.to)!;
+  const monthFromDate = parseCalendarDate(monthTruncate(range.from))!;
+  const monthToDate = parseCalendarDate(monthTruncate(range.to))!;
+
+  const [dayGrouped, monthGrouped] = await Promise.all([
+    prisma.partyIncome.groupBy({
+      by: ["partyId", "receiptType"],
+      _sum: { amount: true },
+      where: {
+        isArchived: false,
+        receiptType: { in: ["DAILY", "CASH_DIRECT"] },
+        incomeDate: { gte: fromDate, lte: toDate },
+      },
+    }),
+    prisma.partyIncome.groupBy({
+      by: ["partyId"],
+      _sum: { amount: true },
+      where: {
+        isArchived: false,
+        receiptType: "MONTHLY",
+        incomeDate: { gte: monthFromDate, lte: monthToDate },
+      },
+    }),
+  ]);
+
+  const dailyByParty = new Map<string, Decimal>();
+  const cashByParty = new Map<string, Decimal>();
+  for (const row of dayGrouped) {
+    const amount = row._sum.amount ?? ZERO;
+    const target = row.receiptType === "DAILY" ? dailyByParty : cashByParty;
+    target.set(row.partyId, (target.get(row.partyId) ?? ZERO).plus(amount));
+  }
+  const monthlyByParty = new Map<string, Decimal>();
+  for (const row of monthGrouped) {
+    monthlyByParty.set(row.partyId, row._sum.amount ?? ZERO);
+  }
+
+  const historicalPartyIds = new Set([
+    ...dayGrouped.map((r) => r.partyId),
+    ...monthGrouped.map((r) => r.partyId),
+  ]);
+  const activeParties = await prisma.party.findMany({
+    where: { isActive: true },
+    orderBy: [{ billingMode: "asc" }, { sortOrder: "asc" }],
+  });
+  const archivedButHistorical = await prisma.party.findMany({
+    where: { isActive: false, id: { in: Array.from(historicalPartyIds) } },
+    orderBy: [{ billingMode: "asc" }, { sortOrder: "asc" }],
+  });
+  const parties = [...activeParties, ...archivedButHistorical];
+
+  let grandTotal = ZERO;
+  const results: PartyIncomeRangeTotal[] = parties.map((party) => {
+    const dailyTotal = dailyByParty.get(party.id) ?? ZERO;
+    const cashReceiptsTotal = cashByParty.get(party.id) ?? ZERO;
+    const monthlyTotal = monthlyByParty.get(party.id) ?? ZERO;
+    const combinedTotal = dailyTotal.plus(monthlyTotal).plus(cashReceiptsTotal);
+    grandTotal = grandTotal.plus(combinedTotal);
+    return {
+      partyId: party.id,
+      name: party.name,
+      isActive: party.isActive,
+      billingMode: party.billingMode,
+      dailyTotal: dailyTotal.toString(),
+      monthlyTotal: monthlyTotal.toString(),
+      cashReceiptsTotal: cashReceiptsTotal.toString(),
+      combinedTotal: combinedTotal.toString(),
+    };
+  });
+
+  return { from: range.from, to: range.to, parties: results, grandTotal: grandTotal.toString() };
 }

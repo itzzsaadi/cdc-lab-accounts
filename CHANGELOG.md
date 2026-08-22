@@ -4,6 +4,112 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 6: Offline Operation and Synchronization
+
+- Full offline entry for the four SRS-specified sync entities (Daily
+  Expenses, Monthly Expenses, Party Income — daily grid cells, direct
+  cash receipts, and monthly party bills — and Counter Income): a
+  Dexie-backed per-user IndexedDB queue (`src/lib/offline/{db,queue,
+coalesce,backoff,fingerprint,types}.ts`) with five deterministic
+  client-side coalescing rules, capped-exponential-jitter backoff, and
+  SHA-256-over-canonical-JSON operation fingerprints.
+- `sync_operations` table (migration `20260822070612_phase6_offline_
+sync`) — durable per-operation receipts keyed by a client-generated
+  `operationId`: a genuine retry replays its stored result verbatim; a
+  reused `operationId` carrying different content is rejected as
+  `OPERATION_ID_REUSED`. `synced_at` backfilled for pre-existing rows
+  (`audit_log` excluded — its append-only trigger correctly rejects
+  `UPDATE`).
+- Every mutation function across the four offline entities
+  (`src/server/mutations/*.ts`) gained an optional trailing
+  `tx?: Prisma.TransactionClient` parameter (additive, no existing call
+  site changed) — the business write, its audit row, and the new
+  receipt now commit together in one transaction for every synced
+  operation.
+- `capturedAt`/`syncedAt`: one server timestamp serves both on an
+  ordinary online create; an offline upload preserves the device's own
+  `capturedAt` and sets `syncedAt` only at server acceptance.
+- `HEAD /api/sync/ping` (authenticated, 3s timeout, one retry) verifies
+  a real reconnect — never the public health route, never bare
+  `navigator.onLine`. `POST /api/sync/upload` (≤50 operations/batch) and
+  `GET /api/sync/reference` (the reference-data cache snapshot) round
+  out the sync API surface.
+- Conflict protocol: a genuine stale write returns
+  `{status:"CONFLICT", current, currentVersion}`; Keep Local re-queues
+  as a new operation against the server's current version, Keep Server
+  only discards the local queue entry — the server row is never touched
+  by that choice.
+- Receipt retention (`src/server/sync/retention.ts`): a 180-day window,
+  Admin-only, a plain callable function meant to be invoked periodically
+  rather than wired into a cron this deployment doesn't have yet.
+- `public/sw.js`: a static, dependency-free, versioned service worker —
+  caches only an explicit static-asset allowlist plus one `/offline`
+  fallback page, never anything under `/api/` or any other page's
+  server-rendered HTML. Background Sync is registered strictly as an
+  enhancement (a postMessage hint to open tabs); `OfflineProvider`'s own
+  startup/focus/visibilitychange/`online` listeners are the dependable
+  sync trigger.
+- `src/components/offline/{OfflineProvider,SyncStatusIndicator,
+SyncCenter}.tsx`: the one place queue/connection state lives, the
+  FR-OFF-03 header indicator (now consistent on every screen), and the
+  Sync Center (`/sync-center`) — a re-implementation of the approved
+  Stitch queue-list + Local/Server split-comparison layout with real
+  entity data, never the handoff's Calibration/Next-Due-Date demo
+  content.
+- Sign-out warning (`UserMenu.tsx`, FR-AUTH-09) and a `beforeunload`
+  prompt (FR-OFF-10) when anything is pending/failed/conflicted —
+  neither ever erases the local queue; both are heads-ups, not
+  destructive-action prompts.
+- PWA manifest and icons (`app/manifest.ts`, `app/icon.tsx`,
+  `app/apple-icon.tsx`, `app/manifest-icons/*`) generated with
+  `next/og`'s `ImageResponse` (bundled with Next.js, no new dependency)
+  from the existing approved sidebar brand mark — never placeholder art.
+- Exact dependencies: `dexie@4.4.5`, `dexie-react-hooks@4.4.0` — no
+  other new dependency.
+- Three real, non-test-only bugs found while writing the offline
+  Playwright suite and fixed: `OfflineProvider` closing its Dexie
+  connection on every unmount (React StrictMode's double-invoke turned
+  this into a silent `DatabaseClosedError` swallowing offline saves); a
+  hydration mismatch from reading `navigator.onLine` synchronously as
+  `useState`'s initial value (fixed with `useSyncExternalStore`); and
+  the sidebar using a plain `<a>` instead of `next/link`'s `<Link>`,
+  which forced a full page reload on every in-app navigation and made
+  offline navigation impossible.
+- A pre-existing, unrelated migration-history checksum-bookkeeping issue
+  on Phase 5's `phase5_partner_mapping` migration was found and repaired
+  non-destructively (no reset, no data loss) before the Phase 6
+  migration was generated — see `docs/adr/0008-phase-6-offline-sync.md`.
+- **Disclosed, approved-scope gaps**: FR-OFF-12 (mark figures
+  provisional while offline uploads are pending) is not built this
+  phase. NFR-SEC-09 (clear offline device data on sign-out once nothing
+  is pending) is partial — isolation is enforced, nothing is silently
+  erased while work is pending, but automatic clearing once the queue is
+  empty is not implemented.
+- See `docs/adr/0008-phase-6-offline-sync.md` and `docs/offline-sync.md`
+  for the full design record; `docs/REQUIREMENTS_TRACEABILITY.md`'s
+  FR-OFF/FR-AUTH-09/NFR-SEC-09/NFR-REL-05/NFR-MNT-07 rows are updated.
+
+### Added — Phase 5 closure: FR-RPT-05, FR-AUD-06, and skip removal
+
+- Income by Party (`src/app/(app)/(partner)/party-income-report`,
+  `getPartyIncomeReport`): FR-RPT-05/FR-PINC-08's "income by party across
+  a chosen range" — daily/monthly/cash-receipt components and a combined
+  total, per party across an arbitrary validated date range, Postgres-side
+  `groupBy`/`SUM` throughout; zero-income parties shown, never omitted;
+  Partner/Admin-only, Operator denied through the UI and a direct call.
+- FR-AUD-06 now covers `asset`/`capital_contribution` audit rows too — a
+  batched (never N+1) live lookup of `acquiredOn`/`entryDate` resolves
+  their business date, since neither is ever written into the audit
+  JSON snapshot. Previously `null` for both entity types; still `null`
+  only when the date is genuinely unset.
+- Removed the one conditional Playwright skip in
+  `tests/e2e/phase5-reporting.spec.ts`: the "History button" test now
+  creates its own Asset fixture through the real form, rather than
+  depending on the shared dev database already containing one.
+- See `docs/adr/0007-phase-5-calculations-dashboard-reports.md` §13/§14
+  for the full record; `docs/REQUIREMENTS_TRACEABILITY.md`'s FR-RPT-05
+  and FR-AUD-06 rows are now both `Implemented` with no disclosed gap.
+
 ### Added — Phase 5: Calculations, Dashboard, Warnings, Reports, and Audit Log
 
 - `app_settings.partner_a_user_id`/`partner_b_user_id` — explicit Partner

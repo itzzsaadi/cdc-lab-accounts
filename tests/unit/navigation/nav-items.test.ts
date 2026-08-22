@@ -4,7 +4,13 @@ import { visibleNavItems, titleForPath } from "../../../src/lib/navigation/nav-i
 describe("visibleNavItems", () => {
   it("shows an Operator Home plus the three Phase 3B entry screens", () => {
     const hrefs = visibleNavItems("OPERATOR").map((item) => item.href);
-    expect(hrefs).toEqual(["/home", "/daily-expenses", "/party-income", "/counter-income"]);
+    expect(hrefs).toEqual([
+      "/home",
+      "/daily-expenses",
+      "/party-income",
+      "/counter-income",
+      "/sync-center",
+    ]);
   });
 
   it("shows a Partner every Operator item plus the Phase 4 Partner entries, never Users or a Dashboard-only figure", () => {
@@ -14,12 +20,14 @@ describe("visibleNavItems", () => {
       "/daily-expenses",
       "/party-income",
       "/counter-income",
+      "/sync-center",
       "/dashboard",
       "/monthly-summary",
       "/monthly-expenses",
       "/party-income-monthly",
       "/assets",
       "/investment",
+      "/party-income-report",
       "/audit-log",
     ]);
     expect(hrefs).not.toContain("/users");
@@ -32,12 +40,14 @@ describe("visibleNavItems", () => {
       "/daily-expenses",
       "/party-income",
       "/counter-income",
+      "/sync-center",
       "/dashboard",
       "/monthly-summary",
       "/monthly-expenses",
       "/party-income-monthly",
       "/assets",
       "/investment",
+      "/party-income-report",
       "/audit-log",
       "/users",
     ]);
@@ -64,6 +74,10 @@ describe("titleForPath", () => {
     expect(titleForPath("/counter-income")).toBe("Counter Income");
   });
 
+  it("matches the Phase 6 Sync Center route", () => {
+    expect(titleForPath("/sync-center")).toBe("Sync Center");
+  });
+
   it("matches the Phase 4 Partner routes", () => {
     expect(titleForPath("/monthly-expenses")).toBe("Monthly Expenses");
     expect(titleForPath("/assets")).toBe("Asset Register");
@@ -73,6 +87,7 @@ describe("titleForPath", () => {
 
   it("matches the Phase 5 Partner routes", () => {
     expect(titleForPath("/monthly-summary")).toBe("Monthly Summary");
+    expect(titleForPath("/party-income-report")).toBe("Income by Party");
     expect(titleForPath("/audit-log")).toBe("Audit Log");
   });
 

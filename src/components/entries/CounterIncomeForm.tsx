@@ -9,6 +9,8 @@ import { generateClientUuid } from "../../lib/client-uuid";
 import { todayInKarachi } from "../../lib/domain/calendar-date";
 import { formatMoney } from "../../lib/domain/money-format";
 import { createCounterIncomeAction } from "../../server/actions/counter-income";
+import { useOfflineSync } from "../offline/OfflineProvider";
+import { isLikelyOfflineError } from "../../lib/offline/submit-helpers";
 
 /**
  * FR-CINC-01/04 — the two-step, non-blocking duplicate-confirmation flow.
@@ -21,10 +23,12 @@ import { createCounterIncomeAction } from "../../server/actions/counter-income";
  */
 export function CounterIncomeForm() {
   const router = useRouter();
+  const { enqueue } = useOfflineSync();
   const [incomeDate, setIncomeDate] = useState(() => todayInKarachi());
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
@@ -42,14 +46,36 @@ export function CounterIncomeForm() {
     clientUuidRef.current ??= generateClientUuid();
     setSubmitting(true);
     setError(null);
+    setOfflineNotice(null);
+    const clientUuid = clientUuidRef.current;
+    const payload = { clientUuid, incomeDate, amount, note: note || undefined, confirmedDuplicate };
 
-    const result = await createCounterIncomeAction({
-      clientUuid: clientUuidRef.current,
-      incomeDate,
-      amount,
-      note: note || undefined,
-      confirmedDuplicate,
-    });
+    let result;
+    try {
+      result = await createCounterIncomeAction(payload);
+    } catch (submitError) {
+      setSubmitting(false);
+      if (!isLikelyOfflineError(submitError)) {
+        setError("Something went wrong. Please try again.");
+        return;
+      }
+      // FR-CINC-04's duplicate-day warning has no live round trip to check
+      // against while offline, and there is no user left to prompt by the
+      // time this syncs later — since the warning is explicitly
+      // non-blocking (FR-CINC-04), the offline path always proceeds as
+      // confirmed rather than rejecting the entry after the fact for
+      // something the user had no way to see or act on at sync time.
+      await enqueue({
+        operationId: crypto.randomUUID(),
+        entityType: "counter_income",
+        action: "CREATE",
+        clientUuid,
+        payload: { ...payload, confirmedDuplicate: true, capturedAt: new Date().toISOString() },
+      });
+      setOfflineNotice("Saved offline — will sync automatically once you're back online.");
+      resetForm();
+      return;
+    }
 
     setSubmitting(false);
     if (!result.ok) {
@@ -117,6 +143,7 @@ export function CounterIncomeForm() {
           </div>
         ) : null}
         {error ? <p className="text-error text-sm">{error}</p> : null}
+        {offlineNotice ? <p className="text-tertiary text-sm">{offlineNotice}</p> : null}
         {!duplicateWarning ? (
           <div className="flex justify-end">
             <Button type="submit" disabled={submitting}>

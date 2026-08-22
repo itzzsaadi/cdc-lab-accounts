@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { createActivatedUser } from "./helpers/create-user";
 
@@ -149,13 +150,44 @@ test.describe("Audit Log (FR-AUD-04)", () => {
   test("an entity's History button opens its change history", async ({ page }) => {
     const partner = await createActivatedUser("PARTNER", TEST_PASSWORD);
     await signIn(page, partner.email);
+    const assetName = `e2e-${randomUUID().slice(0, 8)}`;
 
+    // Create the exact Asset row this test needs — never rely on the
+    // shared dev database happening to already contain one.
     await page.goto("/assets");
-    const historyButtons = page.getByRole("button", { name: /View history for/ });
-    if ((await historyButtons.count()) === 0) {
-      test.skip(true, "No existing asset on the shared dev database to check history for.");
-    }
-    await historyButtons.first().click();
+    await page.getByRole("button", { name: "Add Asset" }).click();
+    await page.locator("#asset-name").fill(assetName);
+    await page.locator("#asset-monthly-instalment").fill("15000");
+    await page.locator("#asset-default-category").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Save Asset" }).click();
+    await expect(page.locator("tr", { hasText: assetName })).toBeVisible();
+
+    const row = page.locator("tr", { hasText: assetName });
+    await row.getByRole("button", { name: /View history for/ }).click();
     await expect(page.getByRole("heading", { name: /^History —/ })).toBeVisible();
+    await expect(page.getByText("Created")).toBeVisible();
+  });
+});
+
+test.describe("Income by Party (FR-RPT-05/FR-PINC-08)", () => {
+  test("an Operator is redirected away from /party-income-report", async ({ page }) => {
+    const operator = await createActivatedUser("OPERATOR", TEST_PASSWORD);
+    await signIn(page, operator.email);
+    await page.goto("/party-income-report");
+    await expect(page).toHaveURL(/\/forbidden$/);
+  });
+
+  test("a Partner sees a per-party breakdown and can apply a custom range", async ({ page }) => {
+    const partner = await createActivatedUser("PARTNER", TEST_PASSWORD);
+    await signIn(page, partner.email);
+
+    await page.goto("/party-income-report");
+    await expect(page.getByRole("heading", { name: "Income by Party" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Combined Total" })).toBeVisible();
+
+    await page.locator("#range-from").fill("2026-07-01");
+    await page.locator("#range-to").fill("2026-07-31");
+    await page.getByRole("button", { name: "Apply Range" }).click();
+    await expect(page).toHaveURL(/from=2026-07-01&to=2026-07-31/);
   });
 });

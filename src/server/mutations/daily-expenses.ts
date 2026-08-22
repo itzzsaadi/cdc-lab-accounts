@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { PrismaClient } from "../../../generated/prisma/client";
+import type { PrismaClient, Prisma } from "../../../generated/prisma/client";
 import { requirePermission, type AuthenticatedUser } from "../../lib/permissions/guard";
 import { appendBusinessAudit } from "../../lib/audit";
 import { isUniqueConstraintViolationOn } from "../../lib/prisma-errors";
@@ -42,6 +42,7 @@ export async function createDailyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreateResult> {
   const user = requirePermission(currentUser, "entry:daily-expense");
 
@@ -50,8 +51,9 @@ export async function createDailyExpense(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const data = parsed.data;
+  const reader = tx ?? prisma;
 
-  const existing = await prisma.dailyExpense.findUnique({
+  const existing = await reader.dailyExpense.findUnique({
     where: { clientUuid: data.clientUuid },
   });
   if (existing) {
@@ -64,40 +66,53 @@ export async function createDailyExpense(
   }
 
   const id = randomUUID();
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.dailyExpense.create({
-        data: {
-          id,
-          clientUuid: data.clientUuid,
-          expenseDate,
-          expenseItemId: data.expenseItemId,
-          customDescription: data.customDescription,
-          amount: new Decimal(data.amount),
-          fundingSource: data.fundingSource,
-          fundedByUserId: data.fundedByUserId,
-          capturedAt: new Date(),
-          createdBy: user.id,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-        },
-      });
-      await appendBusinessAudit(tx, {
-        actorUserId: user.id,
-        action: "CREATE",
-        entityType: "daily_expense",
-        entityId: id,
-        newValues: {
-          expenseDate: data.expenseDate,
-          amount: data.amount,
-          fundingSource: data.fundingSource,
-        },
-      });
+  // CLAUDE.md Phase 6 mandatory decision #4: one server timestamp serves as
+  // both capturedAt and syncedAt for an ordinary online create (no distinct
+  // client capture time supplied); an offline upload instead preserves the
+  // device's own capturedAt while syncedAt is still this server-acceptance
+  // instant.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
+  const run = async (client: Prisma.TransactionClient) => {
+    await client.dailyExpense.create({
+      data: {
+        id,
+        clientUuid: data.clientUuid,
+        expenseDate,
+        expenseItemId: data.expenseItemId,
+        customDescription: data.customDescription,
+        amount: new Decimal(data.amount),
+        fundingSource: data.fundingSource,
+        fundedByUserId: data.fundedByUserId,
+        capturedAt,
+        syncedAt,
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
     });
+    await appendBusinessAudit(client, {
+      actorUserId: user.id,
+      action: "CREATE",
+      entityType: "daily_expense",
+      entityId: id,
+      newValues: {
+        expenseDate: data.expenseDate,
+        amount: data.amount,
+        fundingSource: data.fundingSource,
+      },
+    });
+  };
+  try {
+    if (tx) {
+      await run(tx);
+    } else {
+      await prisma.$transaction(run);
+    }
     return { ok: true, id, replayed: false };
   } catch (error) {
     if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
-      const winner = await prisma.dailyExpense.findUniqueOrThrow({
+      const winner = await reader.dailyExpense.findUniqueOrThrow({
         where: { clientUuid: data.clientUuid },
       });
       return { ok: true, id: winner.id, replayed: true };
@@ -116,6 +131,7 @@ export async function updateDailyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:daily-expense");
 
@@ -129,9 +145,9 @@ export async function updateDailyExpense(
     return { ok: false, error: "Invalid date." };
   }
 
-  return prisma.$transaction(async (tx) => {
-    const before = await tx.dailyExpense.findUnique({ where: { id: data.id } });
-    const result = await tx.dailyExpense.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const before = await client.dailyExpense.findUnique({ where: { id: data.id } });
+    const result = await client.dailyExpense.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: {
         expenseDate,
@@ -150,7 +166,7 @@ export async function updateDailyExpense(
         error: "This entry was changed or archived by someone else. Reload it and try again.",
       };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "UPDATE",
       entityType: "daily_expense",
@@ -169,13 +185,15 @@ export async function updateDailyExpense(
       },
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 export async function archiveDailyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:daily-expense");
 
@@ -185,20 +203,21 @@ export async function archiveDailyExpense(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const result = await tx.dailyExpense.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const result = await client.dailyExpense.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { isArchived: true, updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This entry was already changed or archived by someone else." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "ARCHIVE",
       entityType: "daily_expense",
       entityId: data.id,
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }

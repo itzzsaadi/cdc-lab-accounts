@@ -10,6 +10,8 @@ import {
   updateMonthlyPartyBillAction,
   archiveMonthlyPartyBillAction,
 } from "../../server/actions/party-income";
+import { useOfflineSync } from "../offline/OfflineProvider";
+import { isLikelyOfflineError } from "../../lib/offline/submit-helpers";
 
 export interface MonthlyPartyBillRowData {
   partyId: string;
@@ -21,8 +23,10 @@ export interface MonthlyPartyBillRowData {
 /** FR-PINC-03 (Partner-only, UC-07): one figure per monthly-billing party per month. Editing an existing bill is an ordinary stale-write-protected update; entering a figure where none exists yet is a `client_uuid`-idempotent create — same protocol as every other Phase 3B/4 entry. */
 export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
   const router = useRouter();
+  const { enqueue } = useOfflineSync();
   const [amount, setAmount] = useState(row.existing?.amount ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
@@ -30,6 +34,7 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
   async function handleSave() {
     setSubmitting(true);
     setError(null);
+    setOfflineNotice(null);
     setStale(false);
 
     if (row.existing) {
@@ -49,12 +54,27 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
     }
 
     clientUuidRef.current ??= generateClientUuid();
-    const result = await createMonthlyPartyBillAction({
-      clientUuid: clientUuidRef.current,
-      partyId: row.partyId,
-      periodMonth: row.periodMonth,
-      amount,
-    });
+    const clientUuid = clientUuidRef.current;
+    const payload = { clientUuid, partyId: row.partyId, periodMonth: row.periodMonth, amount };
+    let result;
+    try {
+      result = await createMonthlyPartyBillAction(payload);
+    } catch (submitError) {
+      setSubmitting(false);
+      if (!isLikelyOfflineError(submitError)) {
+        setError("Something went wrong. Please try again.");
+        return;
+      }
+      await enqueue({
+        operationId: crypto.randomUUID(),
+        entityType: "party_income_monthly_bill",
+        action: "CREATE",
+        clientUuid,
+        payload: { ...payload, capturedAt: new Date().toISOString() },
+      });
+      setOfflineNotice("Saved offline — will sync automatically once you're back online.");
+      return;
+    }
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
@@ -116,6 +136,7 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
           displayLabel={`${row.partyName} — ${row.periodMonth}`}
         />
       ) : null}
+      {offlineNotice ? <span className="text-tertiary text-xs">{offlineNotice}</span> : null}
       {error ? (
         <span className="text-error text-xs">
           {error}

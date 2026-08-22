@@ -28,7 +28,7 @@ export interface AuditLogEntry {
   oldValues: unknown;
   newValues: unknown;
   capturedAt: string;
-  /** FR-AUD-06 (Should): true when the entity's own business date (not `capturedAt`) is more than one calendar month in the past. `null` when no known date field is present in this entry's values — not every entity type logs one (see docs/adr/0007-...md). */
+  /** FR-AUD-06 (Should): true when the entity's own business date (not `capturedAt`) is more than one calendar month in the past. Resolved from the audit row's own JSON snapshot for `daily_expense`/`monthly_expense`/`party_income`/`counter_income`, and from a live, batched lookup of the current row for `asset` (`acquiredOn`)/`capital_contribution` (`entryDate`) — see `resolveLiveBusinessYearMonths` and ADR-0007 §13. `null` only when the entity genuinely has no business date at all (an `INSTALMENT` asset whose `acquiredOn` was never set) or the entity type is none of the above. */
   isEntryOverOneMonthOld: boolean | null;
 }
 
@@ -44,6 +44,80 @@ function extractEntityYearMonth(values: unknown): string | null {
     }
   }
   return null;
+}
+
+/** `asset`/`capital_contribution` ids only — used to skip a malformed `entityId` before it ever reaches a `@db.Uuid`-typed query. */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `asset`'s `acquiredOn` and `capital_contribution`'s `entryDate` are never
+ * written into the audit JSON snapshot (see
+ * `src/server/mutations/{assets,capital-contributions}.ts`), so FR-AUD-06
+ * resolves their business date from the live row instead — the
+ * physical-delete-rejection trigger (CLAUDE.md §11) guarantees that row
+ * still exists for every CREATE/UPDATE/ARCHIVE audit entry.
+ *
+ * Batched (never N+1) resolution of the business year-month for every
+ * `asset`/`capital_contribution` row referenced by the given audit rows —
+ * at most one `findMany` per entity type, regardless of how many audit
+ * rows are on the page. Returns a map keyed `${entityType}:${entityId}`;
+ * a present key with a `null` value means the entity has no usable date
+ * (e.g. an `INSTALMENT` asset's `acquiredOn` was never set) — still
+ * distinct from "this entity type isn't live-looked-up at all," which is
+ * simply absent from the map (see `toAuditLogEntry`'s fallback to the
+ * JSON-snapshot extraction for every other entity type).
+ */
+async function resolveLiveBusinessYearMonths(
+  prisma: PrismaClient,
+  rows: { entityType: string; entityId: string }[],
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+
+  // A malformed/non-UUID entityId (never produced by real mutations, which
+  // always pass a genuine row id) must never crash this lookup — the
+  // `id` column is `@db.Uuid`, so an invalid value would otherwise throw
+  // at the database level. Filtered out here, not caught after the fact.
+  const assetIds = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.entityType === "asset" && UUID_PATTERN.test(r.entityId))
+        .map((r) => r.entityId),
+    ),
+  );
+  const contributionIds = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.entityType === "capital_contribution" && UUID_PATTERN.test(r.entityId))
+        .map((r) => r.entityId),
+    ),
+  );
+
+  if (assetIds.length > 0) {
+    const assets = await prisma.asset.findMany({
+      where: { id: { in: assetIds } },
+      select: { id: true, acquiredOn: true },
+    });
+    for (const asset of assets) {
+      map.set(
+        `asset:${asset.id}`,
+        asset.acquiredOn ? asset.acquiredOn.toISOString().slice(0, 7) : null,
+      );
+    }
+  }
+  if (contributionIds.length > 0) {
+    const contributions = await prisma.capitalContribution.findMany({
+      where: { id: { in: contributionIds } },
+      select: { id: true, entryDate: true },
+    });
+    for (const contribution of contributions) {
+      map.set(
+        `capital_contribution:${contribution.id}`,
+        contribution.entryDate.toISOString().slice(0, 7),
+      );
+    }
+  }
+
+  return map;
 }
 
 /** "More than one month in the past" at whole-month granularity: the entry's own month must be strictly earlier than last month's — an entry from last month or this month is not flagged. */
@@ -69,11 +143,14 @@ function toAuditLogEntry(
     capturedAt: Date;
   },
   referenceDate: Date,
+  liveBusinessYearMonths: Map<string, string | null>,
 ): AuditLogEntry {
   const redactedOld = redactSensitiveValues(row.oldValues);
   const redactedNew = redactSensitiveValues(row.newValues);
-  const entryYearMonth =
-    extractEntityYearMonth(row.newValues) ?? extractEntityYearMonth(row.oldValues);
+  const liveKey = `${row.entityType}:${row.entityId}`;
+  const entryYearMonth = liveBusinessYearMonths.has(liveKey)
+    ? liveBusinessYearMonths.get(liveKey)!
+    : (extractEntityYearMonth(row.newValues) ?? extractEntityYearMonth(row.oldValues));
   return {
     id: row.id.toString(),
     actorUserId: row.actorUserId,
@@ -124,9 +201,10 @@ export async function listAuditLog(
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
   const now = new Date();
+  const liveBusinessYearMonths = await resolveLiveBusinessYearMonths(prisma, page);
 
   return {
-    items: page.map((row) => toAuditLogEntry(row, now)),
+    items: page.map((row) => toAuditLogEntry(row, now, liveBusinessYearMonths)),
     nextCursor: hasMore ? page[page.length - 1].id.toString() : null,
   };
 }
@@ -158,5 +236,8 @@ export async function getEntityHistory(
     orderBy: { id: "asc" },
   });
   const now = new Date();
-  return rows.map((row) => toAuditLogEntry(row, now));
+  const liveBusinessYearMonths = await resolveLiveBusinessYearMonths(prisma, [
+    { entityType, entityId },
+  ]);
+  return rows.map((row) => toAuditLogEntry(row, now, liveBusinessYearMonths));
 }

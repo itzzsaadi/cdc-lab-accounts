@@ -8,6 +8,8 @@ import {
   updateDailyPartyIncomeCellAction,
   archivePartyIncomeAction,
 } from "../../server/actions/party-income";
+import { useOfflineSync } from "../offline/OfflineProvider";
+import { isLikelyOfflineError } from "../../lib/offline/submit-helpers";
 
 export interface GridCellRecord {
   id: string;
@@ -58,10 +60,18 @@ export function GridCellInput({
   colIndex: number;
 }) {
   const router = useRouter();
+  const { enqueue } = useOfflineSync();
   const [record, setRecord] = useState<GridCellRecord | null>(initialRecord);
   const [value, setValue] = useState(initialRecord?.amount ?? "");
   const [status, setStatus] = useState<CellStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  // True only while `record` represents a cell created offline that has
+  // never reached the server yet -- its "id" is the offline queue's own
+  // record-identity key (the client_uuid this component generated), not a
+  // real database row id. Editing or clearing it again while still offline
+  // enqueues another operation against that same key, which the queue's
+  // coalescing rules (src/lib/offline/coalesce.ts) merge correctly.
+  const [isQueuedOffline, setIsQueuedOffline] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -88,8 +98,25 @@ export function GridCellInput({
     setStatus("saving");
     setMessage(null);
 
-    try {
-      if (trimmed === "" && record) {
+    // Clearing a cell that was itself only ever queued offline: discard
+    // the pending CREATE entirely (coalescing rule 2) — nothing was ever
+    // sent to the server, so there is nothing to archive there either.
+    if (trimmed === "" && record && isQueuedOffline) {
+      await enqueue({
+        operationId: crypto.randomUUID(),
+        entityType: "party_income_daily",
+        action: "ARCHIVE",
+        clientUuid: record.id,
+        payload: { id: record.id, expectedUpdatedAt: record.updatedAt },
+      });
+      setRecord(null);
+      setIsQueuedOffline(false);
+      setStatus("saved");
+      return;
+    }
+
+    if (trimmed === "" && record) {
+      try {
         const result = await archivePartyIncomeAction({
           id: record.id,
           expectedUpdatedAt: record.updatedAt,
@@ -102,10 +129,40 @@ export function GridCellInput({
         setRecord(null);
         setStatus("saved");
         router.refresh(); // refreshes the grid's server-computed row/party/grand totals
+      } catch (submitError) {
+        if (!isLikelyOfflineError(submitError)) {
+          setStatus("error");
+          setMessage("Could not save — check your connection and try again.");
+          return;
+        }
+        await enqueue({
+          operationId: crypto.randomUUID(),
+          entityType: "party_income_daily",
+          action: "ARCHIVE",
+          clientUuid: record.id,
+          payload: { id: record.id, expectedUpdatedAt: record.updatedAt },
+        });
+        setRecord(null);
+        setStatus("saved");
+      }
+      return;
+    }
+
+    if (record) {
+      const nextUpdatedAt = new Date().toISOString();
+      if (isQueuedOffline) {
+        await enqueue({
+          operationId: crypto.randomUUID(),
+          entityType: "party_income_daily",
+          action: "UPDATE",
+          clientUuid: record.id,
+          payload: { id: record.id, expectedUpdatedAt: record.updatedAt, amount: trimmed },
+        });
+        setRecord({ id: record.id, amount: trimmed, updatedAt: nextUpdatedAt });
+        setStatus("saved");
         return;
       }
-
-      if (record) {
+      try {
         const result = await updateDailyPartyIncomeCellAction({
           id: record.id,
           expectedUpdatedAt: record.updatedAt,
@@ -116,19 +173,33 @@ export function GridCellInput({
           setMessage(result.error);
           return;
         }
-        setRecord({ id: record.id, amount: trimmed, updatedAt: new Date().toISOString() });
+        setRecord({ id: record.id, amount: trimmed, updatedAt: nextUpdatedAt });
         setStatus("saved");
         router.refresh();
-        return;
+      } catch (submitError) {
+        if (!isLikelyOfflineError(submitError)) {
+          setStatus("error");
+          setMessage("Could not save — check your connection and try again.");
+          return;
+        }
+        await enqueue({
+          operationId: crypto.randomUUID(),
+          entityType: "party_income_daily",
+          action: "UPDATE",
+          clientUuid: record.id,
+          payload: { id: record.id, expectedUpdatedAt: record.updatedAt, amount: trimmed },
+        });
+        setRecord({ id: record.id, amount: trimmed, updatedAt: nextUpdatedAt });
+        setStatus("saved");
       }
+      return;
+    }
 
-      clientUuidRef.current ??= generateClientUuid();
-      const result = await createDailyPartyIncomeCellAction({
-        clientUuid: clientUuidRef.current,
-        partyId,
-        incomeDate: day,
-        amount: trimmed,
-      });
+    clientUuidRef.current ??= generateClientUuid();
+    const clientUuid = clientUuidRef.current;
+    const payload = { clientUuid, partyId, incomeDate: day, amount: trimmed };
+    try {
+      const result = await createDailyPartyIncomeCellAction(payload);
       if (!result.ok) {
         setStatus("error");
         setMessage(result.error);
@@ -138,9 +209,25 @@ export function GridCellInput({
       clientUuidRef.current = null;
       setStatus("saved");
       router.refresh();
-    } catch {
-      setStatus("error");
-      setMessage("Could not save — check your connection and try again.");
+    } catch (submitError) {
+      if (!isLikelyOfflineError(submitError)) {
+        setStatus("error");
+        setMessage("Could not save — check your connection and try again.");
+        return;
+      }
+      await enqueue({
+        operationId: crypto.randomUUID(),
+        entityType: "party_income_daily",
+        action: "CREATE",
+        clientUuid,
+        payload: { ...payload, capturedAt: new Date().toISOString() },
+      });
+      // The clientUuid stands in as this cell's local record id until it
+      // syncs — the same value already used above as the queue's
+      // coalescing key.
+      setRecord({ id: clientUuid, amount: trimmed, updatedAt: new Date().toISOString() });
+      setIsQueuedOffline(true);
+      setStatus("saved");
     }
   }
 
@@ -172,7 +259,9 @@ export function GridCellInput({
     status === "saving"
       ? "Saving…"
       : status === "saved"
-        ? "Saved"
+        ? isQueuedOffline
+          ? "Saved offline — will sync automatically"
+          : "Saved"
         : status === "error"
           ? `Error: ${message}`
           : status === "stale"

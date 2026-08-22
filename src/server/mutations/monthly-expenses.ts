@@ -36,6 +36,7 @@ export async function createMonthlyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreateResult> {
   const user = requirePermission(currentUser, "monthly-expense:manage");
 
@@ -44,8 +45,9 @@ export async function createMonthlyExpense(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const data = parsed.data;
+  const reader = tx ?? prisma;
 
-  const existing = await prisma.monthlyExpense.findUnique({
+  const existing = await reader.monthlyExpense.findUnique({
     where: { clientUuid: data.clientUuid },
   });
   if (existing) {
@@ -58,7 +60,7 @@ export async function createMonthlyExpense(
   }
 
   if (!data.confirmedDuplicate) {
-    const sameCategoryThisMonth = await prisma.monthlyExpense.findFirst({
+    const sameCategoryThisMonth = await reader.monthlyExpense.findFirst({
       where: { categoryId: data.categoryId, periodMonth, isArchived: false },
     });
     if (sameCategoryThisMonth) {
@@ -67,42 +69,52 @@ export async function createMonthlyExpense(
   }
 
   const id = randomUUID();
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.monthlyExpense.create({
-        data: {
-          id,
-          clientUuid: data.clientUuid,
-          periodMonth,
-          categoryId: data.categoryId,
-          vendorId: data.vendorId,
-          description: data.description,
-          amount: new Decimal(data.amount),
-          fundingSource: data.fundingSource,
-          fundedByUserId: data.fundedByUserId,
-          capturedAt: new Date(),
-          createdBy: user.id,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-        },
-      });
-      await appendBusinessAudit(tx, {
-        actorUserId: user.id,
-        action: "CREATE",
-        entityType: "monthly_expense",
-        entityId: id,
-        newValues: {
-          periodMonth: data.periodMonth,
-          categoryId: data.categoryId,
-          amount: data.amount,
-          fundingSource: data.fundingSource,
-        },
-      });
+  // CLAUDE.md Phase 6 mandatory decision #4 — see the identical comment in
+  // mutations/daily-expenses.ts.
+  const syncedAt = new Date();
+  const capturedAt = data.capturedAt ? new Date(data.capturedAt) : syncedAt;
+  const run = async (client: Prisma.TransactionClient) => {
+    await client.monthlyExpense.create({
+      data: {
+        id,
+        clientUuid: data.clientUuid,
+        periodMonth,
+        categoryId: data.categoryId,
+        vendorId: data.vendorId,
+        description: data.description,
+        amount: new Decimal(data.amount),
+        fundingSource: data.fundingSource,
+        fundedByUserId: data.fundedByUserId,
+        capturedAt,
+        syncedAt,
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
     });
+    await appendBusinessAudit(client, {
+      actorUserId: user.id,
+      action: "CREATE",
+      entityType: "monthly_expense",
+      entityId: id,
+      newValues: {
+        periodMonth: data.periodMonth,
+        categoryId: data.categoryId,
+        amount: data.amount,
+        fundingSource: data.fundingSource,
+      },
+    });
+  };
+  try {
+    if (tx) {
+      await run(tx);
+    } else {
+      await prisma.$transaction(run);
+    }
     return { ok: true, id, replayed: false };
   } catch (error) {
     if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
-      const winner = await prisma.monthlyExpense.findUniqueOrThrow({
+      const winner = await reader.monthlyExpense.findUniqueOrThrow({
         where: { clientUuid: data.clientUuid },
       });
       return { ok: true, id: winner.id, replayed: true };
@@ -115,6 +127,7 @@ export async function updateMonthlyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "monthly-expense:manage");
 
@@ -128,9 +141,9 @@ export async function updateMonthlyExpense(
     return { ok: false, error: "Invalid period month." };
   }
 
-  return prisma.$transaction(async (tx) => {
-    const before = await tx.monthlyExpense.findUnique({ where: { id: data.id } });
-    const result = await tx.monthlyExpense.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const before = await client.monthlyExpense.findUnique({ where: { id: data.id } });
+    const result = await client.monthlyExpense.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: {
         periodMonth,
@@ -150,7 +163,7 @@ export async function updateMonthlyExpense(
         error: "This entry was changed or archived by someone else. Reload it and try again.",
       };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "UPDATE",
       entityType: "monthly_expense",
@@ -169,13 +182,15 @@ export async function updateMonthlyExpense(
       },
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 export async function archiveMonthlyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "monthly-expense:manage");
 
@@ -185,22 +200,23 @@ export async function archiveMonthlyExpense(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const result = await tx.monthlyExpense.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const result = await client.monthlyExpense.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { isArchived: true, updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This entry was already changed or archived by someone else." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "ARCHIVE",
       entityType: "monthly_expense",
       entityId: data.id,
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 /**

@@ -30,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: "point_of_sale",
     minRole: "OPERATOR",
   },
+  { label: "Sync Center", href: "/sync-center", icon: "sync", minRole: "OPERATOR" },
   { label: "Dashboard", href: "/dashboard", icon: "dashboard", minRole: "PARTNER" },
   {
     label: "Monthly Summary",
@@ -51,6 +52,12 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: "Asset Register", href: "/assets", icon: "inventory_2", minRole: "PARTNER" },
   { label: "Partner Investment", href: "/investment", icon: "handshake", minRole: "PARTNER" },
+  {
+    label: "Income by Party",
+    href: "/party-income-report",
+    icon: "groups",
+    minRole: "PARTNER",
+  },
   { label: "Audit Log", href: "/audit-log", icon: "history", minRole: "PARTNER" },
   { label: "Users", href: "/users", icon: "manage_accounts", minRole: "ADMIN" },
 ];
