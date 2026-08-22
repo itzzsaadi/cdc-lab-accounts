@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { inter, materialSymbolsOutlined } from "../lib/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CDC Lab Accounts System",
   description: "Lab Accounts & Asset Management System — CDC Laboratories, Gujranwala.",
+};
+
+/** Matches the design system's own `--color-primary` (globals.css) and
+ * app/manifest.ts's theme_color — the PWA install/status-bar chrome uses
+ * the same teal as the rest of the app, never a default browser color. */
+export const viewport: Viewport = {
+  themeColor: "#005c55",
 };
 
 export default function RootLayout({
