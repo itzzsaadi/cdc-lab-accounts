@@ -410,3 +410,61 @@ Full design record: `docs/adr/0007-phase-5-calculations-dashboard-reports.md` §
   production build succeeds — all passing. No pre-existing test was
   weakened or removed; nav-item-count assertions updated for the one new
   "Income by Party" sidebar entry are the only earlier-phase test edits.
+
+### Phase 6 — Offline Operation and Synchronization
+
+Full design record: `docs/adr/0008-phase-6-offline-sync.md`; architecture note: `docs/offline-sync.md`.
+
+- **Unit** (`tests/unit/offline/{fingerprint,coalesce,backoff}.test.ts`):
+  the SHA-256-over-canonical-JSON fingerprint function (key-order
+  independence, `undefined`-handling matching `JSON.stringify`, digest
+  format, and that a different action/payload always changes the
+  digest); all five deterministic client-side coalescing rules (CREATE+
+  UPDATE merges preserving the original capture time; CREATE+ARCHIVE
+  discards both; UPDATE+UPDATE keeps the original `expectedUpdatedAt`;
+  UPDATE+ARCHIVE collapses to ARCHIVE keeping that same original version;
+  an undefined pair like CREATE+CREATE returns `null`, never guessed at)
+  and that a merge recomputes the fingerprint over the new payload;
+  backoff bounds (2s/4s/8s/16s/30s-capped exponential, full jitter down
+  to 0, the 5-attempt cap).
+- **Integration** (`tests/integration/sync/{upload,retention}.test.ts`,
+  real Postgres): a CREATE applying atomically (business row, one audit
+  row, one `sync_operations` receipt, all three or none); `capturedAt`/
+  `syncedAt` semantics (an offline-supplied `capturedAt` is preserved
+  verbatim, `syncedAt` lands within the actual server-processing window);
+  a retried identical `operationId`+payload replaying verbatim (no
+  second row, no second audit row, receipt count still 1); a reused
+  `operationId` carrying different content rejected as
+  `OPERATION_ID_REUSED` without touching the impostor's data; a genuine
+  stale write reported as `CONFLICT` with the real current row and
+  version, not a generic rejection; an operation the caller's role lacks
+  permission for rejected without aborting the rest of the same batch,
+  while a Partner successfully syncs a Monthly Expense; the retention
+  cleanup's exact 180-day boundary (older deleted, newer and
+  boundary-adjacent preserved) and its Admin-only gate.
+- **Playwright e2e** (`tests/e2e/offline-sync.spec.ts`, real Chromium
+  IndexedDB, `context.setOffline(true)` genuinely blocking network
+  requests at the browser level): a fresh account's Sync Center shows
+  "Nothing to sync"; an entry made while offline is queued, shown as
+  pending in the header without a reload, and syncs away automatically
+  once back online (the verified-reconnect path, no manual "Sync now"
+  needed); signing out with unsynced entries shows the heads-up
+  confirmation (never destructive-deletion wording) and "Stay signed
+  in" cancels cleanly; a different user signing in on the same browser
+  never sees the prior user's queue. Writing this suite against the real
+  app (not a mock) surfaced three genuine, non-test-only bugs — see
+  ADR-0008 §10 — all fixed before these tests were considered passing.
+- Updated pre-existing e2e assertions this phase legitimately changed
+  the meaning of: `shell.spec.ts`'s nav-link counts (a new, real Sync
+  Center entry) and its user-menu trigger locator (an explicit
+  `aria-label="Account menu"` now exists); `entries.spec.ts`'s
+  Phase-3B-era "no Pending Uploads/no Synced" safeguard, re-scoped to
+  the Home page's own content now that a real, global FR-OFF-03 header
+  indicator legitimately exists everywhere.
+- Full suite at Phase 6: **407 Vitest tests** across the pre-existing
+  suite plus the new offline unit/integration files, all passing;
+  `tests/e2e/offline-sync.spec.ts` (4/4) plus the updated `shell.spec.ts`
+  (9/9) and `entries.spec.ts` safeguard test, all passing. One
+  pre-existing, unrelated Daily Expense empty-state assertion is flaky
+  only under parallel Playwright workers (confirmed passing in
+  isolation) — not introduced by this phase.

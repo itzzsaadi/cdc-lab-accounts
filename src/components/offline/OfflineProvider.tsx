@@ -147,6 +147,21 @@ export function OfflineProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db]);
 
+  useEffect(() => {
+    // FR-OFF-10: warn before *any* action that would leave unsynced work
+    // behind, not just sign-out (UserMenu.tsx covers that one explicitly)
+    // — closing the tab/browser is the other real way to walk away from
+    // pending work. The browser supplies its own generic wording; this
+    // only controls whether that native prompt appears at all.
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (pendingCount + conflictCount + failedCount > 0) {
+        event.preventDefault();
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [pendingCount, conflictCount, failedCount]);
+
   const enqueue = useCallback(
     async (input: NewOperationInput) => {
       await enqueueOperation(db, input);
