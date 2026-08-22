@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { PrismaClient } from "../../../generated/prisma/client";
+import type { PrismaClient, Prisma } from "../../../generated/prisma/client";
 import { requirePermission, type AuthenticatedUser } from "../../lib/permissions/guard";
 import { appendBusinessAudit } from "../../lib/audit";
 import { isUniqueConstraintViolationOn } from "../../lib/prisma-errors";
@@ -33,6 +33,7 @@ export async function createCounterIncome(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreateResult> {
   const user = requirePermission(currentUser, "entry:counter-income");
 
@@ -41,8 +42,9 @@ export async function createCounterIncome(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const data = parsed.data;
+  const reader = tx ?? prisma;
 
-  const existing = await prisma.counterIncome.findUnique({
+  const existing = await reader.counterIncome.findUnique({
     where: { clientUuid: data.clientUuid },
   });
   if (existing) {
@@ -55,7 +57,7 @@ export async function createCounterIncome(
   }
 
   if (!data.confirmedDuplicate) {
-    const sameDay = await prisma.counterIncome.findFirst({
+    const sameDay = await reader.counterIncome.findFirst({
       where: { incomeDate, isArchived: false },
     });
     if (sameDay) {
@@ -64,33 +66,38 @@ export async function createCounterIncome(
   }
 
   const id = randomUUID();
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.counterIncome.create({
-        data: {
-          id,
-          clientUuid: data.clientUuid,
-          incomeDate,
-          amount: new Decimal(data.amount),
-          note: data.note,
-          capturedAt: new Date(),
-          createdBy: user.id,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-        },
-      });
-      await appendBusinessAudit(tx, {
-        actorUserId: user.id,
-        action: "CREATE",
-        entityType: "counter_income",
-        entityId: id,
-        newValues: { incomeDate: data.incomeDate, amount: data.amount },
-      });
+  const run = async (client: Prisma.TransactionClient) => {
+    await client.counterIncome.create({
+      data: {
+        id,
+        clientUuid: data.clientUuid,
+        incomeDate,
+        amount: new Decimal(data.amount),
+        note: data.note,
+        capturedAt: new Date(),
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
     });
+    await appendBusinessAudit(client, {
+      actorUserId: user.id,
+      action: "CREATE",
+      entityType: "counter_income",
+      entityId: id,
+      newValues: { incomeDate: data.incomeDate, amount: data.amount },
+    });
+  };
+  try {
+    if (tx) {
+      await run(tx);
+    } else {
+      await prisma.$transaction(run);
+    }
     return { ok: true, id, replayed: false };
   } catch (error) {
     if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
-      const winner = await prisma.counterIncome.findUniqueOrThrow({
+      const winner = await reader.counterIncome.findUniqueOrThrow({
         where: { clientUuid: data.clientUuid },
       });
       return { ok: true, id: winner.id, replayed: true };
@@ -103,6 +110,7 @@ export async function updateCounterIncome(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:counter-income");
 
@@ -112,9 +120,9 @@ export async function updateCounterIncome(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const before = await tx.counterIncome.findUnique({ where: { id: data.id } });
-    const result = await tx.counterIncome.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const before = await client.counterIncome.findUnique({ where: { id: data.id } });
+    const result = await client.counterIncome.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: {
         amount: new Decimal(data.amount),
@@ -126,7 +134,7 @@ export async function updateCounterIncome(
     if (result.count !== 1) {
       return { ok: false, error: "This entry was changed elsewhere. Reload it and try again." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "UPDATE",
       entityType: "counter_income",
@@ -135,13 +143,15 @@ export async function updateCounterIncome(
       newValues: { amount: data.amount },
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 export async function archiveCounterIncome(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:counter-income");
 
@@ -151,20 +161,21 @@ export async function archiveCounterIncome(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const result = await tx.counterIncome.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const result = await client.counterIncome.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { isArchived: true, updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This entry was already changed or archived elsewhere." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "ARCHIVE",
       entityType: "counter_income",
       entityId: data.id,
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }

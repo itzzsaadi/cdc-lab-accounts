@@ -169,6 +169,7 @@ model User {
   appSettingsAsPartnerB       AppSetting[]          @relation("AppSettingPartnerB")
   sessions                    Session[]
   accounts                    Account[]
+  syncOperations              SyncOperation[]       @relation("SyncOperationActor")
 
   @@map("users")
 }
@@ -488,4 +489,64 @@ model AppSetting {
   partnerB       User?    @relation("AppSettingPartnerB", fields: [partnerBUserId], references: [id], onDelete: Restrict)
 
   @@map("app_settings")
+}
+
+/// Phase 6 (offline sync, FR-OFF-01–14, DR-05, NFR-REL-05). One durable
+/// receipt per queued offline operation the sync-upload endpoint has ever
+/// accepted, applied, rejected, or found in conflict — this is what makes
+/// re-uploading a batch after a dropped connection safe: a retried
+/// `operationId` is looked up here FIRST; a match with an identical
+/// `requestFingerprint` replays `resultBody` verbatim without re-running the
+/// business mutation or writing a second audit row (see
+/// src/server/sync/apply.ts and docs/adr/0008-phase-6-offline-sync.md). A
+/// match with a *different* fingerprint is rejected as `OPERATION_ID_REUSED`
+/// — an operation id must never be reused for a different logical request.
+///
+/// `operationId` is the client-generated queue-operation id (never
+/// `clientUuid`, which identifies the underlying business record, not the
+/// operation) — see src/lib/offline/queue.ts. `requestFingerprint` is a
+/// SHA-256 hex digest (64 hex chars) of the canonical JSON operation body
+/// (CLAUDE.md Phase 6 mandatory decision #1). `resultBody` is the verbatim
+/// JSON response payload replayed on a retry.
+///
+/// Deliberately NOT covered by the physical-deletion-rejection triggers in
+/// migration.sql — like `sessions`/`account`/`verification` (Phase 2), this
+/// is infrastructure, not a business/financial record. Rows here are safe to
+/// delete only under the documented retention policy (see ADR-0008 §Receipt
+/// Retention and src/server/sync/retention.ts) — never a blind TTL, since a
+/// slow or still-offline client may legitimately retry against an old
+/// operationId for as long as its own queue entry survives.
+model SyncOperation {
+  operationId        String              @id @map("operation_id") @db.Uuid
+  actorUserId        String              @map("actor_user_id") @db.Uuid
+  actor              User                @relation("SyncOperationActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  entityType         String              @map("entity_type") @db.VarChar(60)
+  clientUuid         String              @map("client_uuid") @db.Uuid
+  action             SyncOperationAction
+  requestFingerprint String              @map("request_fingerprint") @db.VarChar(64)
+  status             SyncOperationStatus
+  resultBody         Json                @map("result_body") @db.JsonB
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([actorUserId])
+  @@index([entityType, clientUuid])
+  @@index([createdAt])
+  @@map("sync_operations")
+}
+
+enum SyncOperationAction {
+  CREATE
+  UPDATE
+  ARCHIVE
+
+  @@map("sync_operation_action")
+}
+
+enum SyncOperationStatus {
+  RECEIVED
+  APPLIED
+  CONFLICT
+  REJECTED
+
+  @@map("sync_operation_status")
 }

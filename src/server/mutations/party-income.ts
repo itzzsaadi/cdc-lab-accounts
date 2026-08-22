@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { PrismaClient } from "../../../generated/prisma/client";
+import type { PrismaClient, Prisma } from "../../../generated/prisma/client";
 import { requirePermission, type AuthenticatedUser } from "../../lib/permissions/guard";
 import { appendBusinessAudit } from "../../lib/audit";
 import { isUniqueConstraintViolationOn } from "../../lib/prisma-errors";
@@ -28,11 +28,19 @@ export type MutationResult = { ok: true } | { ok: false; error: string };
  * *different* `clientUuid` racing to fill the same party/day cell — is a
  * genuine conflict, reported as a normal error, never silently treated as
  * success.
+ *
+ * `tx`: optional caller-supplied transaction client (used by the sync
+ * engine, `src/server/sync/apply.ts`, so that the business write, the audit
+ * row, and the `sync_operations` receipt all commit in a single database
+ * transaction — CLAUDE.md mandatory decision #3). When omitted, this
+ * function opens its own transaction exactly as before; every existing
+ * online call site is unaffected.
  */
 export async function createDailyPartyIncomeCell(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreateResult> {
   const user = requirePermission(currentUser, "entry:party-income");
 
@@ -41,8 +49,9 @@ export async function createDailyPartyIncomeCell(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const data = parsed.data;
+  const reader = tx ?? prisma;
 
-  const existing = await prisma.partyIncome.findUnique({ where: { clientUuid: data.clientUuid } });
+  const existing = await reader.partyIncome.findUnique({ where: { clientUuid: data.clientUuid } });
   if (existing) {
     return { ok: true, id: existing.id, replayed: true };
   }
@@ -53,34 +62,39 @@ export async function createDailyPartyIncomeCell(
   }
 
   const id = randomUUID();
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.partyIncome.create({
-        data: {
-          id,
-          clientUuid: data.clientUuid,
-          partyId: data.partyId,
-          incomeDate,
-          amount: new Decimal(data.amount),
-          receiptType: "DAILY",
-          capturedAt: new Date(),
-          createdBy: user.id,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-        },
-      });
-      await appendBusinessAudit(tx, {
-        actorUserId: user.id,
-        action: "CREATE",
-        entityType: "party_income",
-        entityId: id,
-        newValues: { partyId: data.partyId, incomeDate: data.incomeDate, amount: data.amount },
-      });
+  const run = async (client: Prisma.TransactionClient) => {
+    await client.partyIncome.create({
+      data: {
+        id,
+        clientUuid: data.clientUuid,
+        partyId: data.partyId,
+        incomeDate,
+        amount: new Decimal(data.amount),
+        receiptType: "DAILY",
+        capturedAt: new Date(),
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
     });
+    await appendBusinessAudit(client, {
+      actorUserId: user.id,
+      action: "CREATE",
+      entityType: "party_income",
+      entityId: id,
+      newValues: { partyId: data.partyId, incomeDate: data.incomeDate, amount: data.amount },
+    });
+  };
+  try {
+    if (tx) {
+      await run(tx);
+    } else {
+      await prisma.$transaction(run);
+    }
     return { ok: true, id, replayed: false };
   } catch (error) {
     if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
-      const winner = await prisma.partyIncome.findUniqueOrThrow({
+      const winner = await reader.partyIncome.findUniqueOrThrow({
         where: { clientUuid: data.clientUuid },
       });
       return { ok: true, id: winner.id, replayed: true };
@@ -99,6 +113,7 @@ export async function updateDailyPartyIncomeCell(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:party-income");
 
@@ -108,16 +123,16 @@ export async function updateDailyPartyIncomeCell(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const before = await tx.partyIncome.findUnique({ where: { id: data.id } });
-    const result = await tx.partyIncome.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const before = await client.partyIncome.findUnique({ where: { id: data.id } });
+    const result = await client.partyIncome.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { amount: new Decimal(data.amount), updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This cell was changed elsewhere. Reload it and try again." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "UPDATE",
       entityType: "party_income",
@@ -126,7 +141,8 @@ export async function updateDailyPartyIncomeCell(
       newValues: { amount: data.amount },
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 /** Clearing a saved cell archives the row (CLAUDE.md §11) — party_income has no stored-zero representation (party_income_amount_positive is a strict CHECK > 0). */
@@ -134,6 +150,7 @@ export async function archivePartyIncome(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:party-income");
 
@@ -143,22 +160,23 @@ export async function archivePartyIncome(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const result = await tx.partyIncome.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const result = await client.partyIncome.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { isArchived: true, updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This cell was already changed elsewhere." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "ARCHIVE",
       entityType: "party_income",
       entityId: data.id,
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 /** FR-PINC-06: direct cash receipt — `receiptType: "CASH_DIRECT"`, never restricted by the grid's daily-cell unique index (scoped to `receiptType = 'DAILY'` only). Same client_uuid idempotency shape. */
@@ -166,6 +184,7 @@ export async function createCashReceipt(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreateResult> {
   const user = requirePermission(currentUser, "entry:cash-receipt");
 
@@ -174,8 +193,9 @@ export async function createCashReceipt(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const data = parsed.data;
+  const reader = tx ?? prisma;
 
-  const existing = await prisma.partyIncome.findUnique({ where: { clientUuid: data.clientUuid } });
+  const existing = await reader.partyIncome.findUnique({ where: { clientUuid: data.clientUuid } });
   if (existing) {
     return { ok: true, id: existing.id, replayed: true };
   }
@@ -186,40 +206,45 @@ export async function createCashReceipt(
   }
 
   const id = randomUUID();
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.partyIncome.create({
-        data: {
-          id,
-          clientUuid: data.clientUuid,
-          partyId: data.partyId,
-          incomeDate,
-          amount: new Decimal(data.amount),
-          receiptType: "CASH_DIRECT",
-          note: data.note,
-          capturedAt: new Date(),
-          createdBy: user.id,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-        },
-      });
-      await appendBusinessAudit(tx, {
-        actorUserId: user.id,
-        action: "CREATE",
-        entityType: "party_income",
-        entityId: id,
-        newValues: {
-          partyId: data.partyId,
-          incomeDate: data.incomeDate,
-          amount: data.amount,
-          receiptType: "CASH_DIRECT",
-        },
-      });
+  const run = async (client: Prisma.TransactionClient) => {
+    await client.partyIncome.create({
+      data: {
+        id,
+        clientUuid: data.clientUuid,
+        partyId: data.partyId,
+        incomeDate,
+        amount: new Decimal(data.amount),
+        receiptType: "CASH_DIRECT",
+        note: data.note,
+        capturedAt: new Date(),
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
     });
+    await appendBusinessAudit(client, {
+      actorUserId: user.id,
+      action: "CREATE",
+      entityType: "party_income",
+      entityId: id,
+      newValues: {
+        partyId: data.partyId,
+        incomeDate: data.incomeDate,
+        amount: data.amount,
+        receiptType: "CASH_DIRECT",
+      },
+    });
+  };
+  try {
+    if (tx) {
+      await run(tx);
+    } else {
+      await prisma.$transaction(run);
+    }
     return { ok: true, id, replayed: false };
   } catch (error) {
     if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
-      const winner = await prisma.partyIncome.findUniqueOrThrow({
+      const winner = await reader.partyIncome.findUniqueOrThrow({
         where: { clientUuid: data.clientUuid },
       });
       return { ok: true, id: winner.id, replayed: true };
@@ -244,6 +269,7 @@ export async function createMonthlyPartyBill(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreateResult> {
   const user = requirePermission(currentUser, "party-income:monthly-bill");
 
@@ -252,8 +278,9 @@ export async function createMonthlyPartyBill(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const data = parsed.data;
+  const reader = tx ?? prisma;
 
-  const existing = await prisma.partyIncome.findUnique({ where: { clientUuid: data.clientUuid } });
+  const existing = await reader.partyIncome.findUnique({ where: { clientUuid: data.clientUuid } });
   if (existing) {
     return { ok: true, id: existing.id, replayed: true };
   }
@@ -264,39 +291,44 @@ export async function createMonthlyPartyBill(
   }
 
   const id = randomUUID();
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.partyIncome.create({
-        data: {
-          id,
-          clientUuid: data.clientUuid,
-          partyId: data.partyId,
-          incomeDate,
-          amount: new Decimal(data.amount),
-          receiptType: "MONTHLY",
-          capturedAt: new Date(),
-          createdBy: user.id,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-        },
-      });
-      await appendBusinessAudit(tx, {
-        actorUserId: user.id,
-        action: "CREATE",
-        entityType: "party_income",
-        entityId: id,
-        newValues: {
-          partyId: data.partyId,
-          periodMonth: data.periodMonth,
-          amount: data.amount,
-          receiptType: "MONTHLY",
-        },
-      });
+  const run = async (client: Prisma.TransactionClient) => {
+    await client.partyIncome.create({
+      data: {
+        id,
+        clientUuid: data.clientUuid,
+        partyId: data.partyId,
+        incomeDate,
+        amount: new Decimal(data.amount),
+        receiptType: "MONTHLY",
+        capturedAt: new Date(),
+        createdBy: user.id,
+        updatedBy: user.id,
+        updatedAt: new Date(),
+      },
     });
+    await appendBusinessAudit(client, {
+      actorUserId: user.id,
+      action: "CREATE",
+      entityType: "party_income",
+      entityId: id,
+      newValues: {
+        partyId: data.partyId,
+        periodMonth: data.periodMonth,
+        amount: data.amount,
+        receiptType: "MONTHLY",
+      },
+    });
+  };
+  try {
+    if (tx) {
+      await run(tx);
+    } else {
+      await prisma.$transaction(run);
+    }
     return { ok: true, id, replayed: false };
   } catch (error) {
     if (isUniqueConstraintViolationOn(error, ["client_uuid"])) {
-      const winner = await prisma.partyIncome.findUniqueOrThrow({
+      const winner = await reader.partyIncome.findUniqueOrThrow({
         where: { clientUuid: data.clientUuid },
       });
       return { ok: true, id: winner.id, replayed: true };
@@ -316,6 +348,7 @@ export async function updateMonthlyPartyBill(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "party-income:monthly-bill");
 
@@ -325,16 +358,16 @@ export async function updateMonthlyPartyBill(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const before = await tx.partyIncome.findUnique({ where: { id: data.id } });
-    const result = await tx.partyIncome.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const before = await client.partyIncome.findUnique({ where: { id: data.id } });
+    const result = await client.partyIncome.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { amount: new Decimal(data.amount), updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This bill was changed elsewhere. Reload it and try again." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "UPDATE",
       entityType: "party_income",
@@ -343,13 +376,15 @@ export async function updateMonthlyPartyBill(
       newValues: { amount: data.amount },
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 export async function archiveMonthlyPartyBill(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "party-income:monthly-bill");
 
@@ -359,20 +394,21 @@ export async function archiveMonthlyPartyBill(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const result = await tx.partyIncome.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const result = await client.partyIncome.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { isArchived: true, updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This bill was already changed or archived elsewhere." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "ARCHIVE",
       entityType: "party_income",
       entityId: data.id,
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }

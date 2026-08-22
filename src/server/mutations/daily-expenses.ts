@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { PrismaClient } from "../../../generated/prisma/client";
+import type { PrismaClient, Prisma } from "../../../generated/prisma/client";
 import { requirePermission, type AuthenticatedUser } from "../../lib/permissions/guard";
 import { appendBusinessAudit } from "../../lib/audit";
 import { isUniqueConstraintViolationOn } from "../../lib/prisma-errors";
@@ -116,6 +116,7 @@ export async function updateDailyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:daily-expense");
 
@@ -129,9 +130,9 @@ export async function updateDailyExpense(
     return { ok: false, error: "Invalid date." };
   }
 
-  return prisma.$transaction(async (tx) => {
-    const before = await tx.dailyExpense.findUnique({ where: { id: data.id } });
-    const result = await tx.dailyExpense.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const before = await client.dailyExpense.findUnique({ where: { id: data.id } });
+    const result = await client.dailyExpense.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: {
         expenseDate,
@@ -150,7 +151,7 @@ export async function updateDailyExpense(
         error: "This entry was changed or archived by someone else. Reload it and try again.",
       };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "UPDATE",
       entityType: "daily_expense",
@@ -169,13 +170,15 @@ export async function updateDailyExpense(
       },
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 export async function archiveDailyExpense(
   prisma: PrismaClient,
   currentUser: AuthenticatedUser | null,
   input: unknown,
+  tx?: Prisma.TransactionClient,
 ): Promise<MutationResult> {
   const user = requirePermission(currentUser, "entry:daily-expense");
 
@@ -185,20 +188,21 @@ export async function archiveDailyExpense(
   }
   const data = parsed.data;
 
-  return prisma.$transaction(async (tx) => {
-    const result = await tx.dailyExpense.updateMany({
+  const run = async (client: Prisma.TransactionClient): Promise<MutationResult> => {
+    const result = await client.dailyExpense.updateMany({
       where: { id: data.id, updatedAt: new Date(data.expectedUpdatedAt), isArchived: false },
       data: { isArchived: true, updatedBy: user.id, updatedAt: new Date() },
     });
     if (result.count !== 1) {
       return { ok: false, error: "This entry was already changed or archived by someone else." };
     }
-    await appendBusinessAudit(tx, {
+    await appendBusinessAudit(client, {
       actorUserId: user.id,
       action: "ARCHIVE",
       entityType: "daily_expense",
       entityId: data.id,
     });
     return { ok: true };
-  });
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
