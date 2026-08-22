@@ -38,9 +38,7 @@ function isStaticAsset(pathname) {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll([OFFLINE_URL])),
-  );
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll([OFFLINE_URL])));
   self.skipWaiting();
 });
 

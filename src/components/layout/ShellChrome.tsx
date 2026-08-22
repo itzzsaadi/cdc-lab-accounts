@@ -73,7 +73,11 @@ export function ShellChrome({
         </dialog>
 
         <div className="flex min-h-screen flex-col md:ml-sidebar-width">
-          <Header fullName={fullName} roleLabel={roleLabel} onMenuClick={() => setDrawerOpen(true)} />
+          <Header
+            fullName={fullName}
+            roleLabel={roleLabel}
+            onMenuClick={() => setDrawerOpen(true)}
+          />
           <main
             id="main-content"
             className="max-w-[1440px] flex-1 p-gutter md:p-container-margin w-full mx-auto"

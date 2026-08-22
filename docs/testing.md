@@ -464,7 +464,9 @@ Full design record: `docs/adr/0008-phase-6-offline-sync.md`; architecture note: 
 - Full suite at Phase 6: **407 Vitest tests** across the pre-existing
   suite plus the new offline unit/integration files, all passing;
   `tests/e2e/offline-sync.spec.ts` (4/4) plus the updated `shell.spec.ts`
-  (9/9) and `entries.spec.ts` safeguard test, all passing. One
-  pre-existing, unrelated Daily Expense empty-state assertion is flaky
-  only under parallel Playwright workers (confirmed passing in
-  isolation) — not introduced by this phase.
+  (9/9) and `entries.spec.ts` safeguard test, all passing. Two
+  pre-existing, unrelated Daily Expense assertions (the empty-state test,
+  and the filters/Reset-Filters test) are flaky only under parallel
+  Playwright workers against the shared dev database — both confirmed
+  passing in isolation (`--workers=1`) — not introduced by this phase and
+  not touching any offline/sync code path.

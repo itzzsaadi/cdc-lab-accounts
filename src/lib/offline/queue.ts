@@ -65,10 +65,7 @@ export async function listOperationsDueForSync(
   db: OfflineDatabase,
   now: number = Date.now(),
 ): Promise<QueuedOperation[]> {
-  const rows = await db.operations
-    .where("status")
-    .anyOf(["QUEUED", "FAILED"])
-    .toArray();
+  const rows = await db.operations.where("status").anyOf(["QUEUED", "FAILED"]).toArray();
   return rows.filter((op) => op.nextAttemptAt <= now).sort((a, b) => a.createdAt - b.createdAt);
 }
 
@@ -96,7 +93,12 @@ export async function markFailed(
   const attempts = op.attempts + 1;
   const status = attempts >= MAX_AUTOMATIC_ATTEMPTS ? "FAILED" : "QUEUED";
   const nextAttemptAt = Date.now() + computeBackoffDelayMs(attempts);
-  await db.operations.update(operationId, { status, attempts, nextAttemptAt, lastError: errorMessage });
+  await db.operations.update(operationId, {
+    status,
+    attempts,
+    nextAttemptAt,
+    lastError: errorMessage,
+  });
 }
 
 /** A genuine version conflict (server returned `{status:"CONFLICT"}`) —
@@ -156,5 +158,9 @@ export async function resolveConflictKeepServer(
 /** Manual retry from the Sync Center for a "FAILED" operation — resets the
  * attempt counter so the automatic-retry budget starts fresh. */
 export async function retryNow(db: OfflineDatabase, operationId: string): Promise<void> {
-  await db.operations.update(operationId, { status: "QUEUED", attempts: 0, nextAttemptAt: Date.now() });
+  await db.operations.update(operationId, {
+    status: "QUEUED",
+    attempts: 0,
+    nextAttemptAt: Date.now(),
+  });
 }

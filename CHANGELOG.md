@@ -10,11 +10,11 @@ All notable changes to this project are documented here.
   Expenses, Monthly Expenses, Party Income — daily grid cells, direct
   cash receipts, and monthly party bills — and Counter Income): a
   Dexie-backed per-user IndexedDB queue (`src/lib/offline/{db,queue,
-  coalesce,backoff,fingerprint,types}.ts`) with five deterministic
+coalesce,backoff,fingerprint,types}.ts`) with five deterministic
   client-side coalescing rules, capped-exponential-jitter backoff, and
   SHA-256-over-canonical-JSON operation fingerprints.
 - `sync_operations` table (migration `20260822070612_phase6_offline_
-  sync`) — durable per-operation receipts keyed by a client-generated
+sync`) — durable per-operation receipts keyed by a client-generated
   `operationId`: a genuine retry replays its stored result verbatim; a
   reused `operationId` carrying different content is rejected as
   `OPERATION_ID_REUSED`. `synced_at` backfilled for pre-existing rows
@@ -50,7 +50,7 @@ All notable changes to this project are documented here.
   startup/focus/visibilitychange/`online` listeners are the dependable
   sync trigger.
 - `src/components/offline/{OfflineProvider,SyncStatusIndicator,
-  SyncCenter}.tsx`: the one place queue/connection state lives, the
+SyncCenter}.tsx`: the one place queue/connection state lives, the
   FR-OFF-03 header indicator (now consistent on every screen), and the
   Sync Center (`/sync-center`) — a re-implementation of the approved
   Stitch queue-list + Local/Server split-comparison layout with real

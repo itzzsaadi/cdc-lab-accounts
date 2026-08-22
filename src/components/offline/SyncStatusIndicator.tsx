@@ -69,7 +69,10 @@ export function SyncStatusIndicator() {
   }
 
   return (
-    <span className="text-on-surface-variant flex items-center gap-1 text-xs" title="All entries synced">
+    <span
+      className="text-on-surface-variant flex items-center gap-1 text-xs"
+      title="All entries synced"
+    >
       <span className="material-symbols-outlined text-[16px]" aria-hidden>
         cloud_done
       </span>

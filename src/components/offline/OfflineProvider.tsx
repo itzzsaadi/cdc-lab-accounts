@@ -87,8 +87,9 @@ export function OfflineProvider({
   const syncingRef = useRef(false);
 
   const operations = useLiveQuery(() => db.operations.orderBy("createdAt").toArray(), [db], []);
-  const pendingCount = operations.filter((op) => op.status === "QUEUED" || op.status === "SYNCING")
-    .length;
+  const pendingCount = operations.filter(
+    (op) => op.status === "QUEUED" || op.status === "SYNCING",
+  ).length;
   const conflictCount = operations.filter((op) => op.status === "CONFLICT").length;
   const failedCount = operations.filter((op) => op.status === "FAILED").length;
 

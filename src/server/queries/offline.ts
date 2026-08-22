@@ -6,7 +6,13 @@ import { listActivePartiesForCashReceipt } from "./party-income";
 import { listActivePartners } from "./capital-contributions";
 
 export interface OfflineReferenceSnapshot {
-  parties: { id: string; name: string; billingMode: string; isActive: boolean; sortOrder: number }[];
+  parties: {
+    id: string;
+    name: string;
+    billingMode: string;
+    isActive: boolean;
+    sortOrder: number;
+  }[];
   partnerUsers: { id: string; fullName: string }[];
   expenseItems: { id: string; name: string; isActive: boolean }[];
   expenseCategories: {

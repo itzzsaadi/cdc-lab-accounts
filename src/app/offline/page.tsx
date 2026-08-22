@@ -19,9 +19,8 @@ export default function OfflinePage() {
       <Card className="max-w-md p-8 text-center">
         <h1 className="text-on-surface text-2xl font-semibold">You&rsquo;re offline</h1>
         <p className="text-on-surface-variant mt-2 text-sm">
-          This page couldn&rsquo;t be reached without a connection. Any entries you&rsquo;ve
-          already made are saved on this device and will sync automatically once you&rsquo;re
-          back online.
+          This page couldn&rsquo;t be reached without a connection. Any entries you&rsquo;ve already
+          made are saved on this device and will sync automatically once you&rsquo;re back online.
         </p>
         <p className="text-on-surface-variant mt-4 text-xs">
           Reconnect and reopen the app to continue.

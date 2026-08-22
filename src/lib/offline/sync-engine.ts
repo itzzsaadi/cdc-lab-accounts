@@ -123,7 +123,11 @@ export async function runSync(db: OfflineDatabase): Promise<SyncRunSummary> {
  * substitute for a live query when online. */
 async function recordRecentRecord(
   db: OfflineDatabase,
-  op: { operationId: string; entityType: RecentRecord["entityType"]; payload: Record<string, unknown> },
+  op: {
+    operationId: string;
+    entityType: RecentRecord["entityType"];
+    payload: Record<string, unknown>;
+  },
 ): Promise<void> {
   await db.recentRecords.put({
     id: op.operationId,

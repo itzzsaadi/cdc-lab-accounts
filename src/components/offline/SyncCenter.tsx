@@ -41,20 +41,13 @@ function summaryLine(op: QueuedOperation): string {
  * docs/UI_REQUIREMENTS.md §25 decision 2c.
  */
 export function SyncCenter() {
-  const {
-    operations,
-    isSyncing,
-    triggerSyncNow,
-    resolveKeepLocal,
-    resolveKeepServer,
-    retry,
-  } = useOfflineSync();
+  const { operations, isSyncing, triggerSyncNow, resolveKeepLocal, resolveKeepServer, retry } =
+    useOfflineSync();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const conflicted = operations.filter((op) => op.status === "CONFLICT");
   const others = operations.filter((op) => op.status !== "CONFLICT");
-  const selected =
-    operations.find((op) => op.operationId === selectedId) ?? conflicted[0] ?? null;
+  const selected = operations.find((op) => op.operationId === selectedId) ?? conflicted[0] ?? null;
 
   if (operations.length === 0) {
     return (
@@ -75,7 +68,12 @@ export function SyncCenter() {
             <span className="text-on-surface-variant bg-surface-container rounded-md px-2 py-1 text-xs">
               {operations.length} {operations.length === 1 ? "item" : "items"}
             </span>
-            <Button variant="secondary" className="h-8 px-3 text-xs" onClick={triggerSyncNow} disabled={isSyncing}>
+            <Button
+              variant="secondary"
+              className="h-8 px-3 text-xs"
+              onClick={triggerSyncNow}
+              disabled={isSyncing}
+            >
               {isSyncing ? "Syncing…" : "Sync now"}
             </Button>
           </div>
@@ -108,9 +106,7 @@ export function SyncCenter() {
                 </span>
               </div>
               <span className="text-on-surface-variant text-xs">{summaryLine(op)}</span>
-              {op.lastError ? (
-                <span className="text-error text-xs">{op.lastError}</span>
-              ) : null}
+              {op.lastError ? <span className="text-error text-xs">{op.lastError}</span> : null}
             </button>
           ))}
         </div>
@@ -120,7 +116,10 @@ export function SyncCenter() {
       <div className="border-outline-variant bg-surface flex flex-col overflow-hidden rounded-xl border lg:col-span-8">
         {!selected ? (
           <div className="flex flex-1 items-center justify-center p-8">
-            <EmptyState title="Select an item" description="Choose an item from the queue to see its details." />
+            <EmptyState
+              title="Select an item"
+              description="Choose an item from the queue to see its details."
+            />
           </div>
         ) : selected.status === "CONFLICT" && selected.conflict ? (
           <>
@@ -153,7 +152,9 @@ export function SyncCenter() {
               <Button variant="secondary" onClick={() => resolveKeepServer(selected.operationId)}>
                 Keep Server Version
               </Button>
-              <Button onClick={() => resolveKeepLocal(selected.operationId)}>Keep Local Version</Button>
+              <Button onClick={() => resolveKeepLocal(selected.operationId)}>
+                Keep Local Version
+              </Button>
             </div>
           </>
         ) : (

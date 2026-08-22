@@ -25,15 +25,15 @@ by construction (nothing caches them).
   changes. A different user signing in on the same device always gets a
   fresh, separate database.
 - **`types.ts`** — `QueuedOperation`: `operationId` (client-generated UUID,
-  the Dexie primary key) identifies the *operation*; `clientUuid` identifies
-  the underlying *record*. A `[entityType+clientUuid]` compound index finds
+  the Dexie primary key) identifies the _operation_; `clientUuid` identifies
+  the underlying _record_. A `[entityType+clientUuid]` compound index finds
   every operation queued against one logical record.
 - **`coalesce.ts`** — five deterministic rules, applied only while an
   operation is still queued and has never reached the wire:
   1. CREATE + later UPDATE(s) → one CREATE with the latest values, original
      capture time preserved.
   2. CREATE + later ARCHIVE → both discarded; nothing is ever sent.
-  3. UPDATE + later UPDATE → one UPDATE, keeping the *original*
+  3. UPDATE + later UPDATE → one UPDATE, keeping the _original_
      `expectedUpdatedAt`.
   4. UPDATE + later ARCHIVE → collapses to ARCHIVE alone, original
      `expectedUpdatedAt` kept.
@@ -112,7 +112,7 @@ error) is shown exactly as it would be online.
   `operationId` first — not found → run the mutation, its audit row, and
   the new receipt together; found with a matching fingerprint → replay
   `result_body` verbatim, never re-running the mutation or a second audit
-  write; found with a *different* fingerprint → reject as
+  write; found with a _different_ fingerprint → reject as
   `OPERATION_ID_REUSED`. Every mutation function
   (`src/server/mutations/*.ts`) accepts an optional trailing
   `tx?: Prisma.TransactionClient`, defaulting to opening its own
@@ -167,12 +167,12 @@ every real sync attempt.
 The sidebar uses `next/link`'s `<Link>` for client-side navigation (fixed
 during Phase 6 — it previously used a plain `<a>`, which forced a full page
 reload on every in-app navigation and made offline navigation impossible).
-Client-side navigation to an *already-visited/prefetched* page works fine
+Client-side navigation to an _already-visited/prefetched_ page works fine
 offline; navigating to a not-yet-prefetched dynamic route while genuinely
 offline cannot complete, because its React Server Component payload
 requires a live request — an inherent Next.js App Router constraint, not
 something Phase 6 works around. This does not affect FR-OFF's actual scope
-(offline *data entry*, not full offline app navigation): the page a user is
+(offline _data entry_, not full offline app navigation): the page a user is
 already on keeps working, and the queue survives regardless of navigation.
 
 ## Remaining limitations (disclosed, not silently dropped)

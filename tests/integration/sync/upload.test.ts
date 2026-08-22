@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { getTestPrismaClient, resetDatabase } from "../helpers/test-db";
-import { createTestUser, createTestExpenseItem, createTestExpenseCategory } from "../helpers/fixtures";
+import {
+  createTestUser,
+  createTestExpenseItem,
+  createTestExpenseCategory,
+} from "../helpers/fixtures";
 import { processSyncBatch } from "../../../src/server/sync/upload";
 import type { IncomingSyncOperation } from "../../../src/server/sync/apply";
 
@@ -19,7 +23,9 @@ async function partnerUser() {
   return createTestUser({ role: "PARTNER", isPartner: true });
 }
 
-function createDailyExpenseOp(overrides: Partial<IncomingSyncOperation> = {}): IncomingSyncOperation {
+function createDailyExpenseOp(
+  overrides: Partial<IncomingSyncOperation> = {},
+): IncomingSyncOperation {
   return {
     operationId: randomUUID(),
     entityType: "daily_expense",

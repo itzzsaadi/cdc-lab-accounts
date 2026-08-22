@@ -105,8 +105,8 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
       >
         <p className="text-on-surface-variant text-sm">
           {unsyncedCount} {unsyncedCount === 1 ? "entry hasn't" : "entries haven't"} finished
-          syncing to the server yet. They&rsquo;re saved on this device and will try again the
-          next time you sign in here — nothing will be deleted.
+          syncing to the server yet. They&rsquo;re saved on this device and will try again the next
+          time you sign in here — nothing will be deleted.
         </p>
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setConfirmOpen(false)} disabled={isPending}>

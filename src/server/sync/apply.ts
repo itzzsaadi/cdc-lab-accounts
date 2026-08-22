@@ -214,15 +214,23 @@ async function fetchCurrentRow(
 ): Promise<CurrentRowShape | null> {
   switch (entityType) {
     case "daily_expense":
-      return tx.dailyExpense.findUnique({ where: { id } }) as unknown as Promise<CurrentRowShape | null>;
+      return tx.dailyExpense.findUnique({
+        where: { id },
+      }) as unknown as Promise<CurrentRowShape | null>;
     case "monthly_expense":
-      return tx.monthlyExpense.findUnique({ where: { id } }) as unknown as Promise<CurrentRowShape | null>;
+      return tx.monthlyExpense.findUnique({
+        where: { id },
+      }) as unknown as Promise<CurrentRowShape | null>;
     case "counter_income":
-      return tx.counterIncome.findUnique({ where: { id } }) as unknown as Promise<CurrentRowShape | null>;
+      return tx.counterIncome.findUnique({
+        where: { id },
+      }) as unknown as Promise<CurrentRowShape | null>;
     case "party_income_daily":
     case "party_income_cash_receipt":
     case "party_income_monthly_bill":
-      return tx.partyIncome.findUnique({ where: { id } }) as unknown as Promise<CurrentRowShape | null>;
+      return tx.partyIncome.findUnique({
+        where: { id },
+      }) as unknown as Promise<CurrentRowShape | null>;
   }
 }
 
