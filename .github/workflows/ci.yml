@@ -81,6 +81,14 @@ jobs:
       - name: Apply migrations (test database)
         run: DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy
 
+      - name: Clean-database migration and seed rehearsal
+        # Proves every migration applies from zero, not just as a no-op
+        # against an already-migrated database — the path a first
+        # production deploy actually takes. Creates and drops its own
+        # uniquely named temporary database; never touches the CI
+        # dev/test databases above.
+        run: npm run rehearse:migrations
+
       - name: Verify no migration drift
         run: npx prisma migrate status
 
@@ -107,8 +115,24 @@ jobs:
       - name: Unit, integration, and constraint tests
         run: npm run test
 
+      - name: Dependency audit (production dependencies)
+        # Advisories are assessed, never blanket-upgraded — see
+        # docs/security-review.md for the reachability analysis behind each
+        # currently-accepted finding. `|| true` keeps a newly published
+        # advisory from blocking an unrelated change; the report is read.
+        run: npm audit --omit=dev || true
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: End-to-end tests
+      - name: End-to-end tests (Chromium — full suite)
         run: npm run test:e2e
+
+      - name: Install Firefox and WebKit for the cross-engine smoke
+        run: npx playwright install --with-deps firefox webkit
+
+      - name: Cross-engine compatibility smoke (NFR-CMP-01)
+        # A small subset only (tests/e2e/compatibility-smoke.spec.ts) — see
+        # playwright.config.ts. This does NOT satisfy NFR-CMP-02, which
+        # needs real Android/iOS hardware.
+        run: npx playwright test --project=firefox --project=webkit --project=mobile-chrome

@@ -16,6 +16,7 @@ import { Alert } from "../../../../components/ui/Alert";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { TrendChart } from "../../../../components/dashboard/TrendChart";
 import { ProvisionalNotice } from "../../../../components/offline/ProvisionalNotice";
+import { PendingUploadTile } from "../../../../components/dashboard/PendingUploadTile";
 import { ProvisionalTotalsWrapper } from "../../../../components/offline/ProvisionalTotalsWrapper";
 
 /** FR-DASH-01 to 05 / FR-WARN-01/02/04 — current-vs-previous-month tiles, a plain SVG trend chart, and a warnings panel. Every figure is a real aggregate from `/lib/domain`-backed queries, never a placeholder value (CLAUDE.md §12 — nothing here is a stored/cached total). */
@@ -59,6 +60,9 @@ export default async function PartnerDashboardPage() {
       <div className="mb-6">
         <ProvisionalNotice from={currentMonthBounds.firstDay} to={currentMonthBounds.lastDay} />
       </div>
+
+      {/* FR-RPT-02's pending-upload count — renders nothing when the queue is empty. */}
+      <PendingUploadTile />
 
       <ProvisionalTotalsWrapper from={currentMonthBounds.firstDay} to={currentMonthBounds.lastDay}>
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

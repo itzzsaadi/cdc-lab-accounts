@@ -33,11 +33,28 @@ export async function commitImport(
 ): Promise<ImportCommitResult> {
   const user = requirePermission(currentUser, "historical-import:run");
 
+  // Phase 8A (approved decision 4): the claim is scoped to `createdBy`, so
+  // one Admin can never claim a session another Admin uploaded. Being an
+  // Admin is not the same as owning this particular upload — without this
+  // clause, knowing (or guessing) a session id was enough to commit
+  // someone else's workbook under your own name, and the audit rows would
+  // then credit the wrong actor. Enforced in the same conditional
+  // `updateMany` as the status/expiry test so ownership is checked
+  // atomically with the claim, never as a separate readable-then-stale
+  // lookup.
   const claim = await prisma.importSession.updateMany({
-    where: { id: importSessionId, status: "PENDING", expiresAt: { gt: new Date() } },
+    where: {
+      id: importSessionId,
+      createdBy: user.id,
+      status: "PENDING",
+      expiresAt: { gt: new Date() },
+    },
     data: { status: "CLAIMED", claimedAt: new Date() },
   });
   if (claim.count !== 1) {
+    // Deliberately one message for every rejection — wrong owner, already
+    // claimed, expired, or nonexistent. Distinguishing them would tell a
+    // caller whether a session id they do not own exists.
     return {
       ok: false,
       error: "This import session is no longer valid (already used or expired).",

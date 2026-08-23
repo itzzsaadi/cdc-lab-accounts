@@ -65,6 +65,7 @@ export function PartyIncomeGrid({ grid }: { grid: PartyIncomeGridData }) {
                       <GridCellInput
                         key={`${cell?.id ?? "empty"}-${cell?.updatedAt ?? ""}`}
                         partyId={party.id}
+                        partyName={party.name}
                         day={day}
                         initialRecord={cell}
                         readOnly={!party.isActive}

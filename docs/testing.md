@@ -639,3 +639,123 @@ not inferred from the code alone.
 prisma format`, `npx prisma migrate status` (both databases), and `npm
 run build` all passed cleanly on the final code state. No pre-existing
   test was weakened, removed, or skipped.
+
+#### Phase 8A — internal acceptance and release hardening
+
+Phase 8 is split: **8A** (this section) closes what does not need a
+deployed environment; **8B** — deployment, backup/restore rehearsal,
+real-device verification, client UAT — is not started.
+
+- **Unit** (`tests/unit/rate-limit.test.ts`): the fixed-window limiter
+  allows up to the limit and refuses the next; keys independently so one
+  user's exhausted window never throttles another; reopens after the
+  window; never reports `Retry-After: 0` while still refusing; and is
+  proven cleanup-aware behaviourally — 500 distinct keys are all back to a
+  fresh window after expiry, rather than the test reading private state.
+- **Integration — exhaustive authorization**
+  (`tests/integration/authorization/full-surface-sweep.test.ts` +
+  `protected-surface.ts`): all **58** guarded server functions listed in an
+  explicit registry and genuinely **called** with every role, plus
+  unauthenticated and deactivated callers. Asserts both directions — a
+  wrong allowance is a security hole, a wrong denial is a broken feature,
+  and they fail with different messages. Also proves the permission gate
+  runs _before_ validation (a reordering would leak input-shape errors to
+  a denied caller), checks every permission key in the matrix is covered
+  or explicitly listed as Server-Action-enforced, and drift-checks
+  `requirePermission` call sites per file against registry entries so a
+  new guarded function cannot be added without being listed.
+- **Integration — acceptance**
+  (`tests/integration/acceptance/change-history-acceptance.test.ts`):
+  AC-11 end to end — CREATE/UPDATE/ARCHIVE for one record read back
+  through the Change History screen's own query in order; an offline entry
+  proven to record a device `capturedAt` genuinely earlier than its
+  server `syncedAt` (closing FR-AUD-08 at acceptance level); and the list
+  filtered by record type.
+- **Integration — performance**
+  (`tests/integration/performance/phase8-performance.test.ts`):
+  NFR-PERF-06 extended from Phase 5's two result/report queries to every
+  list and grid screen against a three-year dataset (~10,000 business rows
+  plus 5,000 audit rows), and NFR-PERF-07 driven through the real
+  `processSyncBatch` in the client's own 50-per-batch chunks.
+  **NFR-PERF-01/02/03 are deliberately not asserted** — they are
+  browser-timing budgets and Playwright runs against `next dev`, where
+  first-hit Turbopack compilation dominates any measurement. They need a
+  production build served by `next start` and are carried to Phase 8B
+  rather than recorded as a number that would not mean what it appears to.
+- **Integration — import ownership** (added to
+  `import-pipeline.test.ts`): one Admin cannot claim another Admin's
+  import session; the refusal writes nothing, and — importantly — leaves
+  the session still `PENDING` and usable by its real owner, so a probe
+  cannot be used to deny service either.
+- **Playwright — security headers** (`tests/e2e/security-headers.spec.ts`):
+  the non-CSP header set on every response; HSTS proven **absent** over
+  local HTTP (production-only, never preloaded); the CSP proven
+  nonce-based with no `'unsafe-inline'` in `script-src`; a fresh nonce per
+  response; and the two static offline pages' documented exception bounded
+  (no wildcard, no `unsafe-eval`). Then the real proof: every screen for
+  every role loaded in a browser under the **enforced** policy, failing on
+  any violation. The one known limitation — Next.js serves the
+  unmatched-route 404 outside the nonce path — is **asserted**, not
+  skipped, so the test fails and the note can be deleted the day Next.js
+  fixes it.
+- **Playwright — authorization sweep**
+  (`tests/e2e/authorization-sweep.spec.ts`): every API route handler and
+  every page route, for anonymous/Operator/Partner, over real HTTP with
+  real session cookies. Denied responses additionally asserted to contain
+  none of the restricted field names, and a denied export asserted to
+  return no PDF or xlsx bytes (FR-RPT-09). Also asserts the positive
+  direction — every role reaches everything at or below its level — since
+  a denial-only sweep would pass with the whole system locked.
+- **Playwright — accessibility** (`tests/e2e/accessibility.spec.ts`,
+  `@axe-core/playwright@4.13.0`): zero **serious or critical** WCAG 2.1
+  A/AA violations across unauthenticated, Operator, Partner, and
+  Administration screens. The SRS sets no conformance level, so none is
+  claimed; moderate/minor findings are reviewed by hand rather than fixed
+  reflexively. Plus modal focus-trap/Escape/focus-return, and no
+  horizontal page scroll at 375/768/1440 on the data screens (NFR-USE-07).
+- **Playwright — cross-engine smoke**
+  (`tests/e2e/compatibility-smoke.spec.ts`): runs under `firefox`,
+  `webkit`, and `mobile-chrome` projects as well as Chromium, covering
+  only what differs between engines — load, authentication, one real form
+  submission, the SVG chart, layout, and the self-hosted fonts. A
+  deliberate subset, not the full suite. **This does not satisfy
+  NFR-CMP-02**: Playwright's WebKit is not Safari on iOS and a device
+  descriptor is a viewport plus user-agent, not a device. Real-hardware
+  verification is Phase 8B.
+- **Clean-database rehearsal** (`npm run rehearse:migrations`, now in CI):
+  creates a uniquely named temporary database, applies all 7 migrations
+  from zero, seeds, asserts the Appendix A counts (26 parties, 22 items,
+  15 admin + 9 purchasing categories, 9 vendors, 0 users, 0 transactions),
+  and drops it. It never touches the dev or test databases. This exists
+  because `migrate deploy` against an already-migrated database is a
+  no-op, so a migration that only works against existing state — and the
+  later ones contain preflight `RAISE EXCEPTION` blocks and backfills that
+  read prior state — could pass daily and fail on the first production
+  deploy.
+- **Phase 8A Playwright status — six new tests fail and are NOT fixed.**
+  Disclosed rather than skipped, weakened, or deleted. Every pre-existing
+  spec still passes (42 passed before the run was stopped); all six
+  failures are in the two specs added this phase:
+  - `accessibility.spec.ts` — serious/critical axe violations on the
+    authenticated Operator, Partner, and Administration screens. The
+    unauthenticated screens (`/sign-in`, `/forgot-password`,
+    `/offline-entry`) pass, which points at the shared authenticated
+    shell rather than at any one screen. **These are real findings, not
+    test defects** — that is what the suite was added to surface.
+  - `accessibility.spec.ts` — horizontal page scroll at one or more of
+    375/768/1440 on the data screens. Phase 3A proved the shell alone is
+    clean at 375px; this is the first check against real data tables and
+    the income grid, so it is likely genuine (NFR-USE-07).
+  - `compatibility-smoke.spec.ts` — two failures whose cause is not yet
+    established; the post-sign-in `heading level 1` and Add-Expense
+    locators may not match this app's real markup, in which case these
+    are defects in the new spec rather than in the app.
+    Each needs its axe/locator detail read and root-caused before it can be
+    called either way. Until then **NFR-USE-07 and the accessibility bar
+    are not met**, and the traceability rows for them are the ones to
+    re-check first. Tracked as the top outstanding Phase 8A item.
+- **Full suite at Phase 8A close:** 573 Vitest tests passing across 84
+  files; Playwright 42 passing with the 6 new failures above outstanding.
+  `typecheck`, `lint`, `format:check`, `prisma validate`, `prisma format`
+  (no drift), `prisma migrate status` (no drift), the clean-database
+  rehearsal, and the production `build` all pass.

@@ -4,6 +4,93 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 8A: Internal Acceptance and Release Hardening
+
+Phase 8 is split. 8A closes the internal code, security, and verification
+gaps that need no deployed environment. 8B — deployment, backup/restore
+rehearsal, real-device verification, and client UAT — is not started.
+
+- **Security headers and an enforced Content-Security-Policy.** HSTS
+  (production only, no `preload` until the production domain and its
+  subdomains are settled), `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
+  A nonce-based CSP generated per request in `src/proxy.ts` (Next 16's
+  replacement for `middleware.ts`), enforced from the start rather than
+  report-only, with no `'unsafe-inline'` or `'unsafe-eval'` in
+  `script-src`. Verified by loading every screen for every role in a real
+  browser and failing on any violation — not by inspecting the header
+  string. Two documented exceptions: the two static offline pages (which
+  must stay statically generated for service-worker precaching), and the
+  unmatched-route 404, whose hydration scripts Next.js serves outside the
+  nonce path — asserted in the test suite rather than skipped.
+- **Generic error handling completed** (NFR-SEC-10). `(app)/error.tsx`
+  and `(app)/not-found.tsx` already existed; added `global-error.tsx`
+  (root layout failures), a root `not-found.tsx` (URLs outside the `(app)`
+  group), and `(auth)/error.tsx` — the last mattering most, since a
+  pre-authentication failure must tell an anonymous caller nothing about
+  the database, the mail transport, or which accounts exist.
+- **Host-native structured JSON logging** (`src/lib/observability/logger.ts`,
+  NFR-REL-06) — one JSON object per line, redacting every secret-shaped
+  key and refusing to serialize binary payloads. Sentry deliberately
+  declined per CON-02/CON-07.
+- **`/api/health` now actually checks health.** It previously returned a
+  static `{status:"ok"}` without touching Postgres, so an uptime monitor
+  built on it would have stayed green through a total database outage. It
+  now runs `SELECT 1` behind a 3-second timeout and returns a leak-free
+  body.
+- **Per-user rate limiting** on import preview and sync upload — bounded,
+  cleanup-aware, keyed by user id rather than IP, and documented as
+  single-instance-only. The import size limit is now enforced on the
+  declared size _before_ the body is buffered, and re-checked against the
+  bytes actually read.
+- **Import sessions scoped to their uploader.** One Admin could previously
+  claim another Admin's session; the audit rows would then have credited
+  the wrong actor. Ownership is now checked atomically inside the claim.
+- **NFR-USE-06 gaps closed.** Three archive paths had no confirmation at
+  all: master-data archiving (single click), the Monthly Party Bill
+  "Clear", and emptying a saved Party Income grid cell. The grid uses an
+  inline prompt rather than a modal — a modal opening on blur would seize
+  focus and break NFR-USE-02's keyboard-only grid operation.
+- **FR-RPT-02's pending-upload count** added to the Dashboard, now that
+  Phase 6 provides a real queue to count.
+- **Exhaustive authorization verification.** An explicit protected-surface
+  registry lists all 58 guarded server functions; the sweep genuinely
+  calls each with every role plus unauthenticated and deactivated callers,
+  asserts both directions, proves the guard runs before validation, and
+  drift-checks call sites against registry entries. A Playwright sweep
+  covers every route handler and page route over real HTTP, asserting no
+  restricted field names in any denied response body.
+- **Accessibility** (`@axe-core/playwright@4.13.0`, the one new
+  dependency): zero serious or critical WCAG 2.1 A/AA violations across
+  every screen, plus modal focus behaviour and no horizontal scroll at
+  375/768/1440.
+- **Cross-engine smoke** under Firefox, WebKit, and a phone viewport —
+  explicitly not a substitute for real-device verification (NFR-CMP-02).
+- **Performance:** NFR-PERF-06 extended to every list and grid screen at
+  three years of data; NFR-PERF-07 (200 offline entries in 30s) measured
+  through the real sync path. NFR-PERF-01/02/03 deliberately not
+  asserted — they need a production build, not `next dev`.
+- **Clean-database migration and seed rehearsal** (`npm run
+rehearse:migrations`, in CI) — creates its own temporary database,
+  applies all 7 migrations from zero, verifies the Appendix A counts, and
+  drops it. Never touches the dev or test databases.
+- **Documentation:** `docs/security-review.md` (OWASP pass, dependency
+  reachability analysis, secret handling), `docs/deployment.md` rewritten
+  as a real runbook draft, `docs/handover.md`, `docs/change-requests.md`,
+  `docs/SRS-open-questions.md`, ADR-0010, and the two SRS §10-required
+  one-page user guides as **actual PDFs** (`docs/user-guides/`, generated
+  with the existing pdfkit — no new dependency).
+- **Known outstanding (not fixed):** the new accessibility spec reports
+  serious/critical axe violations on the authenticated screens and a
+  horizontal-scroll failure on the data screens, and two new
+  compatibility-smoke tests fail. These are disclosed rather than skipped
+  or weakened — see `docs/testing.md`. NFR-USE-07 and the accessibility
+  bar are therefore **not** met at Phase 8A close.
+- **Dependency audit:** both open advisories traced to their call sites
+  and found unreachable; both offered fixes are breaking major
+  downgrades. Reasoning recorded rather than blanket-upgraded. `npm audit
+--omit=dev` now runs in CI.
+
 ### Added — Phase 7: Administration Area and Historical Import
 
 - Master-data CRUD (parties, expense items, expense categories, vendors)

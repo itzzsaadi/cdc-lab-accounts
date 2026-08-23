@@ -79,6 +79,39 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"], ...sandboxOverride },
     },
+    /**
+     * Phase 8A cross-engine smoke (NFR-CMP-01/02). Deliberately a small
+     * subset — `tests/e2e/compatibility-smoke.spec.ts` only — not the full
+     * suite: running ~100 tests three more times would multiply an already
+     * long run for very little extra signal, since engine differences
+     * surface on rendering and layout, not on business logic that Chromium
+     * already covered.
+     *
+     * Run explicitly (`npx playwright test --project=firefox`), not as part
+     * of the default run: this sandbox pre-installs Chromium only, so
+     * Firefox and WebKit binaries must be fetched first
+     * (`npx playwright install firefox webkit`). CI installs them.
+     *
+     * **These do not satisfy NFR-CMP-02 on their own.** WebKit is not
+     * Safari-on-iOS, and a device descriptor is a viewport and user-agent,
+     * not an Android or iOS device. Real-hardware verification stays an
+     * environment-dependent Phase 8B item — see docs/testing.md.
+     */
+    {
+      name: "firefox",
+      testMatch: /compatibility-smoke\.spec\.ts/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      testMatch: /compatibility-smoke\.spec\.ts/,
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-chrome",
+      testMatch: /compatibility-smoke\.spec\.ts/,
+      use: { ...devices["Pixel 5"], ...sandboxOverride },
+    },
   ],
   webServer: {
     command: "npm run dev",

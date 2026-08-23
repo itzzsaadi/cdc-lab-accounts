@@ -60,6 +60,13 @@ export function MasterDataManager({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<MasterDataRow | null>(null);
+  /**
+   * NFR-USE-06: archiving a master-data record must be confirmed by name.
+   * Reactivating is *not* confirmed — it restores availability rather than
+   * withdrawing it, so the requirement's reason (guarding an irreversible-
+   * looking, destructive-looking action) does not apply.
+   */
+  const [archiving, setArchiving] = useState<MasterDataRow | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +102,7 @@ export function MasterDataManager({
   }
 
   async function handleArchiveToggle(row: MasterDataRow) {
+    setArchiving(null);
     const result = await onArchiveOrReactivate(row.id, !row.isActive, row.updatedAt);
     if (!result.ok) {
       setError(result.error);
@@ -136,7 +144,10 @@ export function MasterDataManager({
                   <Button
                     type="button"
                     variant={row.isActive ? "destructive-ghost" : "secondary"}
-                    onClick={() => handleArchiveToggle(row)}
+                    aria-label={`${row.isActive ? "Archive" : "Reactivate"} ${row.name}`}
+                    onClick={() =>
+                      row.isActive ? setArchiving(row) : void handleArchiveToggle(row)
+                    }
                   >
                     {row.isActive ? "Archive" : "Reactivate"}
                   </Button>
@@ -146,6 +157,32 @@ export function MasterDataManager({
           ))}
         </Tbody>
       </Table>
+
+      <Modal
+        open={Boolean(archiving)}
+        onClose={() => setArchiving(null)}
+        title={`Archive ${itemLabel}`}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-on-surface-variant text-sm">
+            Archive <span className="font-medium">{archiving?.name}</span>? It stops appearing in
+            pickers for new entries. Every figure already recorded against it is unchanged and stays
+            visible, and it can be reactivated at any time — nothing is deleted (FR-MST-05).
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setArchiving(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive-ghost"
+              onClick={() => archiving && void handleArchiveToggle(archiving)}
+            >
+              Archive
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={open}

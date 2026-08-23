@@ -9,6 +9,9 @@ import { Card } from "../../components/ui/Card";
  * meaningfully, so this stays a bare, chrome-less page, just restyled onto
  * the shared design tokens.
  */
+/** Phase 8A: rendered per request so `src/proxy.ts`'s CSP nonce can be stamped onto Next's inline hydration scripts (see src/app/(auth)/layout.tsx). */
+export const dynamic = "force-dynamic";
+
 export default function ForbiddenPage() {
   return (
     <main
