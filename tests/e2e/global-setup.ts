@@ -30,6 +30,12 @@ const ROUTES_TO_WARM = [
   "/audit-log",
   "/party-income-report",
   "/users",
+  "/parties",
+  "/expense-items",
+  "/expense-categories",
+  "/vendors",
+  "/profit-split",
+  "/import",
 ];
 
 export default async function globalSetup(): Promise<void> {

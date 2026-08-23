@@ -45,7 +45,8 @@ describe("Phase 1 master-data seed — master data only, no users, no credential
     const profitSplit = await prisma.appSetting.findUniqueOrThrow({
       where: { settingKey: "profit_split" },
     });
-    expect(profitSplit.settingValue).toEqual({ partner_a: 50, partner_b: 50 });
+    expect(profitSplit.splitAPercent?.toNumber()).toBe(50);
+    expect(profitSplit.splitBPercent?.toNumber()).toBe(50);
     expect(profitSplit.updatedBy).toBeNull();
   });
 });

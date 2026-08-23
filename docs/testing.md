@@ -513,3 +513,129 @@ Full design record: `docs/adr/0008-phase-6-offline-sync.md`; architecture note: 
   full Playwright suite passing (see the closure completion report for
   the exact run and commit hash). `shell.spec.ts`'s nav-link counts
   updated again for the new Offline Entry Workspace Sidebar entry.
+
+#### Phase 7 — Administration Area and Historical Import
+
+Six mandatory corrections were applied to the draft plan before
+implementation (import-session lifecycle, durable import history,
+admin-concurrency safety, master-data normalization, profit-split database
+enforcement, import security) — see
+`docs/adr/0009-phase-7-administration-and-import.md` for the full design
+record. Every one of them is proven by a real test against real Postgres,
+not inferred from the code alone.
+
+- **Unit** (`tests/unit/validation/{master-data,import,auth-change-role}.test.ts`,
+  `tests/unit/domain/import-cells.test.ts`, extensions to
+  `tests/unit/validation/app-settings.test.ts` and
+  `tests/unit/domain/calendar-date.test.ts`): every master-data schema
+  trims and length/enum-validates correctly; `namesMatchNormalized`'s
+  case/whitespace-insensitive equality; the approved 5 MB/5,000-row import
+  limits and six fixed sheet names; every import row schema (zero-amount
+  rejection where required, zero-allowed for Counter Income, year-month vs.
+  full-date shape); `isFormulaCellValue`/`extractImportCellText`/
+  `extractOptionalImportCellText` reject a formula, numeric, `Date`, or
+  null cell and never coerce one; `noonKarachiUtcForDate`'s fixed +5:00
+  offset across a summer/winter boundary; `percentStringSchema`/
+  `updateProfitSplitSchema`'s shape checks; `changeUserRoleSchema`.
+- **Integration/constraint** (`tests/integration/constraints/{master-data-normalization,profit-split-check,user-admin-triggers,import-batch-delete-protection}.test.ts`):
+  the functional unique index on `lower(btrim(name))` rejects a
+  case-insensitive **and** a whitespace-variant duplicate for all four
+  master-data entities, including against an _archived_ row (the name
+  reservation survives archiving); `app_settings_profit_split_valid`
+  rejects null, out-of-range, and non-100-summing percentages while
+  leaving every non-`profit_split` settings row unconstrained;
+  `users_last_admin_protection` rejects deactivating **or** demoting the
+  last active Admin, allows either once a second active Admin exists, and
+  does not count an already-inactive Admin toward "remaining";
+  `users_partner_flag_removal_guard` rejects removing partner status from
+  a user mapped as Partner A/B; `users_revoke_sessions_on_authorization_change`
+  deletes existing sessions on a role/partner/active-status change and
+  leaves them alone for an unrelated field change; `import_batches` rejects
+  physical DELETE while `import_sessions` allows it (proving the
+  deliberate durable-vs-ephemeral split).
+- **Integration/mutations** (`tests/integration/mutations/{master-data,user-admin,profit-split}.test.ts`):
+  full create/rename/archive/reactivate lifecycle per master-data entity
+  with a correct audit-action sequence (`CREATE`, `ARCHIVE`, `UPDATE`); a
+  stale-write (compare-and-swap) rejection; a case-insensitive duplicate
+  rejected end to end; `changeUserRole` blocking an Admin's own
+  role-downgrade and own partner-flag removal at the application layer,
+  and surfacing the database's last-active-Admin trigger as a friendly
+  message when a second Admin action makes the caller the sole remaining
+  one; `updateProfitSplit` rejecting a non-100 sum and an out-of-range
+  percentage, accepting a valid change, and confirming it never touches
+  `partnerAUserId`/`partnerBUserId`.
+- **Integration/import pipeline**
+  (`tests/integration/import/import-pipeline.test.ts`, 14 tests): a full
+  happy-path preview→commit that creates real rows, marks the batch
+  `COMMITTED`, and deletes the single-use session; a malformed
+  (non-Excel) file rejected before ever reaching exceljs; an oversized
+  file rejected on its declared size alone; a tampered formula cell
+  rejected (formula-injection protection); an unsupported sheet name
+  rejected; a reference to an archived expense item rejected; a
+  within-file duplicate daily-billing party/date row rejected; a sheet
+  exceeding the 5,000-row limit rejected; an advisory repeated-file
+  warning appearing on a second preview of an already-committed file
+  without blocking a fresh commit; **claim atomicity** — two concurrent
+  `commitImport` calls against the same session resolve to exactly one
+  success and the business table never receives duplicate rows; a
+  second commit attempt against an already-committed session rejected; a
+  commit against an expired session rejected, and a later preview call's
+  opportunistic sweep confirmed to null its bytes and mark it `EXPIRED`;
+  a nonexistent session id rejected; and the core "no partial import"
+  proof — an expense item archived _after_ a clean preview and _before_
+  commit causes the commit to fail cleanly with **zero** rows written and
+  both the session and batch marked `FAILED`. This file commits real rows
+  dated in July 2026 (the exact range the reconciliation fixture checks)
+  and carries its own `afterEach(resetDatabase)` alongside the per-`describe`
+  `beforeEach`, so its last test never leaves a row for whichever file
+  Vitest runs next — the lack of this is what caused one transient,
+  found-and-fixed reconciliation-fixture failure during this phase's own
+  development (a stray Counter Income row surviving into the next file).
+- **Authorization sweep**
+  (`tests/integration/authorization/phase7-authorization-sweep.test.ts`):
+  every new Admin-only mutation/route (`master-data:manage`,
+  `user:manage-role`, `profit-split:manage`, `historical-import:run`) is
+  proven denied to an Operator, a Partner, an unauthenticated (`null`)
+  caller, and a deactivated Admin — by direct call, independent of the
+  Administration Area's deliberate choice not to add new sidebar nav
+  links for these six routes (server-side `requirePermission` is the real
+  guard, not navigation visibility).
+- **Playwright e2e** (`tests/e2e/phase7-administration.spec.ts`): every
+  new Admin-only route denies both an Operator and a Partner
+  (redirect to `/forbidden`); an Admin creates a party through the real
+  UI and a case-insensitive duplicate is rejected with an inline message;
+  a profit-split update (with the mapping configured via the Phase 5
+  setup panel if not already) succeeds and is restored to 50/50 for
+  repeatability on this shared dev database, and a non-100 sum is
+  rejected; a full import happy path through the real file-upload input
+  (a workbook built in-memory with `exceljs` and written to a temp file)
+  previews with zero issues and commits successfully; a malformed
+  non-Excel file and a row referencing an unknown party name are both
+  rejected with the commit button left disabled.
+- **A real UI bug found writing this suite, not a test-only issue**:
+  `MasterDataManager`'s "Add {entity}" button derived its singular label
+  via `entityLabel.replace(/s$/, "")`, which produced "Add Partie" for
+  Parties and "Add Expense Categorie" for Expense Categories — caught by
+  the Party-creation e2e test timing out waiting for a button that never
+  existed under that name. Fixed with an explicit `itemLabel` prop per
+  entity (see ADR-0009 §8) rather than a smarter regex.
+- **Playwright status at Phase 7 close: deferred, not verified green.** A
+  full run of the 88-test suite (including this phase's 18 new
+  `phase7-administration.spec.ts` tests) completed once, before the
+  `itemLabel` fix: 83 passed, 1 failed (the Party-creation test, root-caused
+  to the bug above), 1 unrelated pre-existing flake
+  (`phase5-reporting.spec.ts`'s Partner Dashboard test — a strict-mode
+  two-matching-elements timing issue on the shared dev database, passed on
+  its own automatic retry, not touched by this phase). After the fix, two
+  further full-suite attempts were disrupted by sandbox infrastructure —
+  the shared Postgres instance stopped mid-run, and the Playwright-managed
+  `next dev` server subsequently entered an unresponsive state — neither
+  a code or test-content failure. Per explicit instruction, the Playwright
+  run was intentionally not repeated a third time; **Phase 7's Playwright
+  coverage is therefore written and exercised once, but not confirmed
+  green after the `itemLabel` fix, and this is disclosed rather than
+  claimed.** `npm run test` (Vitest: **547 tests**), `npm run typecheck`,
+  `npm run lint`, `npm run format:check`, `npx prisma validate`, `npx
+prisma format`, `npx prisma migrate status` (both databases), and `npm
+run build` all passed cleanly on the final code state. No pre-existing
+  test was weakened, removed, or skipped.

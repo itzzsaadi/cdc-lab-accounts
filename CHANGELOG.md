@@ -4,6 +4,67 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 7: Administration Area and Historical Import
+
+- Master-data CRUD (parties, expense items, expense categories, vendors)
+  for Admins — create, rename, archive, reactivate — never a physical
+  delete (FR-MST-01 to 05). Name uniqueness is case/whitespace-insensitive
+  at the database level (a functional unique index on
+  `lower(btrim(name))`, covering active and archived rows alike), backed
+  by a friendly application-layer pre-check and a stale-write
+  compare-and-swap on every rename/archive.
+- Profit-split percentages moved from a JSON blob to typed
+  `DECIMAL(5,2)` columns (`split_a_percent`/`split_b_percent`),
+  database-enforced non-null/in-range/summing-to-exactly-100 via a new
+  `CHECK` constraint; an Admin-only settings screen edits the two
+  percentages, disclosing plainly that a change affects every period's
+  _live_ calculation immediately (no result is ever stored — DR-09),
+  never described as future-only. The Partner A/B identity mapping
+  itself is unchanged and stays fixed (no remapping added).
+- User administration: Admin-only role/partner-flag change
+  (`changeUserRole`), backed by three new database triggers on `users` —
+  a last-active-Admin protection covering both deactivation and role
+  downgrade (concurrency-safe via row locking, not a count-then-update
+  race), a guard against removing partner status from a user mapped as
+  Partner A/B, and automatic session revocation on any
+  role/partner/active-status change from any code path — plus
+  application-layer blocks on an Admin demoting their own role or
+  removing their own partner flag.
+- Historical data import (FR-IMP-01 to 04): a defined six-sheet Excel
+  template (Daily Expenses, Monthly Expenses, Party Income (Daily),
+  Party Income (Monthly Bill), Counter Income, Capital Contributions),
+  upload → preview (validates and shows every row-level error, writes no
+  business data) → commit (all-or-nothing, one transaction). A durable
+  `ImportBatch` record (file hash, actor, status, row counts,
+  delete-protected) is separate from an ephemeral `ImportSession` (the
+  actual workbook bytes, 15-minute expiry, nulled on every terminal
+  path). The import session is atomically claimed via a standalone
+  conditional `updateMany` _before_ the business transaction opens, so a
+  later rollback can never make a claimed session silently reusable —
+  proven under real concurrent commit attempts. Commit always reparses
+  the claimed session's own stored bytes from scratch and rejects
+  cleanly with zero rows written if anything changed since preview (an
+  archived reference, for example). Import security: formula cells,
+  malformed files, unsupported/duplicate sheets, invalid dates, unsafe
+  amounts, and unknown/archived references are all rejected; server-owned
+  UUIDs are generated for every row; uploaded bytes are never written to
+  disk, public storage, or any log.
+- No new dependency — `exceljs` (already used for Phase 5's report
+  exports) is reused for reading the import workbook.
+- One migration (`phase7_administration_and_import`): the two new
+  `Decimal` profit-split columns, `updated_at`/`updated_by` on four
+  master-data tables, the `ImportBatch`/`ImportSession` tables and their
+  enums, four functional unique indexes (with a migration preflight that
+  fails clearly on any pre-existing normalized duplicate), the three new
+  `users` triggers, and one new delete-rejection trigger on
+  `import_batches`.
+- `docs/adr/0009-phase-7-administration-and-import.md`, recording the six
+  mandatory corrections applied to the original draft plan and every
+  design decision made to satisfy them, plus a real UI bug
+  (`MasterDataManager`'s naive `entityLabel.replace(/s$/, "")`
+  singularization breaking for "Parties" and "Expense Categories") found
+  and fixed while writing the Playwright suite.
+
 ### Added — Phase 6: Offline Operation and Synchronization
 
 - Full offline entry for the four SRS-specified sync entities (Daily

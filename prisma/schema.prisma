@@ -170,6 +170,12 @@ model User {
   sessions                    Session[]
   accounts                    Account[]
   syncOperations              SyncOperation[]       @relation("SyncOperationActor")
+  updatedParties              Party[]               @relation("PartyUpdatedBy")
+  updatedExpenseItems         ExpenseItem[]         @relation("ExpenseItemUpdatedBy")
+  updatedExpenseCategories    ExpenseCategory[]     @relation("ExpenseCategoryUpdatedBy")
+  updatedVendors              Vendor[]              @relation("VendorUpdatedBy")
+  importBatchesActedOn        ImportBatch[]         @relation("ImportBatchActor")
+  importSessionsCreated       ImportSession[]       @relation("ImportSessionCreatedBy")
 
   @@map("users")
 }
@@ -238,37 +244,55 @@ model Verification {
   @@map("verification")
 }
 
-/// Referring labs and hospitals.
+/// Referring labs and hospitals. Phase 7: `name`'s real uniqueness
+/// guarantee is a functional index on `lower(btrim(name))` (added by hand
+/// in the phase7_master_data_normalization migration — Prisma's DSL can't
+/// express a functional index) — the plain `@unique` below only documents
+/// intent for `prisma validate`/introspection, it is not the active
+/// constraint after that migration runs. `updatedAt`/`updatedBy` back the
+/// stale-write (compare-and-swap) protection every edit uses.
 model Party {
-  id          String      @id @default(uuid()) @db.Uuid
-  name        String      @unique @db.VarChar(150)
-  billingMode BillingMode @map("billing_mode")
-  isActive    Boolean     @default(true) @map("is_active")
-  sortOrder   Int         @map("sort_order") @db.SmallInt
+  id            String      @id @default(uuid()) @db.Uuid
+  name          String      @unique @db.VarChar(150)
+  billingMode   BillingMode @map("billing_mode")
+  isActive      Boolean     @default(true) @map("is_active")
+  sortOrder     Int         @map("sort_order") @db.SmallInt
+  updatedAt     DateTime?   @map("updated_at") @db.Timestamptz(6)
+  updatedBy     String?     @map("updated_by") @db.Uuid
+  updatedByUser User?       @relation("PartyUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
 
   partyIncome PartyIncome[]
 
   @@map("parties")
 }
 
-/// The dropdown list for daily expenses.
+/// The dropdown list for daily expenses. See Party's comment re: the
+/// functional lower(btrim(name)) uniqueness index and updatedAt/updatedBy.
 model ExpenseItem {
-  id       String  @id @default(uuid()) @db.Uuid
-  name     String  @unique @db.VarChar(120)
-  isActive Boolean @default(true) @map("is_active")
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String    @unique @db.VarChar(120)
+  isActive      Boolean   @default(true) @map("is_active")
+  updatedAt     DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy     String?   @map("updated_by") @db.Uuid
+  updatedByUser User?     @relation("ExpenseItemUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
 
   dailyExpenses DailyExpense[]
 
   @@map("expense_items")
 }
 
-/// Monthly expense classification (administration and purchasing).
+/// Monthly expense classification (administration and purchasing). See
+/// Party's comment re: the functional lower(btrim(name)) uniqueness index
+/// and updatedAt/updatedBy.
 model ExpenseCategory {
-  id           String       @id @default(uuid()) @db.Uuid
-  name         String       @unique @db.VarChar(120)
-  expenseGroup ExpenseGroup @map("expense_group")
-  isRecurring  Boolean      @default(false) @map("is_recurring")
-  isActive     Boolean      @default(true) @map("is_active")
+  id            String       @id @default(uuid()) @db.Uuid
+  name          String       @unique @db.VarChar(120)
+  expenseGroup  ExpenseGroup @map("expense_group")
+  isRecurring   Boolean      @default(false) @map("is_recurring")
+  isActive      Boolean      @default(true) @map("is_active")
+  updatedAt     DateTime?    @map("updated_at") @db.Timestamptz(6)
+  updatedBy     String?      @map("updated_by") @db.Uuid
+  updatedByUser User?        @relation("ExpenseCategoryUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
 
   monthlyExpenses  MonthlyExpense[]
   defaultForAssets Asset[]
@@ -276,11 +300,15 @@ model ExpenseCategory {
   @@map("expense_categories")
 }
 
-/// Suppliers named in the purchasing list.
+/// Suppliers named in the purchasing list. See Party's comment re: the
+/// functional lower(btrim(name)) uniqueness index and updatedAt/updatedBy.
 model Vendor {
-  id       String  @id @default(uuid()) @db.Uuid
-  name     String  @unique @db.VarChar(150)
-  isActive Boolean @default(true) @map("is_active")
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String    @unique @db.VarChar(150)
+  isActive      Boolean   @default(true) @map("is_active")
+  updatedAt     DateTime? @map("updated_at") @db.Timestamptz(6)
+  updatedBy     String?   @map("updated_by") @db.Uuid
+  updatedByUser User?     @relation("VendorUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
 
   monthlyExpenses MonthlyExpense[]
   assets          Asset[]
@@ -477,9 +505,21 @@ model AuditLog {
 /// are enforced by CHECK constraints, partner eligibility by the same
 /// reject_if_not_partner trigger every other partner-tag column uses (see
 /// migration.sql).
+/// Phase 7: `splitAPercent`/`splitBPercent` are the authoritative,
+/// Decimal-typed profit-split percentages (only ever populated on the
+/// settingKey = 'profit_split' row) — `settingValue`'s old
+/// `{partner_a, partner_b}` JSON keys are no longer read or written by
+/// application code once the phase7_profit_split_columns migration runs
+/// (disclosed deviation, see docs/adr/0009-phase-7-administration-and-
+/// import.md); the JSONB column itself is left in place for schema
+/// stability, not repurposed. A database CHECK (added by hand, same
+/// migration) enforces both columns NOT NULL, each in [0,100], and their
+/// sum exactly 100 — for the profit_split row only.
 model AppSetting {
   settingKey     String   @id @map("setting_key") @db.VarChar(80)
   settingValue   Json     @map("setting_value") @db.JsonB
+  splitAPercent  Decimal? @map("split_a_percent") @db.Decimal(5, 2)
+  splitBPercent  Decimal? @map("split_b_percent") @db.Decimal(5, 2)
   updatedBy      String?  @map("updated_by") @db.Uuid
   updatedByUser  User?    @relation("AppSettingUpdatedBy", fields: [updatedBy], references: [id], onDelete: Restrict)
   updatedAt      DateTime @map("updated_at") @db.Timestamptz(6)
@@ -549,4 +589,79 @@ enum SyncOperationStatus {
   REJECTED
 
   @@map("sync_operation_status")
+}
+
+/// Phase 7 (FR-IMP-01 to 04). The durable, byte-free import history — one
+/// row per attempted historical-data import, kept forever for audit
+/// traceability and as the idempotency-check source (`fileHash`, never
+/// `audit_log` JSON — see docs/adr/0009-phase-7-administration-and-
+/// import.md). Never stores workbook bytes (that is `ImportSession`'s job,
+/// and only for the ~15-minute preview/commit window). Physically
+/// delete-protected like every other business/audit record (CLAUDE.md
+/// §11) — nothing in this system ever deletes an import's history.
+model ImportBatch {
+  id            String            @id @default(uuid()) @db.Uuid
+  fileHash      String            @map("file_hash") @db.VarChar(64)
+  fileName      String            @map("file_name") @db.VarChar(255)
+  actorUserId   String            @map("actor_user_id") @db.Uuid
+  actor         User              @relation("ImportBatchActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  status        ImportBatchStatus @default(PENDING)
+  totalRows     Int               @default(0) @map("total_rows")
+  importedRows  Int               @default(0) @map("imported_rows")
+  resultSummary Json?             @map("result_summary") @db.JsonB
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt   DateTime?         @map("completed_at") @db.Timestamptz(6)
+
+  sessions ImportSession[]
+
+  @@index([fileHash])
+  @@map("import_batches")
+}
+
+enum ImportBatchStatus {
+  PENDING
+  COMMITTED
+  FAILED
+
+  @@map("import_batch_status")
+}
+
+/// Phase 7. The ephemeral, single-use claim ticket for one preview→commit
+/// round trip — `fileBytes` exists only here, only for
+/// `expiresAt` (~15 minutes), and is always gone (row deleted, or bytes
+/// nulled by cleanup) well before this table could ever be mistaken for
+/// durable storage; `ImportBatch` is the durable record. `status` is
+/// claimed atomically (`UPDATE ... WHERE status = 'PENDING' ... RETURNING`)
+/// by the commit endpoint before any parsing/business-row work begins, so
+/// a concurrent or retried commit against the same session can never
+/// proceed twice — see src/server/import/commit.ts. Deliberately NOT
+/// covered by the physical-deletion-rejection trigger (like
+/// sessions/account/verification/sync_operations) — this is transient
+/// upload infrastructure, not a business/financial record; deleting a
+/// completed or expired row's bytes is the whole point.
+model ImportSession {
+  id            String              @id @default(uuid()) @db.Uuid
+  batchId       String              @map("batch_id") @db.Uuid
+  batch         ImportBatch         @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  fileHash      String              @map("file_hash") @db.VarChar(64)
+  fileBytes     Bytes?              @map("file_bytes")
+  status        ImportSessionStatus @default(PENDING)
+  createdBy     String              @map("created_by") @db.Uuid
+  createdByUser User                @relation("ImportSessionCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt     DateTime            @map("expires_at") @db.Timestamptz(6)
+  claimedAt     DateTime?           @map("claimed_at") @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("import_sessions")
+}
+
+enum ImportSessionStatus {
+  PENDING
+  CLAIMED
+  COMMITTED
+  FAILED
+  EXPIRED
+
+  @@map("import_session_status")
 }

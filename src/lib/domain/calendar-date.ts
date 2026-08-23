@@ -61,6 +61,24 @@ export function formatCalendarDate(date: Date): string {
 }
 
 /**
+ * Historical-import `capturedAt` convention (FR-IMP): noon Asia/Karachi on
+ * the given calendar date, converted to UTC. Unlike `todayInKarachi`
+ * (which reads the *current* instant and must never hardcode an offset,
+ * since "now" is only ever knowable via a real timezone conversion), this
+ * converts one already-fully-known calendar date's "noon local" to UTC —
+ * fixed arithmetic is safe here specifically because Asia/Karachi has no
+ * DST (DR-02): noon Karachi is always exactly 07:00 UTC, on every date,
+ * with nothing that could silently drift the way a live "now" could.
+ */
+export function noonKarachiUtcForDate(dateString: string): Date {
+  const date = parseCalendarDate(dateString);
+  if (!date) {
+    throw new Error(`noonKarachiUtcForDate: invalid calendar date "${dateString}".`);
+  }
+  return new Date(date.getTime() + 7 * 60 * 60 * 1000);
+}
+
+/**
  * Reads the current Asia/Karachi calendar date via `formatToParts` rather
  * than trusting `.format()`'s output shape — a locale's formatted string
  * layout (separators, field order, calendar system) is not guaranteed

@@ -22,6 +22,7 @@
  * already be set to the intended one.
  */
 import { createPrismaClient } from "./client";
+import { Prisma } from "../generated/prisma/client";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -178,11 +179,18 @@ async function main() {
 
   // Appendix A.6 — default profit split. updated_by is nullable (ADR-0002
   // decision 4): this row is created before any user account exists.
+  // Phase 7: splitAPercent/splitBPercent are the authoritative, typed
+  // columns (settingValue's legacy partner_a/partner_b JSON keys are no
+  // longer read or written — see docs/adr/0009-phase-7-administration-
+  // and-import.md); both must be non-null and sum to 100 from the moment
+  // this row exists, per the database's own CHECK constraint.
   await prisma.appSetting.upsert({
     where: { settingKey: "profit_split" },
     create: {
       settingKey: "profit_split",
-      settingValue: { partner_a: 50, partner_b: 50 },
+      settingValue: {},
+      splitAPercent: new Prisma.Decimal(50),
+      splitBPercent: new Prisma.Decimal(50),
       updatedBy: null,
       updatedAt: new Date(),
     },

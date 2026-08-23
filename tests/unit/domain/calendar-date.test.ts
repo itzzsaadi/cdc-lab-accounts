@@ -10,6 +10,7 @@ import {
   previousYearMonth,
   nextYearMonth,
   parseCustomDateRange,
+  noonKarachiUtcForDate,
 } from "../../../src/lib/domain/calendar-date";
 
 describe("parseCalendarDate (strict YYYY-MM-DD, no z.coerce.date())", () => {
@@ -147,6 +148,23 @@ describe("nextYearMonth (FR-RES-03's one-action next-month step)", () => {
 
   it("throws for a malformed month", () => {
     expect(() => nextYearMonth("2026-13")).toThrow();
+  });
+});
+
+describe("noonKarachiUtcForDate (Phase 7 historical import — fixed +5 offset, an already-known calendar date)", () => {
+  it("returns 07:00 UTC for a given calendar date (noon Asia/Karachi, fixed +5:00)", () => {
+    const result = noonKarachiUtcForDate("2026-07-15");
+    expect(result.toISOString()).toBe("2026-07-15T07:00:00.000Z");
+  });
+
+  it("holds the same fixed offset across a summer/winter boundary (no DST)", () => {
+    expect(noonKarachiUtcForDate("2026-01-15").toISOString()).toBe("2026-01-15T07:00:00.000Z");
+    expect(noonKarachiUtcForDate("2026-07-15").toISOString()).toBe("2026-07-15T07:00:00.000Z");
+  });
+
+  it("throws for a malformed or calendar-impossible date", () => {
+    expect(() => noonKarachiUtcForDate("2026-13-01")).toThrow();
+    expect(() => noonKarachiUtcForDate("not-a-date")).toThrow();
   });
 });
 
