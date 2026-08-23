@@ -4,11 +4,19 @@ import { getTestPrismaClient, resetDatabase } from "../helpers/test-db";
 import { createTestUser, createTestParty, createTestExpenseItem } from "../helpers/fixtures";
 import type { AuthenticatedUser } from "../../../src/lib/permissions/guard";
 import { listDailyExpenses } from "../../../src/server/queries/daily-expenses";
-import { getPartyIncomeGrid } from "../../../src/server/queries/party-income";
+import {
+  getPartyIncomeGrid,
+  getPartyIncomeReport,
+  getPartyMonthlyTotals,
+} from "../../../src/server/queries/party-income";
+import { listCounterIncome } from "../../../src/server/queries/counter-income";
+import { listRecentEntries } from "../../../src/server/queries/home";
 import { listMonthlyExpenses } from "../../../src/server/queries/monthly-expenses";
 import { listAssets } from "../../../src/server/queries/assets";
-import { listAuditLog } from "../../../src/server/queries/audit-log";
+import { listAuditActors, listAuditLog } from "../../../src/server/queries/audit-log";
 import { getPartnerInvestmentStatements } from "../../../src/server/queries/capital-contributions";
+import { getDashboardTrend } from "../../../src/server/queries/results";
+import { getDashboardWarnings } from "../../../src/server/queries/warnings";
 import { processSyncBatch } from "../../../src/server/sync/upload";
 import type { IncomingSyncOperation } from "../../../src/server/sync/apply";
 
@@ -152,6 +160,30 @@ describe("Phase 8A performance — every screen at three years of data (NFR-PERF
     expect(dailyPartyId).toBeTruthy();
   });
 
+  it("Monthly Party Bills list stays within budget", async () => {
+    const { ms } = await timed(() => getPartyMonthlyTotals(prisma, partner, "2026-07"));
+    expect(ms, `getPartyMonthlyTotals took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
+  });
+
+  it("Income by Party report stays within budget across the full three-year range", async () => {
+    const { ms } = await timed(() =>
+      getPartyIncomeReport(prisma, partner, { from: "2023-08-01", to: "2026-07-31" }),
+    );
+    expect(ms, `getPartyIncomeReport took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
+  });
+
+  it("Counter Income list stays within budget", async () => {
+    const { ms } = await timed(() =>
+      listCounterIncome(prisma, partner, { from: "2026-07-01", to: "2026-07-31" }),
+    );
+    expect(ms, `listCounterIncome took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
+  });
+
+  it("Operator Home recent entries stay within budget", async () => {
+    const { ms } = await timed(() => listRecentEntries(prisma, partner));
+    expect(ms, `listRecentEntries took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
+  });
+
   it("Monthly Expenses list stays within budget", async () => {
     const { ms } = await timed(() => listMonthlyExpenses(prisma, partner, "2026-07"));
     expect(ms, `listMonthlyExpenses took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
@@ -170,8 +202,20 @@ describe("Phase 8A performance — every screen at three years of data (NFR-PERF
   });
 
   it("Audit Log first page stays within budget against 5,000 rows (keyset pagination, never OFFSET)", async () => {
-    const { ms } = await timed(() => listAuditLog(prisma, partner, {}));
-    expect(ms, `listAuditLog took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
+    const { ms } = await timed(() =>
+      Promise.all([listAuditLog(prisma, partner, {}), listAuditActors(prisma, partner)]),
+    );
+    expect(ms, `Audit Log queries took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
+  });
+
+  it("Dashboard trend and warnings stay within budget", async () => {
+    const { ms } = await timed(() =>
+      Promise.all([
+        getDashboardTrend(prisma, partner, "2026-07"),
+        getDashboardWarnings(prisma, partner, "2026-07"),
+      ]),
+    );
+    expect(ms, `Dashboard queries took ${ms.toFixed(0)}ms`).toBeLessThan(SCREEN_BUDGET_MS);
   });
 });
 

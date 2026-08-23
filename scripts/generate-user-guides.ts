@@ -15,6 +15,7 @@
  * Archive, PKR. English only (NFR-USE-08).
  */
 import { createWriteStream, mkdirSync } from "node:fs";
+import { finished } from "node:stream/promises";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 
@@ -152,38 +153,101 @@ const PARTNER_GUIDE: Guide = {
   ],
 };
 
-function render(guide: Guide): void {
-  mkdirSync(OUTPUT_DIR, { recursive: true });
-  const doc = new PDFDocument({ size: "A4", margin: 50 });
-  doc.pipe(createWriteStream(path.join(OUTPUT_DIR, guide.file)));
+const PAGE_WIDTH = 595.28;
+const PAGE_HEIGHT = 841.89;
+const MARGIN = 36;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const FOOTER_TOP = PAGE_HEIGHT - MARGIN - 18;
 
-  doc.font("Helvetica-Bold").fontSize(18).text("CDC Lab Accounts System");
-  doc.font("Helvetica-Bold").fontSize(13).text(`Quick Guide — ${guide.audience}`);
-  doc.moveDown(0.4);
-  doc.font("Helvetica").fontSize(9.5).text(guide.intro, { align: "left" });
-  doc.moveDown(0.6);
+function pdfText(value: string): string {
+  // The built-in PDF Helvetica font is deliberately used so the handover
+  // pack has no font-file dependency. Normalize typographic dash variants
+  // to ASCII hyphens for reliable rendering in every PDF viewer.
+  return value.replace(/[\u2010-\u2015]/g, "-");
+}
+
+async function render(guide: Guide): Promise<void> {
+  mkdirSync(OUTPUT_DIR, { recursive: true });
+  const outputPath = path.join(OUTPUT_DIR, guide.file);
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: MARGIN,
+    info: {
+      Title: `CDC Lab Accounts System - Quick Guide - ${guide.audience}`,
+      Author: "CDC Laboratories, Gujranwala",
+      Subject: "One-page system user guide",
+    },
+  });
+  const output = createWriteStream(outputPath);
+  doc.pipe(output);
+  let pageCount = 1;
+  doc.on("pageAdded", () => {
+    pageCount += 1;
+  });
+
+  doc.rect(0, 0, PAGE_WIDTH, 64).fill("#0F766E");
+  doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(16.5);
+  doc.text("CDC Lab Accounts System", MARGIN, 16, { width: CONTENT_WIDTH });
+  doc.fontSize(10).text(pdfText(`Quick Guide - ${guide.audience}`), MARGIN, 40, {
+    width: CONTENT_WIDTH,
+  });
+
+  doc.roundedRect(MARGIN, 74, CONTENT_WIDTH, 44, 6).fill("#ECFDF5");
+  doc
+    .fillColor("#134E4A")
+    .font("Helvetica")
+    .fontSize(8.6)
+    .text(pdfText(guide.intro), MARGIN + 11, 84, {
+      width: CONTENT_WIDTH - 24,
+      lineGap: 0.25,
+    });
+
+  doc.y = 126;
 
   for (const section of guide.sections) {
-    doc.font("Helvetica-Bold").fontSize(10.5).text(section.heading);
-    doc.moveDown(0.15);
-    doc.font("Helvetica").fontSize(9);
+    doc
+      .fillColor("#0F766E")
+      .font("Helvetica-Bold")
+      .fontSize(9.5)
+      .text(pdfText(section.heading), MARGIN, doc.y, { width: CONTENT_WIDTH });
+    doc.moveDown(0.1);
+    doc.fillColor("#1F2937").font("Helvetica").fontSize(8.4);
     for (const line of section.body) {
-      doc.text(`•  ${line}`, { indent: 4, paragraphGap: 2 });
+      doc.text(pdfText(`- ${line}`), MARGIN + 3, doc.y, {
+        width: CONTENT_WIDTH - 3,
+        indent: 6,
+        lineGap: 0.3,
+        paragraphGap: 1,
+      });
     }
-    doc.moveDown(0.4);
+    doc.moveDown(0.2);
   }
 
   doc
-    .moveDown(0.3)
+    .moveTo(MARGIN, FOOTER_TOP)
+    .lineTo(PAGE_WIDTH - MARGIN, FOOTER_TOP)
+    .lineWidth(0.5)
+    .strokeColor("#99F6E4")
+    .stroke();
+  doc
+    .fillColor("#4B5563")
     .font("Helvetica-Oblique")
-    .fontSize(7.5)
+    .fontSize(7)
     .text(
-      "CDC Laboratories, Gujranwala. All amounts are in PKR. Nothing in this system is ever deleted — archiving keeps the history. Questions: contact your system administrator.",
+      pdfText(
+        "CDC Laboratories, Gujranwala | All amounts are in PKR | Nothing is deleted - archiving keeps the history | August 2026",
+      ),
+      MARGIN,
+      FOOTER_TOP + 8,
+      { width: CONTENT_WIDTH, align: "center", lineBreak: false },
     );
 
   doc.end();
-  console.log(`Wrote ${path.join(OUTPUT_DIR, guide.file)}`);
+  await finished(output);
+  if (pageCount !== 1) {
+    throw new Error(`${guide.file} rendered as ${pageCount} pages; the SRS requires one page.`);
+  }
+  console.log(`Wrote ${outputPath}`);
 }
 
-render(OPERATOR_GUIDE);
-render(PARTNER_GUIDE);
+await Promise.all([render(OPERATOR_GUIDE), render(PARTNER_GUIDE)]);

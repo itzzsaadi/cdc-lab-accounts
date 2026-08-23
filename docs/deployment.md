@@ -122,10 +122,10 @@ and the dated record of the rehearsal.]_
 ## 7. Monitoring and logging _[8B partially]_
 
 **Done (8A):** the application emits one JSON object per line to
-stdout/stderr (`src/lib/observability/logger.ts`), redacting any
-password/token/secret/cookie/authorization/session/credential/hash key and
-refusing to serialize binary payloads. Every managed host collects and
-indexes this without further configuration.
+stdout/stderr (`src/lib/observability/logger.ts`), redacting secret-shaped
+keys and free-text credentials/tokens and refusing to serialize binary
+payloads. Next's `src/instrumentation.ts` hook routes uncaught server
+request errors into that stream without headers or query strings.
 
 `/api/health` performs a real, timeout-bounded database check and returns
 a leak-free body.

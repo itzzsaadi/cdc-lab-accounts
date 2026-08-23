@@ -17,12 +17,12 @@ rehearsal, real-device verification, and client UAT — is not started.
   A nonce-based CSP generated per request in `src/proxy.ts` (Next 16's
   replacement for `middleware.ts`), enforced from the start rather than
   report-only, with no `'unsafe-inline'` or `'unsafe-eval'` in
-  `script-src`. Verified by loading every screen for every role in a real
-  browser and failing on any violation — not by inspecting the header
-  string. Two documented exceptions: the two static offline pages (which
-  must stay statically generated for service-worker precaching), and the
-  unmatched-route 404, whose hydration scripts Next.js serves outside the
-  nonce path — asserted in the test suite rather than skipped.
+  `script-src`. Non-browser tests verify the policy shape, nonce rotation,
+  production-only HSTS without `preload`, and the bounded static exception.
+  Browser coverage is preserved but was explicitly deferred for this
+  completion, so no full browser validation is claimed. Two documented
+  exceptions remain: the two static offline pages and Next's unmatched-route
+  404 nonce limitation.
 - **Generic error handling completed** (NFR-SEC-10). `(app)/error.tsx`
   and `(app)/not-found.tsx` already existed; added `global-error.tsx`
   (root layout failures), a root `not-found.tsx` (URLs outside the `(app)`
@@ -31,8 +31,10 @@ rehearsal, real-device verification, and client UAT — is not started.
   the database, the mail transport, or which accounts exist.
 - **Host-native structured JSON logging** (`src/lib/observability/logger.ts`,
   NFR-REL-06) — one JSON object per line, redacting every secret-shaped
-  key and refusing to serialize binary payloads. Sentry deliberately
-  declined per CON-02/CON-07.
+  key and free-text credential/token shape, and refusing to serialize
+  binary payloads. Next's `src/instrumentation.ts` `onRequestError` hook
+  captures uncaught server render, Route Handler, Server Action, and Proxy
+  errors. Sentry deliberately declined per CON-02/CON-07.
 - **`/api/health` now actually checks health.** It previously returned a
   static `{status:"ok"}` without touching Postgres, so an uptime monitor
   built on it would have stayed green through a total database outage. It
@@ -40,12 +42,15 @@ rehearsal, real-device verification, and client UAT — is not started.
   body.
 - **Per-user rate limiting** on import preview and sync upload — bounded,
   cleanup-aware, keyed by user id rather than IP, and documented as
-  single-instance-only. The import size limit is now enforced on the
-  declared size _before_ the body is buffered, and re-checked against the
-  bytes actually read.
+  single-instance-only. Import request length is checked before multipart
+  parsing, file size before workbook parsing, and actual bytes again in the
+  service layer.
 - **Import sessions scoped to their uploader.** One Admin could previously
   claim another Admin's session; the audit rows would then have credited
   the wrong actor. Ownership is now checked atomically inside the claim.
+- **Import preview rejects work before allocation.** Admin authorization,
+  the request-size guard, and the per-user limit now run before multipart
+  parsing; the service layer retains its independent permission check.
 - **NFR-USE-06 gaps closed.** Three archive paths had no confirmation at
   all: master-data archiving (single click), the Monthly Party Bill
   "Clear", and emptying a saved Party Income grid cell. The grid uses an
@@ -60,10 +65,10 @@ rehearsal, real-device verification, and client UAT — is not started.
   drift-checks call sites against registry entries. A Playwright sweep
   covers every route handler and page route over real HTTP, asserting no
   restricted field names in any denied response body.
-- **Accessibility** (`@axe-core/playwright@4.13.0`, the one new
-  dependency): zero serious or critical WCAG 2.1 A/AA violations across
-  every screen, plus modal focus behaviour and no horizontal scroll at
-  375/768/1440.
+- **Accessibility coverage** (`@axe-core/playwright@4.13.0`, the one new
+  dependency): serious/critical WCAG 2.1 A/AA scanning, modal focus
+  behaviour, and horizontal-scroll checks at 375/768/1440. The unresolved
+  findings are recorded below; no clean accessibility result is claimed.
 - **Cross-engine smoke** under Firefox, WebKit, and a phone viewport —
   explicitly not a substitute for real-device verification (NFR-CMP-02).
 - **Performance:** NFR-PERF-06 extended to every list and grid screen at
@@ -72,8 +77,9 @@ rehearsal, real-device verification, and client UAT — is not started.
   asserted — they need a production build, not `next dev`.
 - **Clean-database migration and seed rehearsal** (`npm run
 rehearse:migrations`, in CI) — creates its own temporary database,
-  applies all 7 migrations from zero, verifies the Appendix A counts, and
-  drops it. Never touches the dev or test databases.
+  applies all 7 migrations from zero, verifies the Appendix A counts and
+  zero transactional/operational rows, and drops it. Never touches the dev
+  or test databases.
 - **Documentation:** `docs/security-review.md` (OWASP pass, dependency
   reachability analysis, secret handling), `docs/deployment.md` rewritten
   as a real runbook draft, `docs/handover.md`, `docs/change-requests.md`,
