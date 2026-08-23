@@ -21,8 +21,11 @@
 import "dotenv/config"; // run directly via `tsx`, not through Next.js — load `.env` before anything reads process.env
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { createPrismaClient } from "../prisma/client";
+
+const PRISMA_CLI = fileURLToPath(new URL("../node_modules/prisma/build/index.js", import.meta.url));
 
 // `.env.test` supplies TEST_DATABASE_URL, which this script reads only to
 // make sure it never targets that database either.
@@ -75,13 +78,13 @@ async function main(): Promise<void> {
     const env = { ...process.env, DATABASE_URL: rehearsalUrl };
 
     console.log("Applying every migration from zero …");
-    execFileSync("npx", ["prisma", "migrate", "deploy"], { env, stdio: "inherit" });
+    execFileSync(process.execPath, [PRISMA_CLI, "migrate", "deploy"], { env, stdio: "inherit" });
 
     console.log("Checking for drift …");
-    execFileSync("npx", ["prisma", "migrate", "status"], { env, stdio: "inherit" });
+    execFileSync(process.execPath, [PRISMA_CLI, "migrate", "status"], { env, stdio: "inherit" });
 
     console.log("Seeding master data …");
-    execFileSync("npx", ["prisma", "db", "seed"], { env, stdio: "inherit" });
+    execFileSync(process.execPath, [PRISMA_CLI, "db", "seed"], { env, stdio: "inherit" });
 
     const seeded = createPrismaClient(rehearsalUrl);
     try {
@@ -98,7 +101,15 @@ async function main(): Promise<void> {
         vendors: await seeded.vendor.count(),
         users: await seeded.user.count(),
         dailyExpenses: await seeded.dailyExpense.count(),
+        monthlyExpenses: await seeded.monthlyExpense.count(),
+        partyIncome: await seeded.partyIncome.count(),
+        counterIncome: await seeded.counterIncome.count(),
+        capitalContributions: await seeded.capitalContribution.count(),
         assets: await seeded.asset.count(),
+        auditLog: await seeded.auditLog.count(),
+        syncOperations: await seeded.syncOperation.count(),
+        importBatches: await seeded.importBatch.count(),
+        importSessions: await seeded.importSession.count(),
       };
 
       const expected = {
@@ -114,7 +125,15 @@ async function main(): Promise<void> {
         vendors: 9,
         users: 0,
         dailyExpenses: 0,
+        monthlyExpenses: 0,
+        partyIncome: 0,
+        counterIncome: 0,
+        capitalContributions: 0,
         assets: 0,
+        auditLog: 0,
+        syncOperations: 0,
+        importBatches: 0,
+        importSessions: 0,
       };
 
       const mismatches = Object.entries(expected).filter(

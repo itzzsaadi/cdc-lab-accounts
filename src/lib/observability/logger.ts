@@ -37,6 +37,22 @@ function isBinary(value: unknown): boolean {
   return value instanceof Uint8Array || (typeof Buffer !== "undefined" && Buffer.isBuffer(value));
 }
 
+/**
+ * Error messages are free text, so key-based object redaction cannot protect
+ * credentials embedded in a connection URL or `password=...` fragment.
+ * Keep the patterns deliberately narrow to avoid destroying useful driver
+ * diagnostics while covering the secret shapes this application can emit.
+ */
+function redactSecretText(value: string): string {
+  return value
+    .replace(/([a-z][a-z0-9+.-]*:\/\/)([^:@/\s]+):([^@/\s]+)@/gi, "$1[REDACTED]:[REDACTED]@")
+    .replace(
+      /\b(password|token|secret|cookie|authorization|session|credential|hash)\s*([=:])\s*([^\s,;]+)/gi,
+      "$1$2[REDACTED]",
+    )
+    .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [REDACTED]");
+}
+
 /** Redacts sensitive keys and replaces any binary value with a non-reversible size marker. */
 function safeContext(context: LogContext | undefined): Record<string, unknown> {
   if (!context) return {};
@@ -89,9 +105,9 @@ export function logError(message: string, error: unknown, context?: LogContext):
     error instanceof Error
       ? {
           errorName: error.name,
-          errorMessage: error.message,
-          ...(includeStack && error.stack ? { stack: error.stack } : {}),
+          errorMessage: redactSecretText(error.message),
+          ...(includeStack && error.stack ? { stack: redactSecretText(error.stack) } : {}),
         }
-      : { errorName: "NonError", errorMessage: String(error) };
+      : { errorName: "NonError", errorMessage: redactSecretText(String(error)) };
   emit("error", message, { ...context, ...details });
 }

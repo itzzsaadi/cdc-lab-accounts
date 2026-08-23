@@ -43,10 +43,11 @@ hydration scripts.
 
 Enforced from the start. A report-only policy makes release security
 depend on somebody reading reports, which is not a control. The cost is
-that a mistake breaks a page instead of filing a report — so the policy is
-verified by a real browser loading every screen for every role and failing
-on any violation (`tests/e2e/security-headers.spec.ts`), not by asserting
-that the header string looks right.
+that a mistake breaks a page instead of filing a report. The repository
+therefore preserves browser coverage that loads every screen and fails on
+violations (`tests/e2e/security-headers.spec.ts`), alongside non-browser
+policy tests. Per explicit instruction, the browser coverage was not rerun
+for this completion, so Phase 8A does not claim full browser validation.
 
 `'strict-dynamic'` removes any need for a host allowlist, and `script-src`
 carries no `'unsafe-inline'` and no `'unsafe-eval'` in production.
@@ -101,7 +102,14 @@ no dependency.
 Every payload passes through the same `redactSensitiveValues` the Audit
 Log screens already use, and `LogContext` is typed to reject binary
 values so an uploaded workbook cannot be serialized into a log line even
-by accident.
+by accident. Free-text errors additionally redact URL credentials,
+secret-shaped assignments, and bearer tokens.
+
+Next 16's stable `src/instrumentation.ts` `onRequestError` hook feeds every
+uncaught server render, Route Handler, Server Action, and Proxy error into
+that logger. It records method, pathname, route template, and render
+context, but never request headers or query strings. Host-side collection
+and alerting remain Phase 8B.
 
 ### 5. Health check that actually checks health
 
@@ -149,6 +157,12 @@ already claimed, expired, and nonexistent are indistinguishable, so a
 probe cannot confirm a session id exists. Proven, including that a refused
 probe leaves the session usable by its real owner and so cannot be used to
 deny service.
+
+The preview Route Handler also performs its Admin permission check and
+per-user rate-limit decision before multipart parsing, and rejects an
+oversized declared request before `formData()`. The service function keeps
+its own permission check; route hardening is not a replacement for
+server-layer authorization.
 
 ### 8. Grid-cell archive confirmation is inline, not a modal
 
@@ -202,7 +216,8 @@ pass with the whole system locked.
 
 `npm run rehearse:migrations` generates a uniquely named
 `cdc_rehearsal_*` database, applies all 7 migrations from zero, seeds it,
-asserts the Appendix A counts, and drops it. It never touches the
+asserts the Appendix A counts plus zero users, financial rows, audit rows,
+sync receipts, and import rows, and drops it. It never touches the
 development or test databases — a rehearsal that destroys a working
 environment is worse than no rehearsal.
 
@@ -244,6 +259,8 @@ should not block an unrelated change.
 - Five previously-static routes now render per request (see decision 2).
 - `src/proxy.ts` is the first proxy/middleware in this project; it runs on
   every document request.
+- `src/instrumentation.ts` is the global server-error logging boundary; it
+  writes only to the host-native JSON stream.
 - The Playwright config gains three smoke-only projects that are **not**
   part of the default run and need `npx playwright install firefox
 webkit`.

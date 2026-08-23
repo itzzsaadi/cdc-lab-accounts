@@ -652,6 +652,16 @@ real-device verification, client UAT — is not started.
   window; never reports `Retry-After: 0` while still refusing; and is
   proven cleanup-aware behaviourally — 500 distinct keys are all back to a
   fresh window after expiry, rather than the test reading private state.
+- **Unit — security and observability**
+  (`tests/unit/{security,observability,api}/`): production-only HSTS is
+  asserted without `preload`; nonce CSPs are strict and unique; the static
+  offline exception is bounded; structured logs are valid one-line JSON,
+  redact secret-shaped object keys and free-text credentials/tokens, and
+  omit production stacks by default. Next's global `onRequestError` hook
+  is proven to omit headers and query strings. `/api/health` is proven to
+  return 200 only after a database probe and a leak-free 503 on failure.
+  Historical import preview is proven to reject anonymous/non-Admin and
+  oversized requests before `formData()` is called.
 - **Integration — exhaustive authorization**
   (`tests/integration/authorization/full-surface-sweep.test.ts` +
   `protected-surface.ts`): all **58** guarded server functions listed in an
@@ -673,9 +683,10 @@ real-device verification, client UAT — is not started.
   filtered by record type.
 - **Integration — performance**
   (`tests/integration/performance/phase8-performance.test.ts`):
-  NFR-PERF-06 extended from Phase 5's two result/report queries to every
-  list and grid screen against a three-year dataset (~10,000 business rows
-  plus 5,000 audit rows), and NFR-PERF-07 driven through the real
+  NFR-PERF-06 extended from Phase 5's result/report queries across the
+  material list, grid, report, recent-entry, audit, dashboard, asset, and
+  investment query paths against a three-year dataset (~10,000 business
+  rows plus 5,000 audit rows), and NFR-PERF-07 driven through the real
   `processSyncBatch` in the client's own 50-per-batch chunks.
   **NFR-PERF-01/02/03 are deliberately not asserted** — they are
   browser-timing budgets and Playwright runs against `next dev`, where
@@ -725,7 +736,8 @@ real-device verification, client UAT — is not started.
 - **Clean-database rehearsal** (`npm run rehearse:migrations`, now in CI):
   creates a uniquely named temporary database, applies all 7 migrations
   from zero, seeds, asserts the Appendix A counts (26 parties, 22 items,
-  15 admin + 9 purchasing categories, 9 vendors, 0 users, 0 transactions),
+  15 admin + 9 purchasing categories, 9 vendors, 0 users, 0 financial
+  entries, 0 audit rows, 0 sync receipts, and 0 import rows),
   and drops it. It never touches the dev or test databases. This exists
   because `migrate deploy` against an already-migrated database is a
   no-op, so a migration that only works against existing state — and the
@@ -754,8 +766,10 @@ real-device verification, client UAT — is not started.
     called either way. Until then **NFR-USE-07 and the accessibility bar
     are not met**, and the traceability rows for them are the ones to
     re-check first. Tracked as the top outstanding Phase 8A item.
-- **Full suite at Phase 8A close:** 573 Vitest tests passing across 84
-  files; Playwright 42 passing with the 6 new failures above outstanding.
+- **Phase 8A local completion validation:** 592 Vitest tests passing across
+  88 files. Playwright was deliberately not run during this completion;
+  its preserved prior status remains 42 passing with the 6 failures above
+  outstanding.
   `typecheck`, `lint`, `format:check`, `prisma validate`, `prisma format`
   (no drift), `prisma migrate status` (no drift), the clean-database
   rehearsal, and the production `build` all pass.

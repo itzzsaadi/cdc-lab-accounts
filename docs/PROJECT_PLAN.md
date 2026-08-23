@@ -478,23 +478,25 @@ is **implemented** — see `docs/adr/0010-phase-8a-release-hardening.md`.
 8B (deployment, backup/restore rehearsal, real-device verification, and
 client-facing UAT) is **not started**.
 
-**Phase 8A — delivered.** Security headers plus an enforced nonce-based
-CSP via Next 16's `proxy.ts`, verified in a real browser across every
-screen and role rather than by inspecting the header string. Generic error
+**Phase 8A — locally achievable work delivered.** Security headers plus an
+enforced nonce-based CSP via Next 16's `proxy.ts`, with non-browser policy
+coverage and preserved browser coverage. Generic error
 handling completed (`global-error.tsx`, a root `not-found.tsx`, and an
 `(auth)` boundary — the three that were genuinely missing; `(app)`'s two
 already existed and already leaked nothing). Host-native structured JSON
-logging with redaction. A health check that actually reaches Postgres,
+logging with redaction and Next's global `onRequestError` hook. A health
+check that actually reaches Postgres,
 bounded by a timeout. Bounded, cleanup-aware per-user rate limiting,
 documented as single-instance-only. Import sessions scoped to their
-uploader. The three archive paths that had no confirmation at all now
+uploader; import preview authorizes, size-checks, and rate-limits before
+multipart parsing. The three archive paths that had no confirmation at all now
 confirm by name — the grid inline rather than modal, so NFR-USE-02's
 keyboard operation survives. FR-RPT-02's pending-upload count. An explicit
 58-function protected-surface registry driving an execution-based
-authorization sweep, plus a Playwright sweep over every route asserting no
-restricted field reaches a denied caller. Accessibility (zero serious or
-critical WCAG 2.1 A/AA violations), responsive checks, a cross-engine
-smoke, NFR-PERF-06 across every screen and NFR-PERF-07 measured, and a
+authorization sweep, plus a preserved Playwright sweep over every route.
+Accessibility, responsive, and cross-engine suites were added, with the
+six unresolved findings stated below. NFR-PERF-06 query-path coverage and
+NFR-PERF-07 measured, and a
 clean-database migration and seed rehearsal that creates and drops its own
 temporary database. Documentation: security review, deployment runbook
 draft, handover draft, change-request log, SRS open questions, ADR-0010,
@@ -528,7 +530,10 @@ Verify every acceptance criterion end to end, deploy to production, rehearse rec
 
 ### Exact SRS requirement groups
 - AC-01 to AC-15 (all, full and final verification).
+- NFR-PERF-01 to NFR-PERF-07 (all).
+- NFR-SEC-01 to NFR-SEC-10 (all).
 - NFR-REL-01 to NFR-REL-07 (all).
+- NFR-MNT-01 to NFR-MNT-09 (all).
 - NFR-CMP-01 to NFR-CMP-03 (all).
 - SRS §10 Documentation Deliverables (finalized, not skeleton).
 - SRS §12 Change Control, §13 Sign-Off.

@@ -1,8 +1,12 @@
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getTestDatabaseUrl, getTestPrismaClient, resetDatabase } from "./helpers/test-db";
 
 const prisma = getTestPrismaClient();
+const PRISMA_CLI = fileURLToPath(
+  new URL("../../node_modules/prisma/build/index.js", import.meta.url),
+);
 
 describe("Phase 1 master-data seed — master data only, no users, no credentials, no July transactions", () => {
   beforeEach(async () => {
@@ -11,7 +15,7 @@ describe("Phase 1 master-data seed — master data only, no users, no credential
     // command a developer runs, with DATABASE_URL overridden to the
     // guarded test URL for this one invocation (Phase 1 plan §"Prisma 7
     // generation, migration, and seed commands").
-    execFileSync("npx", ["prisma", "db", "seed"], {
+    execFileSync(process.execPath, [PRISMA_CLI, "db", "seed"], {
       cwd: process.cwd(),
       env: { ...process.env, DATABASE_URL: getTestDatabaseUrl() },
       stdio: "pipe",

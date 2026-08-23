@@ -5,6 +5,11 @@ fact are final. Every row marked **[8B]** needs a real value that does not
 exist yet because nothing has been deployed and no external account has
 been created.
 
+This is **not a production-readiness sign-off**. The preserved browser
+findings in `docs/testing.md`, production timing budgets, hosting, backup
+restore, monitoring, real-device checks, and client UAT remain release
+gates.
+
 **Rule for this document: no password, key, or connection string is ever
 written here.** Those live in the client's password manager. This file
 records _what exists and who controls it_, never how to authenticate to
@@ -148,6 +153,10 @@ npm run build
 ## 8. Still outstanding at handover **[8B]**
 
 - Production deployment, backups, and a rehearsed restore (AC-12).
+- Resolve and rerun the six deferred browser findings recorded in
+  `docs/testing.md`; no full browser or accessibility sign-off exists yet.
+- Measure NFR-PERF-01/02/03 against a production build in the release
+  environment.
 - Real-device browser verification (NFR-CMP-02) and Excel/Google Sheets
   export verification (NFR-CMP-03).
 - Two further historical months reconciled against the client's workbooks
