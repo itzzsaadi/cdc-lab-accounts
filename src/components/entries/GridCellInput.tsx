@@ -17,7 +17,7 @@ export interface GridCellRecord {
   updatedAt: string;
 }
 
-type CellStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "stale";
+type CellStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "stale" | "confirm-clear";
 
 /**
  * One Party Income grid cell — the full autosave state machine (approved
@@ -46,6 +46,7 @@ type CellStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "stale";
  */
 export function GridCellInput({
   partyId,
+  partyName,
   day,
   initialRecord,
   readOnly,
@@ -53,6 +54,7 @@ export function GridCellInput({
   colIndex,
 }: {
   partyId: string;
+  partyName: string;
   day: string;
   initialRecord: GridCellRecord | null;
   readOnly: boolean;
@@ -82,8 +84,9 @@ export function GridCellInput({
     target?.focus();
   }
 
-  async function commit() {
-    const trimmed = value.trim();
+  /** `overrideValue` exists only for the confirm-clear path below, which must act on `""` immediately rather than wait for a `setValue` state update to land. */
+  async function commit(overrideValue?: string) {
+    const trimmed = (overrideValue ?? value).trim();
 
     if (trimmed === "" && !record) {
       setStatus("idle");
@@ -92,6 +95,27 @@ export function GridCellInput({
 
     if (record && trimmed === record.amount) {
       setStatus("idle");
+      return;
+    }
+
+    /**
+     * NFR-USE-06. Emptying a cell that holds a *saved* figure archives a
+     * financial record, so it is confirmed by name first. The confirmation
+     * is deliberately inline rather than a modal: a modal opening on blur
+     * would seize focus mid-keyboard-run and break NFR-USE-02's
+     * keyboard-only grid operation, which is the one requirement this
+     * screen exists to satisfy. The displayed amount is restored while the
+     * prompt is up, so the grid never shows a figure as gone before it
+     * actually is, and abandoning the cell simply leaves the record intact.
+     *
+     * A cell that only ever existed in the offline queue is excluded: that
+     * discards a local draft the server has never seen, which is not the
+     * archiving of a financial record NFR-USE-06 governs.
+     */
+    if (trimmed === "" && record && !isQueuedOffline && status !== "confirm-clear") {
+      setValue(record.amount);
+      setMessage(null);
+      setStatus("confirm-clear");
       return;
     }
 
@@ -122,11 +146,16 @@ export function GridCellInput({
           expectedUpdatedAt: record.updatedAt,
         });
         if (!result.ok) {
+          // The confirm-clear path restored the figure into `value` before
+          // prompting, so a refused archive must put the cell back to
+          // showing that figure rather than an empty box.
+          setValue(record.amount);
           setStatus("stale");
           setMessage(result.error);
           return;
         }
         setRecord(null);
+        setValue("");
         setStatus("saved");
         router.refresh(); // refreshes the grid's server-computed row/party/grand totals
       } catch (submitError) {
@@ -266,7 +295,9 @@ export function GridCellInput({
           ? `Error: ${message}`
           : status === "stale"
             ? `Not saved: ${message}`
-            : "";
+            : status === "confirm-clear"
+              ? `Confirm clearing the income recorded for ${partyName} on ${day}`
+              : "";
 
   return (
     <div className="relative">
@@ -295,6 +326,39 @@ export function GridCellInput({
       <span role="status" aria-live="polite" className="sr-only">
         {statusLabel}
       </span>
+      {status === "confirm-clear" ? (
+        <div
+          className="border-outline-variant bg-surface-container-lowest absolute top-full right-0 z-20 mt-1 w-56 rounded-lg border p-3 shadow-lg"
+          role="group"
+          aria-label={`Confirm clearing ${partyName} on ${day}`}
+        >
+          <p className="text-on-surface mb-2 text-left text-xs">
+            Clear the income recorded for <span className="font-medium">{partyName}</span> on{" "}
+            <span className="font-medium">{day}</span>? It is archived, not deleted.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="text-on-surface-variant text-xs font-medium"
+              onClick={() => {
+                // Abandoning leaves the record exactly as it was; `value`
+                // was already restored before this prompt appeared.
+                setStatus("idle");
+                inputRef.current?.focus();
+              }}
+            >
+              Keep
+            </button>
+            <button
+              type="button"
+              className="text-error text-xs font-medium"
+              onClick={() => void commit("")}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
       {status === "error" ? (
         <button
           type="button"

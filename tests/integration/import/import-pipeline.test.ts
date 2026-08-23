@@ -350,6 +350,46 @@ describe("import session claim atomicity (mandatory correction #1 — claim surv
     expect(commit.ok).toBe(false);
   });
 
+  it("refuses to let one Admin claim another Admin's session, and leaves it usable by its owner", async () => {
+    // Phase 8A (approved decision 4). Being an Admin does not mean owning
+    // this particular upload: before the `createdBy` clause was added to
+    // the claim, knowing a session id was enough to commit someone else's
+    // workbook, and the IMPORT audit rows would have credited the wrong
+    // actor.
+    const owner = await createAdmin();
+    const otherAdmin = await createAdmin();
+    const bytes = await buildImportWorkbook({
+      "Counter Income": {
+        headers: COUNTER_INCOME_HEADERS,
+        rows: [["2026-07-22", "900", undefined]],
+      },
+    });
+
+    const preview = await previewImport(prisma, asAdmin(owner.id), {
+      name: "owned.xlsx",
+      size: bytes.length,
+      bytes,
+    });
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) return;
+
+    const stolen = await commitImport(prisma, asAdmin(otherAdmin.id), preview.importSessionId);
+    expect(stolen.ok).toBe(false);
+    expect(await prisma.counterIncome.count()).toBe(0);
+
+    // The refusal must not have consumed the claim — the rightful owner
+    // can still commit, so a probe by another Admin cannot be used to
+    // deny service either.
+    const stillPending = await prisma.importSession.findUniqueOrThrow({
+      where: { id: preview.importSessionId },
+    });
+    expect(stillPending.status).toBe("PENDING");
+
+    const byOwner = await commitImport(prisma, asAdmin(owner.id), preview.importSessionId);
+    expect(byOwner.ok).toBe(true);
+    expect(await prisma.counterIncome.count()).toBe(1);
+  });
+
   it("re-validates at commit time: an item archived after preview causes a clean rejection with no rows written and no partial import", async () => {
     const admin = await createAdmin();
     const item = await createTestExpenseItem();

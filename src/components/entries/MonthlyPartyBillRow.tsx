@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/Button";
+import { Modal } from "../ui/Modal";
 import { HistoryButton } from "./HistoryButton";
 import { generateClientUuid } from "../../lib/client-uuid";
 import {
@@ -29,6 +30,8 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
   const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** NFR-USE-06: "Clear" archives a recorded financial figure, so it is confirmed by name (party + month) before anything is written. */
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
 
   async function handleSave() {
@@ -85,6 +88,7 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
 
   async function handleClear() {
     if (!row.existing) return;
+    setConfirmingClear(false);
     setSubmitting(true);
     setError(null);
     const result = await archiveMonthlyPartyBillAction({
@@ -120,14 +124,45 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
         {submitting ? "Saving…" : "Save"}
       </Button>
       {row.existing ? (
-        <Button
-          type="button"
-          variant="destructive-ghost"
-          disabled={submitting}
-          onClick={() => void handleClear()}
-        >
-          Clear
-        </Button>
+        <>
+          <Button
+            type="button"
+            variant="destructive-ghost"
+            disabled={submitting}
+            onClick={() => setConfirmingClear(true)}
+          >
+            Clear
+          </Button>
+          <Modal
+            open={confirmingClear}
+            onClose={() => setConfirmingClear(false)}
+            title="Clear Monthly Bill"
+          >
+            <div className="flex flex-col gap-4">
+              <p className="text-on-surface-variant text-sm">
+                Clear the recorded bill for{" "}
+                <span className="font-medium">
+                  {row.partyName} — {row.periodMonth}
+                </span>
+                ? The figure is archived, not deleted — its history stays in the change log and it
+                can be entered again.
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="secondary" onClick={() => setConfirmingClear(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive-ghost"
+                  disabled={submitting}
+                  onClick={() => void handleClear()}
+                >
+                  {submitting ? "Clearing…" : "Clear Bill"}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        </>
       ) : null}
       {row.existing ? (
         <HistoryButton

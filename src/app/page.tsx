@@ -1,3 +1,6 @@
+/** Phase 8A: rendered per request so `src/proxy.ts`'s CSP nonce can be stamped onto Next's inline hydration scripts — a statically generated page has no request to derive one from. */
+export const dynamic = "force-dynamic";
+
 export default function HealthPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-white p-8 text-black">

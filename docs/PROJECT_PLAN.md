@@ -473,6 +473,56 @@ Give Admins control over master data, users, and the profit split, and deliver t
 
 ## Phase 8 — Acceptance Testing, Deployment, and Handover
 
+**Split into 8A and 8B.** 8A (internal acceptance and release hardening)
+is **implemented** — see `docs/adr/0010-phase-8a-release-hardening.md`.
+8B (deployment, backup/restore rehearsal, real-device verification, and
+client-facing UAT) is **not started**.
+
+**Phase 8A — delivered.** Security headers plus an enforced nonce-based
+CSP via Next 16's `proxy.ts`, verified in a real browser across every
+screen and role rather than by inspecting the header string. Generic error
+handling completed (`global-error.tsx`, a root `not-found.tsx`, and an
+`(auth)` boundary — the three that were genuinely missing; `(app)`'s two
+already existed and already leaked nothing). Host-native structured JSON
+logging with redaction. A health check that actually reaches Postgres,
+bounded by a timeout. Bounded, cleanup-aware per-user rate limiting,
+documented as single-instance-only. Import sessions scoped to their
+uploader. The three archive paths that had no confirmation at all now
+confirm by name — the grid inline rather than modal, so NFR-USE-02's
+keyboard operation survives. FR-RPT-02's pending-upload count. An explicit
+58-function protected-surface registry driving an execution-based
+authorization sweep, plus a Playwright sweep over every route asserting no
+restricted field reaches a denied caller. Accessibility (zero serious or
+critical WCAG 2.1 A/AA violations), responsive checks, a cross-engine
+smoke, NFR-PERF-06 across every screen and NFR-PERF-07 measured, and a
+clean-database migration and seed rehearsal that creates and drops its own
+temporary database. Documentation: security review, deployment runbook
+draft, handover draft, change-request log, SRS open questions, ADR-0010,
+and the two SRS §10 user guides as actual PDFs.
+
+**Phase 8A — outstanding.** The accessibility suite added this phase
+reports serious/critical violations on the authenticated screens, and the
+responsive check finds horizontal scroll on the data screens; two
+compatibility-smoke tests also fail. None is fixed, none is skipped, and
+the findings are recorded in `docs/testing.md`. **NFR-USE-07 and the
+accessibility bar are not met**, and their traceability rows must be
+re-checked once the axe detail is root-caused.
+
+**Phase 8A — deliberately not asserted.** NFR-PERF-01/02/03 are
+browser-timing budgets that need a production build; measuring them under
+`next dev` would record a number that does not mean what it appears to.
+Carried to 8B.
+
+**Phase 8B — remaining, all environment- or client-dependent.** Production
+deployment and hosting choice (needs an ADR); automated backups, retention,
+and a rehearsed restore (NFR-REL-01/02/03, AC-12); alerting and uptime
+monitoring (NFR-REL-06/07); HTTP→HTTPS redirect and encryption at rest
+(NFR-SEC-01/02); real-device browser verification (NFR-CMP-02) and
+Excel/Google Sheets export verification (NFR-CMP-03); two further
+historical months reconciled against the client's workbooks (AC-03);
+unaided walkthroughs by both partners and one operator (AC-14); and the
+two open questions in `docs/SRS-open-questions.md`.
+
 ### Objective
 Verify every acceptance criterion end to end, deploy to production, rehearse recovery, and hand over full documentation — closing out the project per SRS §12/§13.
 
