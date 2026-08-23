@@ -32,12 +32,13 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     // {display:none}`) — so only the visible one is queried here, at the
     // default desktop viewport.
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(5); // + Phase 6 Sync Center
+    await expect(links).toHaveCount(6); // + Phase 6 Sync Center + Offline Entry Workspace
     await expect(links.nth(0)).toContainText("Home");
     await expect(links.nth(1)).toContainText("Daily Expenses");
     await expect(links.nth(2)).toContainText("Party Income");
     await expect(links.nth(3)).toContainText("Counter Income");
     await expect(links.nth(4)).toContainText("Sync Center");
+    await expect(links.nth(5)).toContainText("Offline Entry Workspace");
 
     // Absent from the DOM entirely — not merely hidden — in *both* the
     // desktop nav and the (currently closed) mobile drawer's markup.
@@ -53,7 +54,7 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     await expect(page).toHaveURL(/\/home$/);
 
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(13); // 5 Operator (incl. Sync Center) + Dashboard + 4 Phase 4 Partner entries + 3 Phase 5 Partner entries
+    await expect(links).toHaveCount(14); // 6 Operator (incl. Sync Center + Offline Entry Workspace) + Dashboard + 4 Phase 4 Partner entries + 3 Phase 5 Partner entries
     await expect(page.locator('nav[aria-label="Primary"] a:visible:has-text("Users")')).toHaveCount(
       0,
     );
@@ -65,7 +66,7 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     await expect(page).toHaveURL(/\/home$/);
 
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(14); // every Partner item plus Users
+    await expect(links).toHaveCount(15); // every Partner item plus Users
   });
 });
 

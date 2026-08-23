@@ -20,6 +20,8 @@ import { Decimal } from "../../../../lib/domain/money";
 import { Card } from "../../../../components/ui/Card";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { PartnerMappingSetupPanel } from "../../../../components/entries/PartnerMappingSetupPanel";
+import { ProvisionalNotice } from "../../../../components/offline/ProvisionalNotice";
+import { ProvisionalTotalsWrapper } from "../../../../components/offline/ProvisionalTotalsWrapper";
 
 /** FR-RES-01 to 11, FR-RPT-06 to 08. Month-stepping is the default view; `?from=&to=` switches to an arbitrary custom range (FR-RES-01/AC-09) — both validated server-side, never trusted from the URL directly. */
 export default async function MonthlySummaryPage({
@@ -155,28 +157,36 @@ export default async function MonthlySummaryPage({
         </button>
       </form>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="p-4">
-          <p className="text-on-surface-variant text-xs font-medium uppercase">Total Income</p>
-          <p className="tabular-nums text-on-surface mt-1 text-2xl font-bold">
-            {formatMoney(totals.totalIncome)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-on-surface-variant text-xs font-medium uppercase">
-            Total Expenses (Business)
-          </p>
-          <p className="tabular-nums text-on-surface mt-1 text-2xl font-bold">
-            {formatMoney(totals.totalExpenses)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-on-surface-variant text-xs font-medium uppercase">Net Profit / Loss</p>
-          <p className="tabular-nums text-on-surface mt-1 text-2xl font-bold">
-            {formatMoney(totals.netResult)}
-          </p>
-        </Card>
+      <div className="mb-6">
+        <ProvisionalNotice from={range.from} to={range.to} />
       </div>
+
+      <ProvisionalTotalsWrapper from={range.from} to={range.to}>
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card className="p-4">
+            <p className="text-on-surface-variant text-xs font-medium uppercase">Total Income</p>
+            <p className="tabular-nums text-on-surface mt-1 text-2xl font-bold">
+              {formatMoney(totals.totalIncome)}
+            </p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-on-surface-variant text-xs font-medium uppercase">
+              Total Expenses (Business)
+            </p>
+            <p className="tabular-nums text-on-surface mt-1 text-2xl font-bold">
+              {formatMoney(totals.totalExpenses)}
+            </p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-on-surface-variant text-xs font-medium uppercase">
+              Net Profit / Loss
+            </p>
+            <p className="tabular-nums text-on-surface mt-1 text-2xl font-bold">
+              {formatMoney(totals.netResult)}
+            </p>
+          </Card>
+        </div>
+      </ProvisionalTotalsWrapper>
 
       <div className="border-outline-variant bg-surface-container-lowest mb-6 overflow-hidden rounded-xl border p-4 shadow-sm">
         <h2 className="text-on-surface mb-3 text-lg font-semibold">Income</h2>

@@ -461,12 +461,55 @@ Full design record: `docs/adr/0008-phase-6-offline-sync.md`; architecture note: 
   Phase-3B-era "no Pending Uploads/no Synced" safeguard, re-scoped to
   the Home page's own content now that a real, global FR-OFF-03 header
   indicator legitimately exists everywhere.
-- Full suite at Phase 6: **407 Vitest tests** across the pre-existing
-  suite plus the new offline unit/integration files, all passing;
-  `tests/e2e/offline-sync.spec.ts` (4/4) plus the updated `shell.spec.ts`
-  (9/9) and `entries.spec.ts` safeguard test, all passing. Two
-  pre-existing, unrelated Daily Expense assertions (the empty-state test,
-  and the filters/Reset-Filters test) are flaky only under parallel
-  Playwright workers against the shared dev database — both confirmed
-  passing in isolation (`--workers=1`) — not introduced by this phase and
-  not touching any offline/sync code path.
+
+#### Phase 6 closure pass — FR-OFF-12, NFR-SEC-09, real offline navigation
+
+- **Unit** (`tests/unit/offline/relevance.test.ts`): `operationAffectedRange`
+  for every offline entity type (single-day for `daily_expense`/
+  `counter_income`/`party_income_daily`/`party_income_cash_receipt`, full
+  calendar month for `monthly_expense`/`party_income_monthly_bill`, `null`
+  for a missing/malformed date field); `operationsAffectingRange`'s
+  overlap filtering, including the inclusive month-boundary case.
+- **Playwright e2e**, added to `tests/e2e/offline-sync.spec.ts`:
+  - "signing out with an empty queue clears this device's local offline
+    data" and "choosing 'Sign out anyway' with unsynced entries never
+    deletes the local queue" (NFR-SEC-09, both directions) — inspecting
+    the real IndexedDB database directly via raw `indexedDB.open`/
+    `.databases()`, never through Dexie, so the checks are independent
+    of the application code they verify.
+  - "reopening the app with zero connectivity reaches a real entry
+    workspace, not a dead end" — registers the service worker, goes
+    offline, navigates to an arbitrary authenticated route, and confirms
+    the Offline Entry Workspace's own heading is reached (never the
+    plain `/offline` page).
+  - "the Offline Entry Workspace records all four entry types with zero
+    connectivity" — opens the workspace online (so its own JS is
+    already loaded, sidestepping the one disclosed residual precache
+    case — see ADR-0008 decision 11), goes offline, and records a Daily
+    Expense, Counter Income, and Party Income entry, each queued for
+    real sync.
+  - "a still-unsynced entry marks the Partner Dashboard's totals
+    provisional" (FR-OFF-12) — queues a Counter Income entry offline,
+    reconnects with the sync endpoints deliberately blocked (so the
+    entry stays genuinely unsynced, not just "about to sync"), and
+    confirms the Dashboard shows the "Provisional — 1 entry…" banner.
+- **A flaky-test root cause found and fixed, not merely retried around**:
+  several `offline-sync.spec.ts` tests called `context.setOffline(true)`
+  immediately after a `page.goto`, without letting that navigation's own
+  in-flight requests (reference-cache refresh, startup sync
+  verification) settle first — severing the network mid-request left
+  them retrying/hanging in a way that stalled even a plain `.fill()` on
+  an already-rendered field. Adding
+  `await page.waitForLoadState("networkidle")` immediately before every
+  `context.setOffline(true)` in that file fixed it outright: 16/16 clean
+  runs across two full repeats of the file, no retries needed, down from
+  needing retries on more than half its tests. `playwright.config.ts`
+  separately runs with `workers: 1` and generous, documented timeouts,
+  covering the broader class of timeout-only failures (never a wrong
+  value) that reproduced even under a single worker with a completely
+  idle file tree — ruling out an actual cross-request data race for that
+  class.
+- Full suite at Phase 6 closure: **414 Vitest tests**, all passing;
+  full Playwright suite passing (see the closure completion report for
+  the exact run and commit hash). `shell.spec.ts`'s nav-link counts
+  updated again for the new Offline Entry Workspace Sidebar entry.

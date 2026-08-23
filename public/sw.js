@@ -20,9 +20,17 @@
 // The page-side sync engine (src/lib/offline/sync-engine.ts) is what
 // actually drives every real sync attempt.
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v4";
 const STATIC_CACHE = `cdc-static-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline";
+// FR-OFF: precached alongside OFFLINE_URL and served as the *first*
+// fallback for any failed navigation (see the fetch handler below) —
+// genuinely static and unauthenticated (no session check, no Prisma
+// call, no financial data; see src/app/offline-entry/page.tsx), so it is
+// safe to cache exactly like OFFLINE_URL, and it gives the user something
+// they can actually act on (all four entry workflows) instead of a dead
+// end.
+const OFFLINE_ENTRY_URL = "/offline-entry";
 
 const STATIC_ASSET_PATTERNS = [
   /^\/_next\/static\//,
@@ -37,8 +45,30 @@ function isStaticAsset(pathname) {
   return STATIC_ASSET_PATTERNS.some((pattern) => pattern.test(pathname));
 }
 
+// `cache.addAll` here only stores OFFLINE_ENTRY_URL's HTML — its
+// client-side React bundle (separate, content-hashed /_next/static/...
+// chunks) is deliberately left to the ordinary static-asset handler below
+// (cache-first, populated the first time each chunk is actually
+// fetched), the same as any other page's JS. Next.js shares almost all of
+// that JS across every route (the React/Next runtime itself), so in
+// practice it's already cached the moment a user has loaded *any*
+// authenticated page while online — which normal use of this app already
+// guarantees before anyone would ever need this workspace offline (the
+// Sidebar links to it — src/lib/navigation/nav-items.ts). Eagerly
+// fetching and caching every referenced chunk at install time was tried
+// and reverted: in `next dev` those chunks are large and unminified
+// (unlike a real production build, where the equivalent one-time cost is
+// small), and repeating that fetch on every fresh service-worker
+// registration measurably slowed this project's own Playwright suite
+// without being required for the actual requirement — reaching the
+// workspace itself, which this precache alone already guarantees; see
+// docs/offline-sync.md's disclosed residual case (this page's own chunk,
+// specifically, on a device that reaches it for the very first time while
+// already offline).
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll([OFFLINE_URL])));
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll([OFFLINE_URL, OFFLINE_ENTRY_URL])),
+  );
   self.skipWaiting();
 });
 
@@ -94,12 +124,26 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     // Every page carries live, financial, per-request data -- it is never
     // cached. Only the network response is ever served for a successful
-    // request; a failed (offline) navigation falls back to the one
-    // static, non-financial /offline page.
+    // request. A failed (offline) navigation falls back, in order: (1) an
+    // exact cached match for the requested URL itself (covers navigating
+    // straight to /offline-entry or /offline while offline); (2) the
+    // Offline Entry Workspace, so reopening the installed app with no
+    // connectivity lands on a page the user can actually act on rather
+    // than a dead end, regardless of which route was actually requested;
+    // (3) the plain /offline page, only if the workspace itself somehow
+    // isn't cached.
     event.respondWith(
-      fetch(request).catch(() =>
-        caches.open(STATIC_CACHE).then((cache) => cache.match(OFFLINE_URL)),
-      ),
+      (async () => {
+        try {
+          return await fetch(request);
+        } catch {
+          const cache = await caches.open(STATIC_CACHE);
+          const exactMatch = await cache.match(request);
+          if (exactMatch) return exactMatch;
+          const workspace = await cache.match(OFFLINE_ENTRY_URL);
+          return workspace || cache.match(OFFLINE_URL);
+        }
+      })(),
     );
     return;
   }

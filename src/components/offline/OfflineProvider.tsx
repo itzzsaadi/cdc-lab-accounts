@@ -20,6 +20,8 @@ import {
 } from "../../lib/offline/queue";
 import { runSync } from "../../lib/offline/sync-engine";
 import { refreshReferenceCache, pruneRecentRecords } from "../../lib/offline/reference-cache";
+import { clearOfflineDataIfQueueEmpty } from "../../lib/offline/cleanup";
+import { rememberLastUserId } from "../../lib/offline/last-user";
 import type { NewOperationInput, QueuedOperation } from "../../lib/offline/types";
 
 interface OfflineContextValue {
@@ -29,6 +31,13 @@ interface OfflineContextValue {
   conflictCount: number;
   failedCount: number;
   isSyncing: boolean;
+  /** NFR-SEC-09: call after a successful sign-out. Deletes this device's
+   * entire local offline database for this user (reference cache,
+   * `recentRecords`, and `operations`) — but only when `operations` is
+   * genuinely empty at the moment this runs; otherwise it's a no-op and
+   * returns `false`. Never call this while any entry might still be
+   * pending/failed/conflicted — see UserMenu.tsx's own gating. */
+  clearLocalDataOnSignOut: () => Promise<boolean>;
   /** Best-effort UI hint from `navigator.onLine` only — never the gate an
    * actual sync attempt relies on; `runSync` always independently verifies
    * a real authenticated connection (mandatory decision #2). */
@@ -113,6 +122,13 @@ export function OfflineProvider({
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    // Lets the static Offline Entry Workspace (reachable with zero
+    // connectivity — src/app/offline-entry/page.tsx) know which per-user
+    // database to write into when there is no live session to ask.
+    rememberLastUserId(userId);
+  }, [userId]);
 
   useEffect(() => {
     refreshReferenceCache(db).catch(() => {});
@@ -203,6 +219,8 @@ export function OfflineProvider({
     [db, triggerSyncNow],
   );
 
+  const clearLocalDataOnSignOut = useCallback(() => clearOfflineDataIfQueueEmpty(userId), [userId]);
+
   const value: OfflineContextValue = {
     enqueue,
     operations,
@@ -215,6 +233,7 @@ export function OfflineProvider({
     resolveKeepLocal,
     resolveKeepServer,
     retry,
+    clearLocalDataOnSignOut,
   };
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;

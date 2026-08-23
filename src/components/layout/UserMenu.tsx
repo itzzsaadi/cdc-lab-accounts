@@ -21,7 +21,7 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
-  const { pendingCount, failedCount, conflictCount } = useOfflineSync();
+  const { pendingCount, failedCount, conflictCount, clearLocalDataOnSignOut } = useOfflineSync();
   const unsyncedCount = pendingCount + failedCount + conflictCount;
 
   useEffect(() => {
@@ -34,6 +34,12 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
   function doSignOut() {
     startTransition(async () => {
       await signOutAction();
+      // NFR-SEC-09: `clearLocalDataOnSignOut` re-checks the *actual*
+      // current queue directly against IndexedDB before deleting anything
+      // — it silently no-ops if the user chose "Sign out anyway" with
+      // work still pending, never trusting this component's own
+      // (possibly stale) `unsyncedCount` render as the deletion gate.
+      await clearLocalDataOnSignOut().catch(() => {});
       setOpen(false);
       setConfirmOpen(false);
       router.push("/sign-in");

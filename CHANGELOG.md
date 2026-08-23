@@ -79,15 +79,72 @@ SyncCenter}.tsx`: the one place queue/connection state lives, the
   on Phase 5's `phase5_partner_mapping` migration was found and repaired
   non-destructively (no reset, no data loss) before the Phase 6
   migration was generated — see `docs/adr/0008-phase-6-offline-sync.md`.
-- **Disclosed, approved-scope gaps**: FR-OFF-12 (mark figures
-  provisional while offline uploads are pending) is not built this
-  phase. NFR-SEC-09 (clear offline device data on sign-out once nothing
-  is pending) is partial — isolation is enforced, nothing is silently
-  erased while work is pending, but automatic clearing once the queue is
-  empty is not implemented.
 - See `docs/adr/0008-phase-6-offline-sync.md` and `docs/offline-sync.md`
   for the full design record; `docs/REQUIREMENTS_TRACEABILITY.md`'s
   FR-OFF/FR-AUTH-09/NFR-SEC-09/NFR-REL-05/NFR-MNT-07 rows are updated.
+  (Note: FR-OFF-12 and NFR-SEC-09 were initially disclosed as gaps here
+  — see the closure entry immediately below, where both were built.)
+
+### Added — Phase 6 closure: FR-OFF-12, NFR-SEC-09, and a real Offline Entry Workspace
+
+- **FR-OFF-12 (provisional totals)**: `src/lib/offline/relevance.ts`
+  computes which still-queued operations could affect the period a
+  results screen is showing (single-day match for daily entities,
+  whole-month for `periodMonth`-keyed ones); `ProvisionalNotice` (banner)
+  and `ProvisionalTotalsWrapper` (dashed-amber ring on the total tiles)
+  wire this into the Partner Dashboard and Monthly Summary. Unit-tested
+  (`tests/unit/offline/relevance.test.ts`) and proven end-to-end
+  (`tests/e2e/offline-sync.spec.ts`'s FR-OFF-12 test): a genuinely
+  unsynced Counter Income entry for today makes the Dashboard's tiles
+  show "Provisional" until it syncs.
+- **NFR-SEC-09 (offline data cleared on sign-out)**:
+  `clearOfflineDataIfQueueEmpty` (`src/lib/offline/cleanup.ts`) re-checks
+  the real `operations` count directly against IndexedDB and, only when
+  it is genuinely zero, deletes the entire per-user offline database
+  (`deleteOfflineDatabase`, `db.ts`) — reference cache, `recentRecords`,
+  and `operations` together. Wired into `UserMenu.tsx`'s sign-out;
+  deliberately does not clear anything mid-session (that would defeat
+  FR-OFF-14's 90-day readable-history requirement for a device still in
+  use). Both directions — an empty queue clears, "Sign out anyway" with
+  something queued never does — are proven directly against real
+  IndexedDB in `tests/e2e/offline-sync.spec.ts`.
+- **A real Offline Entry Workspace** (`src/app/offline-entry/page.tsx`,
+  `src/components/offline/OfflineEntryWorkspace.tsx`): a genuinely
+  static, unauthenticated page hosting all four offline entry workflows,
+  reading only this device's own cached reference data and queuing
+  through the same `enqueueOperation` as every other form.
+  `public/sw.js` precaches its HTML and serves it as the fallback for
+  _any_ failed navigation — ahead of the plain `/offline` page — so
+  reopening the installed app with zero connectivity reaches a page the
+  user can actually act on, not a dead end. Linked from the Sidebar
+  (`src/lib/navigation/nav-items.ts`). `src/lib/offline/last-user.ts`
+  remembers which signed-in user's IndexedDB to write into when there is
+  no live session to ask (a non-secret breadcrumb, never a credential).
+  An initial version also eagerly precached the page's own JS chunk and
+  every asset it references; reverted after it measurably destabilized
+  the Playwright suite in `next dev` (large, unminified dev-mode chunks
+  refetched on every fresh service-worker registration) without being
+  required — reaching the workspace is proven with the HTML-only
+  precache alone, and full interactivity is proven separately via a
+  realistic online-then-offline flow. See ADR-0008 decision 11 for the
+  full reasoning and the one disclosed residual case (a device's
+  genuinely first-ever offline visit to this specific page, before
+  loading any other authenticated page at all).
+- **Playwright reliability, root-caused**: `tests/e2e/offline-sync.spec.ts`
+  tests were calling `context.setOffline(true)` immediately after a
+  `page.goto`, without letting that navigation's own in-flight requests
+  settle first — severing the network mid-request stalled even a plain
+  `.fill()` on an already-rendered field. Adding
+  `await page.waitForLoadState("networkidle")` before every
+  `context.setOffline(true)` fixed it outright (16/16 clean runs across
+  `--repeat-each=2`, no retries needed). Separately, `playwright.config.ts`
+  now runs with `workers: 1` and generous, documented timeouts — the
+  broader class of timeout-only failures (never a wrong value) reproduced
+  even under a single worker with an idle file tree, ruling out an actual
+  cross-request data race.
+- `docs/REQUIREMENTS_TRACEABILITY.md`'s FR-OFF-01/FR-OFF-12/NFR-SEC-09
+  rows updated to Done, reflecting behavior actually proven above — not
+  marked complete until the corresponding test existed and passed.
 
 ### Added — Phase 5 closure: FR-RPT-05, FR-AUD-06, and skip removal
 
