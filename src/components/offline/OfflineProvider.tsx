@@ -21,7 +21,6 @@ import {
 import { runSync } from "../../lib/offline/sync-engine";
 import { refreshReferenceCache, pruneRecentRecords } from "../../lib/offline/reference-cache";
 import { clearOfflineDataIfQueueEmpty } from "../../lib/offline/cleanup";
-import { rememberLastUserId } from "../../lib/offline/last-user";
 import type { NewOperationInput, QueuedOperation } from "../../lib/offline/types";
 
 interface OfflineContextValue {
@@ -122,13 +121,6 @@ export function OfflineProvider({
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
-
-  useEffect(() => {
-    // Lets the static Offline Entry Workspace (reachable with zero
-    // connectivity — src/app/offline-entry/page.tsx) know which per-user
-    // database to write into when there is no live session to ask.
-    rememberLastUserId(userId);
-  }, [userId]);
 
   useEffect(() => {
     refreshReferenceCache(db).catch(() => {});

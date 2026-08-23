@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getOfflineDb } from "../../lib/offline/db";
 import { enqueueOperation } from "../../lib/offline/queue";
 import { runSync } from "../../lib/offline/sync-engine";
-import { getLastKnownUserId } from "../../lib/offline/last-user";
+import {
+  resolveOfflineAccessibleUserId,
+  type OfflineAccessResolution,
+} from "../../lib/offline/last-user";
 import { generateClientUuid } from "../../lib/client-uuid";
 import { todayInKarachi, currentYearMonthInKarachi } from "../../lib/domain/calendar-date";
 import { Card } from "../ui/Card";
@@ -34,28 +37,32 @@ import type { OfflineEntityType } from "../../lib/offline/types";
  * online — through this page's own "Sync now" button, or automatically
  * the next time any ordinary authenticated page mounts `OfflineProvider`.
  */
-/** No `window`/`localStorage` at all during SSR/static generation, so the
- * server snapshot is a fixed `null` (matching OfflineProvider.tsx's
- * identical `isOnline` pattern for the same reason) — the real value is
- * read only after hydration, avoiding a mismatch between server and
- * client markup for what is otherwise indistinguishable from "no history
- * yet." Nothing here ever changes without a full reload, so `subscribe`
- * never actually needs to fire its callback. */
-function subscribeToLastUserId() {
-  return () => {};
-}
-function getLastUserIdServerSnapshot() {
-  return null;
-}
-
+/**
+ * `indexedDB.databases()` is async and browser-only, so there is no
+ * synchronous, SSR-safe snapshot to read the way `OfflineProvider.tsx`
+ * reads `navigator.onLine` — this resolves once, after mount, and renders
+ * nothing (matching the server's own empty render) until it settles. That
+ * one extra frame is a fair price for never trusting a synchronously
+ * readable, and therefore forgeable, breadcrumb (see last-user.ts).
+ */
 export function OfflineEntryWorkspace() {
-  const userId = useSyncExternalStore(
-    subscribeToLastUserId,
-    getLastKnownUserId,
-    getLastUserIdServerSnapshot,
-  );
+  const [resolution, setResolution] = useState<OfflineAccessResolution | null>(null);
 
-  if (userId === null) {
+  useEffect(() => {
+    let cancelled = false;
+    resolveOfflineAccessibleUserId().then((result) => {
+      if (!cancelled) setResolution(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (resolution === null) {
+    return null;
+  }
+
+  if (resolution.status === "none") {
     return (
       <Alert variant="info">
         This device has no offline entry history yet. Sign in at least once with a live connection
@@ -64,7 +71,16 @@ export function OfflineEntryWorkspace() {
     );
   }
 
-  return <WorkspaceForUser userId={userId} />;
+  if (resolution.status === "ambiguous") {
+    return (
+      <Alert variant="warning">
+        More than one account has signed in on this device. Sign in online once to continue — this
+        page can&rsquo;t safely guess which account&rsquo;s offline data to use.
+      </Alert>
+    );
+  }
+
+  return <WorkspaceForUser userId={resolution.userId} />;
 }
 
 function WorkspaceForUser({ userId }: { userId: string }) {

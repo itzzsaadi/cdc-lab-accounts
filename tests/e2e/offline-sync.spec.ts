@@ -332,3 +332,101 @@ test.describe("Offline Sync — Sync Center and queueing", () => {
     ).toBeVisible();
   });
 });
+
+/**
+ * Security review: `/offline-entry` (OfflineEntryWorkspace.tsx) is static
+ * and reachable with no session cookie at all — it must never trust a
+ * bare, client-readable "which user" value as a stand-in for
+ * authentication. It resolves access purely from which `cdc-offline-<id>`
+ * IndexedDB databases genuinely exist on this browser profile
+ * (`resolveOfflineAccessibleUserId`, src/lib/offline/last-user.ts) — a
+ * database only ever gets created by `getOfflineDb` inside the
+ * authenticated shell, so its mere existence already proves a real prior
+ * sign-in for that id, on this exact device. These three tests cover the
+ * three scenarios named in the security review: after sign-out, to
+ * another user, and with no valid local offline-access context at all.
+ */
+test.describe("Offline Entry Workspace security (NFR-SEC-09 / offline-entry review)", () => {
+  test("a device that has never signed in gets no offline entry history, never a guess", async ({
+    page,
+  }) => {
+    // A fresh Playwright test context starts with empty storage/IndexedDB
+    // for every origin — this is the real "without a valid local
+    // offline-access context" case, reached with zero setup.
+    await page.goto("/offline-entry");
+    await expect(
+      page.getByText(
+        "This device has no offline entry history yet. Sign in at least once with a live connection before entries can be recorded here offline.",
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Daily Expense" })).toHaveCount(0);
+  });
+
+  test("after sign-out clears this device's data, the workspace no longer offers that user's entries", async ({
+    page,
+  }) => {
+    const user = await createActivatedUser("OPERATOR", TEST_PASSWORD);
+    await signIn(page, user.email);
+    await page.goto("/counter-income");
+    await expect.poll(() => offlineDatabaseExists(page, user.id)).toBe(true);
+
+    // Empty queue — NFR-SEC-09's ordinary sign-out cleanup path actually
+    // deletes the database (already proven directly in the test above at
+    // line 166); this test's own point is what /offline-entry does next.
+    await signOut(page);
+    await expect.poll(() => offlineDatabaseExists(page, user.id)).toBe(false);
+
+    await page.goto("/offline-entry");
+    await expect(
+      page.getByText("This device has no offline entry history yet.", { exact: false }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Daily Expense" })).toHaveCount(0);
+  });
+
+  test("two genuine accounts having signed in on one device never lets the workspace guess between them", async ({
+    page,
+    context,
+  }) => {
+    const userA = await createActivatedUser("OPERATOR", TEST_PASSWORD);
+    const userB = await createActivatedUser("OPERATOR", TEST_PASSWORD);
+
+    await signIn(page, userA.email);
+    await page.goto("/counter-income");
+    await page.waitForLoadState("networkidle");
+    // Keep user A's database from being cleared on sign-out by leaving a
+    // genuinely unsynced entry queued (same technique as the "Sign out
+    // anyway" safeguard test above) — this is what actually produces the
+    // multi-account-on-one-device state the ambiguous case defends
+    // against; without this, an empty-queue sign-out would delete A's
+    // database and there would be nothing to disambiguate.
+    await context.setOffline(true);
+    await page.getByLabel("Amount (PKR)").fill("321");
+    await page.getByRole("button", { name: "Save Counter Income" }).click();
+    await expect(page.getByText(/Saved offline/)).toBeVisible({ timeout: 30_000 });
+    await page.route("**/api/sync/**", (route) => route.abort());
+    await context.setOffline(false);
+    expect(await offlineDatabaseExists(page, userA.id)).toBe(true);
+
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: /^Sign out/ }).click();
+    await page.getByRole("button", { name: "Sign out anyway" }).click();
+    await expect(page).toHaveURL(/\/sign-in/);
+    expect(await offlineDatabaseExists(page, userA.id)).toBe(true);
+
+    await signIn(page, userB.email);
+    await page.goto("/counter-income");
+    await expect.poll(() => offlineDatabaseExists(page, userB.id)).toBe(true);
+
+    // Both userA's and userB's databases now genuinely exist on this one
+    // browser profile — the exact "to another user" scenario. The
+    // workspace must refuse to silently pick either one.
+    await page.goto("/offline-entry");
+    await expect(
+      page.getByText(
+        "More than one account has signed in on this device. Sign in online once to continue",
+        { exact: false },
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Daily Expense" })).toHaveCount(0);
+  });
+});

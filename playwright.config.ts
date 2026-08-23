@@ -14,6 +14,13 @@ const sandboxOverride = existsSync(sandboxChromium)
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Pays every route's one-time `next dev` (Turbopack) first-hit compile
+  // cost up front, sequentially, before any test's own clock starts — see
+  // global-setup.ts for why: that cost has been measured, in this
+  // sandbox, to occasionally exceed even a single test's 60s timeout on
+  // its own, which no per-assertion timeout can fix once the whole test
+  // is over budget.
+  globalSetup: "./tests/e2e/global-setup.ts",
   // Every worker shares one `next dev` server and one Postgres database
   // (`webServer` below spawns a single dev server; there is no
   // per-worker/per-test database, by the project's own documented

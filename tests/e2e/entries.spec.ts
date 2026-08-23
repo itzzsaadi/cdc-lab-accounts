@@ -79,8 +79,22 @@ test.describe("Daily Expenses (FR-DEXP-01/05/06/09)", () => {
     await page.getByRole("button", { name: "Save Expense" }).click();
 
     await expect(page.locator("dialog[open]")).toBeHidden();
+    // The dialog closes synchronously (setOpen(false)) but the table row
+    // only appears once the unawaited router.refresh() triggered in
+    // DailyExpenseDrawer's handleSubmit has actually completed its RSC
+    // re-fetch and React has committed the refreshed tree. This project's
+    // `next dev` (Turbopack, first-hit compilation, no production
+    // optimization) has been directly measured, in this sandbox, to
+    // occasionally take longer than the suite's default 15s expect
+    // timeout to finish that one round trip (see playwright.config.ts's
+    // own note on this class of failure) — an explicit, wider timeout on
+    // just this assertion is the targeted fix, not a global wait for
+    // "networkidle" (which this app's own background link-prefetching
+    // and service-worker traffic can keep unresolved far longer than the
+    // refresh itself actually takes, and was measured to make this
+    // specific test slower, not more reliable).
     const row = page.locator("tr:visible", { hasText: description });
-    await expect(row).toBeVisible();
+    await expect(row).toBeVisible({ timeout: 45_000 });
     await expect(row).toContainText("4,500.00");
     await expect(row).toContainText("Business");
   });
@@ -101,8 +115,11 @@ test.describe("Daily Expenses (FR-DEXP-01/05/06/09)", () => {
     await page.getByRole("button", { name: "Save Expense" }).click();
 
     await expect(page.locator("dialog[open]")).toBeHidden();
+    // See the identical comment in the test above — same unawaited
+    // router.refresh() race against this sandbox's measured `next dev`
+    // latency; this is the test where it was actually observed to flake.
     const row = page.locator("tr:visible", { hasText: description });
-    await expect(row).toContainText(`Partner: ${partner.fullName}`);
+    await expect(row).toContainText(`Partner: ${partner.fullName}`, { timeout: 45_000 });
   });
 });
 
