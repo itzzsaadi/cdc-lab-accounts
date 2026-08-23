@@ -52,7 +52,7 @@ export async function resetDatabase(): Promise<void> {
       "daily_expenses", "monthly_expenses", "party_income", "counter_income",
       "capital_contributions", "assets", "parties", "expense_items",
       "expense_categories", "vendors", "audit_log", "app_settings", "users",
-      "sessions", "account", "verification"
+      "sessions", "account", "verification", "import_sessions", "import_batches"
     RESTART IDENTITY CASCADE
   `);
 }

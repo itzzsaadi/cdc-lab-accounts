@@ -79,8 +79,22 @@ test.describe("Daily Expenses (FR-DEXP-01/05/06/09)", () => {
     await page.getByRole("button", { name: "Save Expense" }).click();
 
     await expect(page.locator("dialog[open]")).toBeHidden();
-    const row = page.locator("tr", { hasText: description });
-    await expect(row).toBeVisible();
+    // The dialog closes synchronously (setOpen(false)) but the table row
+    // only appears once the unawaited router.refresh() triggered in
+    // DailyExpenseDrawer's handleSubmit has actually completed its RSC
+    // re-fetch and React has committed the refreshed tree. This project's
+    // `next dev` (Turbopack, first-hit compilation, no production
+    // optimization) has been directly measured, in this sandbox, to
+    // occasionally take longer than the suite's default 15s expect
+    // timeout to finish that one round trip (see playwright.config.ts's
+    // own note on this class of failure) — an explicit, wider timeout on
+    // just this assertion is the targeted fix, not a global wait for
+    // "networkidle" (which this app's own background link-prefetching
+    // and service-worker traffic can keep unresolved far longer than the
+    // refresh itself actually takes, and was measured to make this
+    // specific test slower, not more reliable).
+    const row = page.locator("tr:visible", { hasText: description });
+    await expect(row).toBeVisible({ timeout: 45_000 });
     await expect(row).toContainText("4,500.00");
     await expect(row).toContainText("Business");
   });
@@ -101,8 +115,11 @@ test.describe("Daily Expenses (FR-DEXP-01/05/06/09)", () => {
     await page.getByRole("button", { name: "Save Expense" }).click();
 
     await expect(page.locator("dialog[open]")).toBeHidden();
-    const row = page.locator("tr", { hasText: description });
-    await expect(row).toContainText(`Partner: ${partner.fullName}`);
+    // See the identical comment in the test above — same unawaited
+    // router.refresh() race against this sandbox's measured `next dev`
+    // latency; this is the test where it was actually observed to flake.
+    const row = page.locator("tr:visible", { hasText: description });
+    await expect(row).toContainText(`Partner: ${partner.fullName}`, { timeout: 45_000 });
   });
 });
 
@@ -137,22 +154,22 @@ test.describe("Daily Expense filters (FR-DEXP-07)", () => {
     await page.locator("#filter-search").fill(businessMarker);
     await page.getByRole("button", { name: "Apply Filters" }).click();
     await expect(page).toHaveURL(new RegExp(`search=${businessMarker}`));
-    await expect(page.locator("tr", { hasText: businessMarker })).toBeVisible();
-    await expect(page.locator("tr", { hasText: partnerMarker })).toHaveCount(0);
+    await expect(page.locator("tr:visible", { hasText: businessMarker })).toBeVisible();
+    await expect(page.locator("tr:visible", { hasText: partnerMarker })).toHaveCount(0);
 
     // Funding-source filter narrows to Partner-funded rows.
     await page.locator("#filter-search").fill("");
     await page.locator("#filter-funding-source").selectOption("PARTNER");
     await page.getByRole("button", { name: "Apply Filters" }).click();
     await expect(page).toHaveURL(/fundingSource=PARTNER/);
-    await expect(page.locator("tr", { hasText: partnerMarker })).toBeVisible();
-    await expect(page.locator("tr", { hasText: businessMarker })).toHaveCount(0);
+    await expect(page.locator("tr:visible", { hasText: partnerMarker })).toBeVisible();
+    await expect(page.locator("tr:visible", { hasText: businessMarker })).toHaveCount(0);
 
     // Reset Filters returns to the unfiltered current-month view.
     await page.getByRole("link", { name: "Reset Filters" }).click();
     await expect(page).toHaveURL(/\/daily-expenses$/);
-    await expect(page.locator("tr", { hasText: businessMarker })).toBeVisible();
-    await expect(page.locator("tr", { hasText: partnerMarker })).toBeVisible();
+    await expect(page.locator("tr:visible", { hasText: businessMarker })).toBeVisible();
+    await expect(page.locator("tr:visible", { hasText: partnerMarker })).toBeVisible();
   });
 
   test("shows an appropriate empty state when no expense matches the filters", async ({ page }) => {
@@ -160,7 +177,9 @@ test.describe("Daily Expense filters (FR-DEXP-07)", () => {
     await signIn(page, operator.email);
 
     await page.goto(`/daily-expenses?search=${marker()}-never-recorded`);
-    await expect(page.getByText("No daily expenses match these filters")).toBeVisible();
+    await expect(
+      page.locator("p:visible", { hasText: "No daily expenses match these filters" }),
+    ).toBeVisible();
   });
 });
 
@@ -178,7 +197,7 @@ test.describe("Daily Expense edit and archive (FR-DEXP-09)", () => {
     await page.getByRole("button", { name: "Save Expense" }).click();
     await expect(page.locator("dialog[open]")).toBeHidden();
 
-    const row = page.locator("tr", { hasText: description });
+    const row = page.locator("tr:visible", { hasText: description });
     await expect(row).toBeVisible();
 
     // Edit opens prefilled with the current values.
@@ -199,7 +218,7 @@ test.describe("Daily Expense edit and archive (FR-DEXP-09)", () => {
     await expect(archiveDialog).toContainText(description);
     await archiveDialog.getByRole("button", { name: "Archive" }).click();
     await expect(page.locator("dialog[open]")).toBeHidden();
-    await expect(page.locator("tr", { hasText: description })).toHaveCount(0);
+    await expect(page.locator("tr:visible", { hasText: description })).toHaveCount(0);
   });
 
   test("editing a row that changed elsewhere shows a reload message and never applies the stale edit", async ({
@@ -217,7 +236,7 @@ test.describe("Daily Expense edit and archive (FR-DEXP-09)", () => {
     await page.getByRole("button", { name: "Save Expense" }).click();
     await expect(page.locator("dialog[open]")).toBeHidden();
 
-    const row = page.locator("tr", { hasText: description });
+    const row = page.locator("tr:visible", { hasText: description });
     await row.getByRole("button", { name: `Edit ${description}` }).click();
     const editDialog = page.locator("dialog[open]");
     await expect(editDialog).toBeVisible();
@@ -233,7 +252,7 @@ test.describe("Daily Expense edit and archive (FR-DEXP-09)", () => {
     await editDialog.getByRole("button", { name: "Reload" }).click();
 
     // The stale edit (1234) never applied — the concurrent change (9999) stands.
-    await expect(page.locator("tr", { hasText: description })).toContainText("9,999.00");
+    await expect(page.locator("tr:visible", { hasText: description })).toContainText("9,999.00");
   });
 });
 
@@ -243,7 +262,7 @@ test.describe("Party Income grid (FR-PINC-02/07)", () => {
     await signIn(page, operator.email);
 
     await page.goto("/party-income");
-    const cell = page.locator('input[data-grid-row="4"][data-grid-col="0"]');
+    const cell = page.locator('input:visible[data-grid-row="4"][data-grid-col="0"]');
     await expect(cell).toBeVisible();
     await cell.fill("1750");
     await cell.blur();
@@ -255,7 +274,9 @@ test.describe("Party Income grid (FR-PINC-02/07)", () => {
     await expect(cell).toHaveValue("1750", { timeout: 5000 });
 
     await page.reload();
-    await expect(page.locator('input[data-grid-row="4"][data-grid-col="0"]')).toHaveValue("1750");
+    await expect(page.locator('input:visible[data-grid-row="4"][data-grid-col="0"]')).toHaveValue(
+      "1750",
+    );
   });
 
   test("Enter commits the cell and moves focus to the next day down", async ({ page }) => {
@@ -263,12 +284,12 @@ test.describe("Party Income grid (FR-PINC-02/07)", () => {
     await signIn(page, operator.email);
 
     await page.goto("/party-income");
-    const cell = page.locator('input[data-grid-row="5"][data-grid-col="1"]');
+    const cell = page.locator('input:visible[data-grid-row="5"][data-grid-col="1"]');
     await cell.click();
     await cell.fill("900");
     await cell.press("Enter");
 
-    const nextCell = page.locator('input[data-grid-row="6"][data-grid-col="1"]');
+    const nextCell = page.locator('input:visible[data-grid-row="6"][data-grid-col="1"]');
     await expect(nextCell).toBeFocused();
   });
 
@@ -280,7 +301,7 @@ test.describe("Party Income grid (FR-PINC-02/07)", () => {
     const note = marker();
 
     await page.goto("/party-income");
-    const untouchedCell = page.locator('input[data-grid-row="6"][data-grid-col="2"]');
+    const untouchedCell = page.locator('input:visible[data-grid-row="6"][data-grid-col="2"]');
     await expect(untouchedCell).toHaveValue("");
 
     await page.getByRole("button", { name: "Record Cash Receipt" }).click();
@@ -344,7 +365,7 @@ test.describe("Counter Income (FR-CINC-01/04)", () => {
     // confirm through it defensively; this row's own creation, not the
     // warning, is what this first step is proving.
     await saveCounterIncome(page, "8200", noteA);
-    await expect(page.locator("tr", { hasText: noteA })).toBeVisible();
+    await expect(page.locator("tr:visible", { hasText: noteA })).toBeVisible();
 
     // Step two deterministically re-triggers the warning: noteA was just
     // created for today by this very test, so a second same-day submission
@@ -354,10 +375,10 @@ test.describe("Counter Income (FR-CINC-01/04)", () => {
     await page.locator("#counter-income-note").fill(noteB);
     await page.getByRole("button", { name: "Save Counter Income" }).click();
     await expect(page.getByText(/already exists for/)).toBeVisible();
-    await expect(page.locator("tr", { hasText: noteB })).toHaveCount(0); // not yet created
+    await expect(page.locator("tr:visible", { hasText: noteB })).toHaveCount(0); // not yet created
 
     await page.getByRole("button", { name: "Record Anyway" }).click();
-    const row = page.locator("tr", { hasText: noteB });
+    const row = page.locator("tr:visible", { hasText: noteB });
     await expect(row).toBeVisible();
     await expect(row).toContainText("500");
   });
@@ -369,7 +390,7 @@ test.describe("Counter Income (FR-CINC-01/04)", () => {
 
     await page.goto("/counter-income");
     await saveCounterIncome(page, "0", note);
-    const row = page.locator("tr", { hasText: note });
+    const row = page.locator("tr:visible", { hasText: note });
     await expect(row).toBeVisible();
     await expect(row).toContainText("0");
   });

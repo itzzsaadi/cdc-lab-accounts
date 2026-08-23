@@ -22,6 +22,9 @@ import {
   requestPasswordResetSchema,
   resetPasswordSchema,
 } from "../../lib/validation/auth";
+import { changeUserRole, type MutationResult } from "../mutations/user-admin";
+
+export type { MutationResult };
 
 /** Every action below independently validates its input (Zod, CLAUDE.md §18) and, where authenticated, independently checks role via `requirePermission` (CLAUDE.md §15) — never trusting a client-side guard alone. */
 
@@ -236,6 +239,15 @@ export async function resetPasswordAction(
   }
 }
 
+/** Mirrors the DB trigger's own message shape (users_last_admin_protection) so an Admin sees the real reason rather than a generic failure — see src/server/mutations/user-admin.ts's identical helper. */
+function friendlyDatabaseError(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    const match = /ERROR:\s*(.+?)(\n|$)/.exec(error.message);
+    if (match) return match[1];
+  }
+  return "This change could not be completed.";
+}
+
 export async function deactivateUserAction(
   userId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -243,27 +255,44 @@ export async function deactivateUserAction(
   const currentUser = await getAuthenticatedUser(headers);
   requirePermission(currentUser, "user:deactivate");
 
-  await prisma.user.update({ where: { id: userId }, data: { isActive: false } });
-  // Direct deletion — no supported public API exists for one user revoking
-  // another's sessions (verified: revoke-session/-sessions/-other-sessions
-  // are all self-service only). Safe because cookieCache stays disabled
-  // (src/server/auth.ts) — every request re-validates against this table.
-  await prisma.session.deleteMany({ where: { userId } });
+  // Self-deactivation is refused at the application layer (only the
+  // request context knows who is asking); the database's own
+  // last-active-Admin trigger is a second, independent guard for the same
+  // "don't lock the system out" outcome, not a substitute for this check
+  // — an Admin deactivating themself while other Admins remain active is
+  // still a bad idea worth blocking outright.
+  if (userId === currentUser!.id) {
+    return { ok: false, error: "You cannot deactivate your own account. Ask another Admin." };
+  }
 
-  await appendAuthAudit(prisma, {
-    actorUserId: currentUser!.id,
-    action: "ARCHIVE",
-    entityType: "user",
-    entityId: userId,
-  });
-  await appendAuthAudit(prisma, {
-    actorUserId: currentUser!.id,
-    action: "SESSION_REVOKED",
-    entityType: "user",
-    entityId: userId,
-  });
-
-  return { ok: true };
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { isActive: false } });
+      // Explicit, direct deletion here too (belt and suspenders with the
+      // database's own users_revoke_sessions_on_authorization_change
+      // trigger, which fires on this same UPDATE) — no supported public
+      // API exists for one user revoking another's sessions (verified:
+      // revoke-session/-sessions/-other-sessions are all self-service
+      // only). Safe because cookieCache stays disabled (src/server/auth.ts)
+      // — every request re-validates against this table.
+      await tx.session.deleteMany({ where: { userId } });
+      await appendAuthAudit(tx, {
+        actorUserId: currentUser!.id,
+        action: "ARCHIVE",
+        entityType: "user",
+        entityId: userId,
+      });
+      await appendAuthAudit(tx, {
+        actorUserId: currentUser!.id,
+        action: "SESSION_REVOKED",
+        entityType: "user",
+        entityId: userId,
+      });
+    });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: friendlyDatabaseError(error) };
+  }
 }
 
 export async function reactivateUserAction(
@@ -273,17 +302,24 @@ export async function reactivateUserAction(
   const currentUser = await getAuthenticatedUser(headers);
   requirePermission(currentUser, "user:deactivate");
 
-  await prisma.user.update({ where: { id: userId }, data: { isActive: true } });
-
-  await appendAuthAudit(prisma, {
-    actorUserId: currentUser!.id,
-    action: "UPDATE",
-    entityType: "user",
-    entityId: userId,
-    newValues: { is_active: true },
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: userId }, data: { isActive: true } });
+    await appendAuthAudit(tx, {
+      actorUserId: currentUser!.id,
+      action: "UPDATE",
+      entityType: "user",
+      entityId: userId,
+      newValues: { is_active: true },
+    });
   });
 
   return { ok: true };
+}
+
+export async function changeUserRoleAction(input: unknown): Promise<MutationResult> {
+  const headers = await nextHeaders();
+  const currentUser = await getAuthenticatedUser(headers);
+  return changeUserRole(prisma, currentUser, input);
 }
 
 export { PermissionDeniedError };

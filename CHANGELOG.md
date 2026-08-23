@@ -4,6 +4,67 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Phase 7: Administration Area and Historical Import
+
+- Master-data CRUD (parties, expense items, expense categories, vendors)
+  for Admins — create, rename, archive, reactivate — never a physical
+  delete (FR-MST-01 to 05). Name uniqueness is case/whitespace-insensitive
+  at the database level (a functional unique index on
+  `lower(btrim(name))`, covering active and archived rows alike), backed
+  by a friendly application-layer pre-check and a stale-write
+  compare-and-swap on every rename/archive.
+- Profit-split percentages moved from a JSON blob to typed
+  `DECIMAL(5,2)` columns (`split_a_percent`/`split_b_percent`),
+  database-enforced non-null/in-range/summing-to-exactly-100 via a new
+  `CHECK` constraint; an Admin-only settings screen edits the two
+  percentages, disclosing plainly that a change affects every period's
+  _live_ calculation immediately (no result is ever stored — DR-09),
+  never described as future-only. The Partner A/B identity mapping
+  itself is unchanged and stays fixed (no remapping added).
+- User administration: Admin-only role/partner-flag change
+  (`changeUserRole`), backed by three new database triggers on `users` —
+  a last-active-Admin protection covering both deactivation and role
+  downgrade (concurrency-safe via row locking, not a count-then-update
+  race), a guard against removing partner status from a user mapped as
+  Partner A/B, and automatic session revocation on any
+  role/partner/active-status change from any code path — plus
+  application-layer blocks on an Admin demoting their own role or
+  removing their own partner flag.
+- Historical data import (FR-IMP-01 to 04): a defined six-sheet Excel
+  template (Daily Expenses, Monthly Expenses, Party Income (Daily),
+  Party Income (Monthly Bill), Counter Income, Capital Contributions),
+  upload → preview (validates and shows every row-level error, writes no
+  business data) → commit (all-or-nothing, one transaction). A durable
+  `ImportBatch` record (file hash, actor, status, row counts,
+  delete-protected) is separate from an ephemeral `ImportSession` (the
+  actual workbook bytes, 15-minute expiry, nulled on every terminal
+  path). The import session is atomically claimed via a standalone
+  conditional `updateMany` _before_ the business transaction opens, so a
+  later rollback can never make a claimed session silently reusable —
+  proven under real concurrent commit attempts. Commit always reparses
+  the claimed session's own stored bytes from scratch and rejects
+  cleanly with zero rows written if anything changed since preview (an
+  archived reference, for example). Import security: formula cells,
+  malformed files, unsupported/duplicate sheets, invalid dates, unsafe
+  amounts, and unknown/archived references are all rejected; server-owned
+  UUIDs are generated for every row; uploaded bytes are never written to
+  disk, public storage, or any log.
+- No new dependency — `exceljs` (already used for Phase 5's report
+  exports) is reused for reading the import workbook.
+- One migration (`phase7_administration_and_import`): the two new
+  `Decimal` profit-split columns, `updated_at`/`updated_by` on four
+  master-data tables, the `ImportBatch`/`ImportSession` tables and their
+  enums, four functional unique indexes (with a migration preflight that
+  fails clearly on any pre-existing normalized duplicate), the three new
+  `users` triggers, and one new delete-rejection trigger on
+  `import_batches`.
+- `docs/adr/0009-phase-7-administration-and-import.md`, recording the six
+  mandatory corrections applied to the original draft plan and every
+  design decision made to satisfy them, plus a real UI bug
+  (`MasterDataManager`'s naive `entityLabel.replace(/s$/, "")`
+  singularization breaking for "Parties" and "Expense Categories") found
+  and fixed while writing the Playwright suite.
+
 ### Added — Phase 6: Offline Operation and Synchronization
 
 - Full offline entry for the four SRS-specified sync entities (Daily
@@ -79,15 +140,72 @@ SyncCenter}.tsx`: the one place queue/connection state lives, the
   on Phase 5's `phase5_partner_mapping` migration was found and repaired
   non-destructively (no reset, no data loss) before the Phase 6
   migration was generated — see `docs/adr/0008-phase-6-offline-sync.md`.
-- **Disclosed, approved-scope gaps**: FR-OFF-12 (mark figures
-  provisional while offline uploads are pending) is not built this
-  phase. NFR-SEC-09 (clear offline device data on sign-out once nothing
-  is pending) is partial — isolation is enforced, nothing is silently
-  erased while work is pending, but automatic clearing once the queue is
-  empty is not implemented.
 - See `docs/adr/0008-phase-6-offline-sync.md` and `docs/offline-sync.md`
   for the full design record; `docs/REQUIREMENTS_TRACEABILITY.md`'s
   FR-OFF/FR-AUTH-09/NFR-SEC-09/NFR-REL-05/NFR-MNT-07 rows are updated.
+  (Note: FR-OFF-12 and NFR-SEC-09 were initially disclosed as gaps here
+  — see the closure entry immediately below, where both were built.)
+
+### Added — Phase 6 closure: FR-OFF-12, NFR-SEC-09, and a real Offline Entry Workspace
+
+- **FR-OFF-12 (provisional totals)**: `src/lib/offline/relevance.ts`
+  computes which still-queued operations could affect the period a
+  results screen is showing (single-day match for daily entities,
+  whole-month for `periodMonth`-keyed ones); `ProvisionalNotice` (banner)
+  and `ProvisionalTotalsWrapper` (dashed-amber ring on the total tiles)
+  wire this into the Partner Dashboard and Monthly Summary. Unit-tested
+  (`tests/unit/offline/relevance.test.ts`) and proven end-to-end
+  (`tests/e2e/offline-sync.spec.ts`'s FR-OFF-12 test): a genuinely
+  unsynced Counter Income entry for today makes the Dashboard's tiles
+  show "Provisional" until it syncs.
+- **NFR-SEC-09 (offline data cleared on sign-out)**:
+  `clearOfflineDataIfQueueEmpty` (`src/lib/offline/cleanup.ts`) re-checks
+  the real `operations` count directly against IndexedDB and, only when
+  it is genuinely zero, deletes the entire per-user offline database
+  (`deleteOfflineDatabase`, `db.ts`) — reference cache, `recentRecords`,
+  and `operations` together. Wired into `UserMenu.tsx`'s sign-out;
+  deliberately does not clear anything mid-session (that would defeat
+  FR-OFF-14's 90-day readable-history requirement for a device still in
+  use). Both directions — an empty queue clears, "Sign out anyway" with
+  something queued never does — are proven directly against real
+  IndexedDB in `tests/e2e/offline-sync.spec.ts`.
+- **A real Offline Entry Workspace** (`src/app/offline-entry/page.tsx`,
+  `src/components/offline/OfflineEntryWorkspace.tsx`): a genuinely
+  static, unauthenticated page hosting all four offline entry workflows,
+  reading only this device's own cached reference data and queuing
+  through the same `enqueueOperation` as every other form.
+  `public/sw.js` precaches its HTML and serves it as the fallback for
+  _any_ failed navigation — ahead of the plain `/offline` page — so
+  reopening the installed app with zero connectivity reaches a page the
+  user can actually act on, not a dead end. Linked from the Sidebar
+  (`src/lib/navigation/nav-items.ts`). `src/lib/offline/last-user.ts`
+  remembers which signed-in user's IndexedDB to write into when there is
+  no live session to ask (a non-secret breadcrumb, never a credential).
+  An initial version also eagerly precached the page's own JS chunk and
+  every asset it references; reverted after it measurably destabilized
+  the Playwright suite in `next dev` (large, unminified dev-mode chunks
+  refetched on every fresh service-worker registration) without being
+  required — reaching the workspace is proven with the HTML-only
+  precache alone, and full interactivity is proven separately via a
+  realistic online-then-offline flow. See ADR-0008 decision 11 for the
+  full reasoning and the one disclosed residual case (a device's
+  genuinely first-ever offline visit to this specific page, before
+  loading any other authenticated page at all).
+- **Playwright reliability, root-caused**: `tests/e2e/offline-sync.spec.ts`
+  tests were calling `context.setOffline(true)` immediately after a
+  `page.goto`, without letting that navigation's own in-flight requests
+  settle first — severing the network mid-request stalled even a plain
+  `.fill()` on an already-rendered field. Adding
+  `await page.waitForLoadState("networkidle")` before every
+  `context.setOffline(true)` fixed it outright (16/16 clean runs across
+  `--repeat-each=2`, no retries needed). Separately, `playwright.config.ts`
+  now runs with `workers: 1` and generous, documented timeouts — the
+  broader class of timeout-only failures (never a wrong value) reproduced
+  even under a single worker with an idle file tree, ruling out an actual
+  cross-request data race.
+- `docs/REQUIREMENTS_TRACEABILITY.md`'s FR-OFF-01/FR-OFF-12/NFR-SEC-09
+  rows updated to Done, reflecting behavior actually proven above — not
+  marked complete until the corresponding test existed and passed.
 
 ### Added — Phase 5 closure: FR-RPT-05, FR-AUD-06, and skip removal
 

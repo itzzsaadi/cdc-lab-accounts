@@ -31,6 +31,12 @@ export const NAV_ITEMS: NavItem[] = [
     minRole: "OPERATOR",
   },
   { label: "Sync Center", href: "/sync-center", icon: "sync", minRole: "OPERATOR" },
+  {
+    label: "Offline Entry Workspace",
+    href: "/offline-entry",
+    icon: "wifi_off",
+    minRole: "OPERATOR",
+  },
   { label: "Dashboard", href: "/dashboard", icon: "dashboard", minRole: "PARTNER" },
   {
     label: "Monthly Summary",

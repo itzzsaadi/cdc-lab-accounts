@@ -10,6 +10,7 @@ describe("visibleNavItems", () => {
       "/party-income",
       "/counter-income",
       "/sync-center",
+      "/offline-entry",
     ]);
   });
 
@@ -21,6 +22,7 @@ describe("visibleNavItems", () => {
       "/party-income",
       "/counter-income",
       "/sync-center",
+      "/offline-entry",
       "/dashboard",
       "/monthly-summary",
       "/monthly-expenses",
@@ -41,6 +43,7 @@ describe("visibleNavItems", () => {
       "/party-income",
       "/counter-income",
       "/sync-center",
+      "/offline-entry",
       "/dashboard",
       "/monthly-summary",
       "/monthly-expenses",
@@ -76,6 +79,10 @@ describe("titleForPath", () => {
 
   it("matches the Phase 6 Sync Center route", () => {
     expect(titleForPath("/sync-center")).toBe("Sync Center");
+  });
+
+  it("matches the Phase 6 closure's Offline Entry Workspace route", () => {
+    expect(titleForPath("/offline-entry")).toBe("Offline Entry Workspace");
   });
 
   it("matches the Phase 4 Partner routes", () => {

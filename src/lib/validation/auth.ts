@@ -27,3 +27,10 @@ export const resetPasswordSchema = z.object({
   token: z.string().min(1),
   newPassword: z.string().min(12),
 });
+
+/** Phase 7 (FR-AUTH-03): role and partner-flag are edited together, since a role change alone can't express "also drop/grant partner eligibility." Both changes are validated as one unit; the last-active-Admin and partner-flag-removal guards below live at the database level (phase7_administration_and_import migration), not here — this schema only checks input shape. */
+export const changeUserRoleSchema = z.object({
+  userId: z.string().uuid(),
+  role: z.enum(["OPERATOR", "PARTNER", "ADMIN"]),
+  isPartner: z.boolean(),
+});

@@ -11,17 +11,20 @@ export interface ProfitSplitConfig {
   isConfigured: boolean;
 }
 
-interface ProfitSplitSettingValue {
-  partner_a?: number;
-  partner_b?: number;
-}
-
 /**
  * FR-RES-08/BR-10, approved decision (explicit FK mapping, not
  * `createdAt` order). Reads the single `settingKey = 'profit_split'` row;
  * `isConfigured` is what every Monthly Summary/Dashboard caller checks
  * before computing or displaying any split figure — never a fabricated
  * share when the mapping is incomplete.
+ *
+ * Phase 7: percentages are read from the typed `splitAPercent`/
+ * `splitBPercent` Decimal columns, never `settingValue`'s legacy
+ * `{partner_a, partner_b}` JSON keys — those are no longer written after
+ * the phase7_administration_and_import migration's one-time backfill (see
+ * docs/adr/0009-phase-7-administration-and-import.md). The 50/50 fallback
+ * below only ever applies before that row exists at all (e.g. a fresh
+ * seed with no profit-split row yet), matching the pre-Phase-7 default.
  */
 export async function getProfitSplitConfig(prisma: PrismaClient): Promise<ProfitSplitConfig> {
   const row = await prisma.appSetting.findUnique({
@@ -32,11 +35,9 @@ export async function getProfitSplitConfig(prisma: PrismaClient): Promise<Profit
     },
   });
 
-  const value = (row?.settingValue ?? {}) as ProfitSplitSettingValue;
-
   return {
-    splitAPercent: String(value.partner_a ?? 50),
-    splitBPercent: String(value.partner_b ?? 50),
+    splitAPercent: row?.splitAPercent?.toString() ?? "50",
+    splitBPercent: row?.splitBPercent?.toString() ?? "50",
     partnerAUserId: row?.partnerAUserId ?? null,
     partnerBUserId: row?.partnerBUserId ?? null,
     partnerAName: row?.partnerA?.fullName ?? null,

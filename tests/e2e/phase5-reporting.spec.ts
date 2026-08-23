@@ -42,7 +42,20 @@ test.describe("Partner Dashboard (FR-DASH, FR-WARN)", () => {
     await signIn(page, partner.email);
 
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Partner Dashboard" })).toBeVisible();
+    // This project's `next dev` (Turbopack, first-hit route compilation)
+    // has been directly measured, in this sandbox, to occasionally take
+    // longer than the suite's default 15s expect timeout to finish
+    // rendering a not-yet-compiled route (see playwright.config.ts's own
+    // note on this exact class of failure — a slow-but-correct render,
+    // never a duplicate one). An explicit, wider timeout on the
+    // first assertion after navigation is the targeted fix; a global
+    // "networkidle" wait was tried here and measured to make the test
+    // slower without improving reliability (this app's own background
+    // link-prefetching and service-worker traffic can keep the network
+    // busy well past when the page has actually finished rendering).
+    await expect(page.getByRole("heading", { name: "Partner Dashboard" })).toBeVisible({
+      timeout: 45_000,
+    });
     await expect(page.getByText("Total Income — This Month")).toBeVisible();
     await expect(page.getByText("Total Expenses — This Month")).toBeVisible();
     await expect(page.getByText("Net Profit / Loss — This Month")).toBeVisible();

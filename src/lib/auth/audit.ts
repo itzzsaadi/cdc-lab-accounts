@@ -9,9 +9,14 @@ import type { AuditAction } from "../../../generated/prisma/enums";
  * password, hash, session token, cookie, reset token, invitation token, or
  * a full reset/invitation URL in `oldValues`/`newValues` — only
  * non-secret identifiers.
+ *
+ * Accepts either the top-level `PrismaClient` (most call sites) or a
+ * `Prisma.TransactionClient` (Phase 7's user-admin actions, which need
+ * the user-record change and its audit row to commit or roll back
+ * together) — both expose an identical `auditLog.create`.
  */
 export async function appendAuthAudit(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   entry: {
     actorUserId: string | null;
     action: AuditAction;

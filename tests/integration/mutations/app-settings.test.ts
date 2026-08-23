@@ -92,7 +92,9 @@ describe("app_settings partner mapping — DB constraints (migration 20260821181
     await prisma.appSetting.create({
       data: {
         settingKey: "profit_split",
-        settingValue: { partner_a: 50, partner_b: 50 },
+        settingValue: {},
+        splitAPercent: "50",
+        splitBPercent: "50",
         updatedAt: new Date(),
       },
     });

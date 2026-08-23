@@ -151,9 +151,12 @@ error) is shown exactly as it would be online.
 Versioned cache name (`cdc-static-<version>`); `activate` deletes every
 differently-versioned cache this worker owns. Caches only a narrow,
 explicit allowlist of genuinely static assets (`/_next/static/`, fonts,
-icons, the manifest) plus one dedicated `/offline` fallback page for a
-failed navigation — never anything under `/api/`, and never any other
-page's server-rendered HTML (every other page carries live financial data).
+icons, the manifest) plus two dedicated pages precached at `install` time:
+the plain `/offline` fallback, and `/offline-entry` (the Offline Entry
+Workspace — see below), served as the fallback for a failed navigation in
+that order of preference — never anything under `/api/`, and never any
+other page's server-rendered HTML (every other page carries live financial
+data).
 Background Sync (the `sync` event) is registered strictly as an
 enhancement: it only posts `BACKGROUND_SYNC_HINT` to open tabs, suggesting
 they attempt a sync — it is never the dependable path, since this worker
@@ -162,26 +165,99 @@ support for the API is inconsistent. `OfflineProvider`'s own
 startup/focus/visibilitychange/online listeners are what actually drive
 every real sync attempt.
 
-## A known platform limitation
+## Reopening the installed app with zero connectivity
 
-The sidebar uses `next/link`'s `<Link>` for client-side navigation (fixed
-during Phase 6 — it previously used a plain `<a>`, which forced a full page
-reload on every in-app navigation and made offline navigation impossible).
-Client-side navigation to an _already-visited/prefetched_ page works fine
-offline; navigating to a not-yet-prefetched dynamic route while genuinely
-offline cannot complete, because its React Server Component payload
-requires a live request — an inherent Next.js App Router constraint, not
-something Phase 6 works around. This does not affect FR-OFF's actual scope
-(offline _data entry_, not full offline app navigation): the page a user is
-already on keeps working, and the queue survives regardless of navigation.
+Every authenticated screen (Daily Expenses, Counter Income, Party Income,
+Monthly Expenses included) is a per-request, authenticated Server
+Component — its React Server Component payload requires a live request, an
+inherent Next.js App Router constraint no service worker can route around
+without caching authenticated/financial data, which mandatory decision #6
+forbids outright. Rather than leaving a cold reopen at the dead end this
+implies, `src/app/offline-entry/page.tsx` is a genuinely static,
+unauthenticated page — no session check, no Prisma call, no financial data
+of any kind, safe to precache exactly like `/offline` and `/sign-in` — that
+hosts all four offline entry workflows (`OfflineEntryWorkspace.tsx`) itself,
+reading only this device's own already-cached reference data (parties,
+expense items/categories) and queuing through the same `enqueueOperation`
+every other entry form uses. `public/sw.js`'s `install` handler precaches
+this page's HTML, and its `fetch` handler serves it — not the plain
+`/offline` page — as the fallback for _any_ failed navigation, so reopening
+the installed app offline and landing on, say, `/daily-expenses` still
+reaches a page the user can actually act on. The Sidebar links to it too
+(`src/lib/navigation/nav-items.ts`), so ordinary use visits it at least
+once, and `src/lib/offline/last-user.ts` remembers which signed-in user's
+IndexedDB to write into when there is no live session to ask — a
+non-secret breadcrumb, never a credential.
 
-## Remaining limitations (disclosed, not silently dropped)
+**A disclosed residual case**: the workspace's own client-side JS bundle
+(a separate, content-hashed `/_next/static/...` chunk) is deliberately
+_not_ eagerly precached — only its HTML is (see `public/sw.js`'s own
+comment on this). Next.js shares almost all of that JS across every route
+(the React/Next runtime itself), so in the realistic case — a signed-in
+user who has loaded _any_ authenticated page at least once, which is true
+before anyone could need this workspace offline in the first place — it is
+already cached by the ordinary static-asset handler below. Eagerly
+fetching and caching every chunk the page references at install time was
+implemented and then reverted: in `next dev` those chunks are large and
+unminified (a real production build's equivalent cost is much smaller,
+paid once per real device rather than once per automated test), and doing
+it on every fresh service-worker registration measurably destabilized this
+project's own Playwright suite without being required to satisfy the
+requirement — reaching the workspace itself, which the HTML-only precache
+already guarantees on its own (proven directly: `tests/e2e/offline-sync.spec.ts`'s
+"reopening the app with zero connectivity" test never goes online at all
+before checking the workspace is reachable). Full interactivity on a
+_genuinely first-ever_ offline visit to this one specific page — before
+the user has ever loaded any other authenticated page on this device — is
+the only case not covered, and is proven separately, and does work, once
+the user has been online at least once (`tests/e2e/offline-sync.spec.ts`'s
+"records all four entry types with zero connectivity" test).
 
-- **FR-OFF-12** (figures marked provisional while offline uploads are
-  pending) is not built this phase — the Phase 5 Dashboard/Monthly Summary
-  screens do not yet mark their totals provisional. The Sync Center's own
-  pending count is the only place this is currently visible.
-- **NFR-SEC-09** (offline device data cleared on sign-out once nothing is
-  pending) is partial — per-user isolation is enforced and nothing is ever
-  silently erased while work is pending, but automatic clearing
-  specifically once the queue is empty is not implemented.
+Aside from that one page, client-side navigation to an
+_already-visited/prefetched_ page still works fine offline; navigating to
+a not-yet-prefetched dynamic route while genuinely offline still cannot
+complete, for the reason above. This does not affect FR-OFF's actual scope
+beyond the workspace itself (offline _data entry_, not full offline app
+navigation): the page a user is already on keeps working, and the queue
+survives regardless of navigation.
+
+## FR-OFF-12: provisional totals
+
+`src/lib/offline/relevance.ts`'s `operationsAffectingRange` is the one
+place that decides whether a still-queued operation (any status other than
+synced — a synced one is deleted from the queue entirely, see `markSynced`
+in `queue.ts`) could change the totals a results screen is currently
+showing: a daily-dated entity (`daily_expense`, `counter_income`,
+`party_income_daily`, `party_income_cash_receipt`) matches on its own date;
+a `periodMonth`-dated entity (`monthly_expense`,
+`party_income_monthly_bill`) expands to its whole calendar month. The
+Partner Dashboard and Monthly Summary each wrap their total tiles in
+`ProvisionalTotalsWrapper` (a dashed amber ring + a small "Provisional"
+corner label, added only when something actually overlaps) and render
+`ProvisionalNotice` (a plain-language banner naming how many entries and
+what happens next) directly above them — both client components, reading
+the _same_ device-local queue every other offline UI reads, never a
+second, parallel source of truth. Confirmed, server-computed figures never
+change underneath; only whether this device thinks they might still move
+is ever shown.
+
+## NFR-SEC-09: offline data cleared on sign-out
+
+"Data held on a device for offline use shall be cleared on sign-out, once
+no entries are waiting to upload" is deliberately a sign-out-time action,
+not something that runs mid-session: the reference cache and
+`recentRecords` exist specifically to support FR-OFF-14 (90 days readable
+offline) _while the user keeps using this device_, so wiping them the
+moment the queue happens to empty — while still signed in — would defeat
+that requirement for no security benefit. `src/lib/offline/cleanup.ts`'s
+`clearOfflineDataIfQueueEmpty` re-checks the actual current `operations`
+count directly against IndexedDB (never a possibly-stale React render)
+and, only when it is genuinely zero, deletes the entire per-user database
+via `deleteOfflineDatabase` (`db.ts`) — reference cache, `recentRecords`,
+and `operations` together. `UserMenu.tsx`'s sign-out button calls this
+unconditionally after every successful sign-out; it is the re-check inside
+the function itself, not the caller, that guarantees a "Sign out anyway"
+choice with something still queued never triggers a deletion. Both
+directions are proven in `tests/e2e/offline-sync.spec.ts`, by inspecting
+the real IndexedDB database directly (never through Dexie, so the checks
+are independent of the code they're verifying).
