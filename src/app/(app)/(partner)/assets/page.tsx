@@ -15,6 +15,7 @@ import { EmptyState } from "../../../../components/ui/EmptyState";
 import { Badge } from "../../../../components/ui/Badge";
 import { AssetDrawer } from "../../../../components/entries/AssetDrawer";
 import { AssetRowActions } from "../../../../components/entries/AssetRowActions";
+import { AssetFilters } from "../../../../components/filters/AssetFilters";
 
 /** FR-AST-01 to 10, DR-08. The register starts empty (FR-AST-01) — no seed/demo rows. */
 export default async function AssetsPage({
@@ -67,70 +68,12 @@ export default async function AssetsPage({
         />
       </div>
 
-      <form
-        action="/assets"
-        className="border-outline-variant bg-surface-container-lowest mb-6 flex flex-wrap items-end gap-4 rounded-xl border p-4 shadow-sm"
-      >
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-status"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            Status
-          </label>
-          <select
-            id="filter-status"
-            name="status"
-            defaultValue={filter.status}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          >
-            <option value="ACTIVE">Active</option>
-            <option value="ARCHIVED">Archived</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-classification"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            Classification
-          </label>
-          <select
-            id="filter-classification"
-            name="classification"
-            defaultValue={filter.classification ?? ""}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          >
-            <option value="">All</option>
-            <option value="FIXED">Fixed</option>
-            <option value="MOVABLE">Movable</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-mode"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            Acquisition Mode
-          </label>
-          <select
-            id="filter-mode"
-            name="acquisitionMode"
-            defaultValue={filter.acquisitionMode ?? ""}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          >
-            <option value="">All</option>
-            <option value="INSTALMENT">Instalment</option>
-            <option value="CASH">Cash</option>
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="bg-primary text-on-primary hover:bg-primary-container h-11 rounded-lg px-4 text-sm font-medium transition-colors"
-        >
-          Apply Filters
-        </button>
-      </form>
+      <AssetFilters
+        currentParams={params}
+        status={filter.status}
+        classification={filter.classification ?? ""}
+        acquisitionMode={filter.acquisitionMode ?? ""}
+      />
 
       <div className="border-outline-variant bg-surface-container-lowest overflow-hidden rounded-xl border shadow-sm">
         {items.length === 0 ? (

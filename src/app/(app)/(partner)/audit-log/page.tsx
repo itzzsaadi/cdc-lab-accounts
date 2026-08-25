@@ -7,6 +7,7 @@ import { listAuditLog, listAuditActors } from "../../../../server/queries/audit-
 import { formatKarachiTimestamp } from "../../../../lib/domain/calendar-date";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
+import { AuditLogFilters } from "../../../../components/filters/AuditLogFilters";
 
 const ENTITY_TYPE_OPTIONS = [
   "daily_expense",
@@ -84,89 +85,15 @@ export default async function AuditLogPage({
         never editable (FR-AUD-01 to 04).
       </p>
 
-      <form
-        action="/audit-log"
-        className="border-outline-variant bg-surface-container-lowest mb-6 flex flex-wrap items-end gap-4 rounded-xl border p-4 shadow-sm"
-      >
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-actor"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            User
-          </label>
-          <select
-            id="filter-actor"
-            name="actorUserId"
-            defaultValue={filter.actorUserId ?? ""}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          >
-            <option value="">All users</option>
-            {actors.map((actor) => (
-              <option key={actor.id} value={actor.id}>
-                {actor.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-entity-type"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            Record Type
-          </label>
-          <select
-            id="filter-entity-type"
-            name="entityType"
-            defaultValue={filter.entityType ?? ""}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          >
-            <option value="">All types</option>
-            {ENTITY_TYPE_OPTIONS.map((type) => (
-              <option key={type} value={type}>
-                {type.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-date-from"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            From
-          </label>
-          <input
-            id="filter-date-from"
-            name="from"
-            type="date"
-            defaultValue={filter.from ?? ""}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-date-to"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            To
-          </label>
-          <input
-            id="filter-date-to"
-            name="to"
-            type="date"
-            defaultValue={filter.to ?? ""}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-primary text-on-primary hover:bg-primary-container h-11 rounded-lg px-4 text-sm font-medium"
-        >
-          Apply Filters
-        </button>
-      </form>
+      <AuditLogFilters
+        currentParams={params}
+        actorUserId={filter.actorUserId ?? ""}
+        entityType={filter.entityType ?? ""}
+        from={filter.from ?? ""}
+        to={filter.to ?? ""}
+        actors={actors}
+        entityTypeOptions={ENTITY_TYPE_OPTIONS}
+      />
 
       <div className="border-outline-variant bg-surface-container-lowest overflow-hidden rounded-xl border shadow-sm">
         {items.length === 0 ? (

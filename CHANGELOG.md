@@ -4,6 +4,45 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Overlay Centering, History Duplication, and Auto-Applying Filters
+
+See `docs/adr/0012-centered-overlays-and-auto-apply-filters.md` for full
+root-cause detail.
+
+- **Every overlay is now centered** — `Modal.tsx` (the one shared
+  primitive behind all 14 add/edit/history/confirmation dialogs) now
+  centers explicitly (`fixed inset-0 m-auto`) instead of relying on the
+  browser's `dialog:modal` default, which Tailwind's Preflight reset
+  breaks. Bounded to the viewport height with its own internal scroll.
+- **History no longer shows a field's value twice** — `ValueDiff`'s
+  diffing logic was extracted into a pure, unit-tested function
+  (`src/lib/domain/audit-diff.ts`) and the redundant duplicate-rendering
+  branch removed.
+- **Edit forms no longer render right-aligned** — same root cause as the
+  centering fix: a `<dialog>`'s top-layer painting doesn't change its DOM
+  position for CSS inheritance, so a dialog opened from a
+  `text-right`-styled Actions cell inherited that alignment. `Modal.tsx`
+  now sets `text-left` explicitly.
+- **Filters on Daily Expenses, Assets, and Audit Log now apply
+  automatically** — converted from a full-page `<form>` GET submission to
+  client-side `router.replace` (select/date: immediate; free-text search:
+  ~300ms debounce), via a shared hook (`src/components/filters/useFilterNavigation.ts`)
+  and pure query-merge helpers (`src/lib/navigation/filter-query.ts`). The
+  "Apply Filters" button is gone; "Reset Filters" is kept everywhere
+  (newly added to Assets, for consistency).
+- **The "Leave site?" prompt no longer fires for filter changes** — a
+  direct consequence of the above: `router.replace` never unloads the
+  document, so `OfflineProvider`'s `beforeunload` listener is
+  structurally unreachable from a filter action. Its own gate condition
+  was extracted into a pure, unit-tested predicate
+  (`src/lib/offline/unsaved-work.ts`) proving it already correctly
+  excludes an empty or fully-synced queue.
+- `tests/e2e/entries.spec.ts` and `tests/e2e/phase5-reporting.spec.ts`
+  updated for the new interaction. A pre-existing, unrelated
+  `phase7-administration.spec.ts` failure (a duplicate-error strict-mode
+  locator violation in `MasterDataManager`) was verified to reproduce
+  identically on the unmodified base commit and was left as out of scope.
+
 ### Added — Sidebar and Navigation Rework
 
 Audited every authenticated page route against `src/lib/navigation/nav-items.ts`
