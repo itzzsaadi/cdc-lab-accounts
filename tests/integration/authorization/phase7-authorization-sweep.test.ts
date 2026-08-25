@@ -21,10 +21,11 @@ function asUser(user: {
 /**
  * FR-AUTH-04/CLAUDE.md §16, extended to every Phase 7 Admin-only
  * mutation/route: an Operator AND a Partner are both denied, by direct
- * call, independent of any page-level redirect or hidden nav item (the
- * Administration Area's 6 tabs are deliberately reached only via an
- * in-page tab bar, not new sidebar links — server-side requirePermission
- * is the real, independent guard, proven here).
+ * call, independent of any page-level redirect or nav-item visibility (the
+ * Administration Area's screens each have their own sidebar link —
+ * docs/adr/0011-sidebar-navigation-rework.md — but sidebar visibility is
+ * presentational only; server-side requirePermission is the real,
+ * independent guard, proven here).
  */
 describe("Phase 7 authorization sweep — Operator and Partner denied on every Admin-only action", () => {
   beforeEach(async () => {

@@ -60,13 +60,90 @@ test.describe("Role-specific navigation — incremental, presentational only", (
     );
   });
 
-  test("an Admin's sidebar shows every current item", async ({ page }) => {
+  test("an Admin's sidebar shows every current item, including every Administration route", async ({
+    page,
+  }) => {
     const user = await createActivatedUser("ADMIN", TEST_PASSWORD);
     await signIn(page, user.email);
     await expect(page).toHaveURL(/\/home$/);
 
     const links = page.locator('nav[aria-label="Primary"] a:visible');
-    await expect(links).toHaveCount(15); // every Partner item plus Users
+    // 14 Partner items (Audit Log now lives under the Administration
+    // heading rather than as a bare top-level link) + 7 Administration
+    // routes (Users, Parties, Expense Items, Expense Categories, Vendors,
+    // Profit Split, Historical Import) = 21. The Administration section is
+    // expanded by default, so every route an Admin is authorized for has a
+    // visible link with no extra click.
+    await expect(links).toHaveCount(21);
+    for (const label of [
+      "Parties",
+      "Expense Items",
+      "Expense Categories",
+      "Vendors",
+      "Profit Split",
+      "Historical Import",
+    ]) {
+      await expect(
+        page.locator(`nav[aria-label="Primary"] a:visible:has-text("${label}")`),
+      ).toHaveCount(1);
+    }
+  });
+
+  test("the Administration section can be collapsed and re-expands automatically on navigating into it", async ({
+    page,
+  }) => {
+    const user = await createActivatedUser("ADMIN", TEST_PASSWORD);
+    await signIn(page, user.email);
+    await expect(page).toHaveURL(/\/home$/);
+
+    const toggle = page.getByRole("button", { name: "Administration" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      page.locator('nav[aria-label="Primary"] a:visible:has-text("Parties")'),
+    ).toHaveCount(1);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.locator('nav[aria-label="Primary"] a:visible:has-text("Parties")'),
+    ).toHaveCount(0);
+
+    await page.goto("/parties");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+test.describe("Sidebar responsive behavior — desktop, tablet, mobile", () => {
+  for (const width of [375, 768, 1440]) {
+    test(`no horizontal page scrolling at ${width}px on an Administration screen (the sidebar's largest section)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const user = await createActivatedUser("ADMIN", TEST_PASSWORD);
+      await signIn(page, user.email);
+      await expect(page).toHaveURL(/\/home$/);
+      await page.goto("/parties");
+      const hasHorizontalScroll = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      );
+      expect(hasHorizontalScroll).toBe(false);
+    });
+  }
+
+  test("at tablet width (768px), the fixed sidebar never covers main content", async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 900 });
+    const user = await createActivatedUser("ADMIN", TEST_PASSWORD);
+    await signIn(page, user.email);
+    await expect(page).toHaveURL(/\/home$/);
+
+    const sidebarBox = await page
+      .locator('nav[aria-label="Primary"]:visible')
+      .first()
+      .boundingBox();
+    const mainBox = await page.locator("#main-content").boundingBox();
+    expect(sidebarBox).toBeTruthy();
+    expect(mainBox).toBeTruthy();
+    expect(mainBox!.x).toBeGreaterThanOrEqual(sidebarBox!.x + sidebarBox!.width - 1);
   });
 });
 

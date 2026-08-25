@@ -12,13 +12,15 @@ const TABS = [
 
 /**
  * The Stitch Administration Area's tab pattern (docs/ui/stitch-export/
- * administration_cdc_laboratories_code.html) — reached only through the
- * single "Users" sidebar entry (CLAUDE.md/shell tests fix that exact
- * label and count), never as seven separate sidebar links. Every tab's
- * own route independently calls `requirePermission` (guard.ts) regardless
- * of this being reachable only from an Admin-visible entry point — direct
- * navigation to any of these routes is denied server-side for a
- * non-Admin, not just hidden here.
+ * administration_cdc_laboratories_code.html) — an in-page secondary nav
+ * for moving between Administration screens once inside one. Each of
+ * these routes also has its own direct sidebar link under the
+ * "Administration" section (src/lib/navigation/nav-items.ts) so an Admin
+ * never has to land on one Administration page before reaching another.
+ * Every tab's own route independently calls `requirePermission`
+ * (guard.ts) regardless of how it was reached — direct navigation to any
+ * of these routes is denied server-side for a non-Admin, not just hidden
+ * here or in the sidebar.
  */
 export function AdministrationTabs({ active }: { active: (typeof TABS)[number]["href"] }) {
   return (

@@ -6,7 +6,7 @@ import { prisma } from "../../../../server/prisma";
 import { AdministrationTabs } from "../../../../components/admin/AdministrationTabs";
 import { UserManager } from "../../../../components/admin/UserManager";
 
-/** FR-AUTH-03. The Administration Area's entry point — reached via the single "Users" sidebar link (nav-items.ts is unchanged); every other admin screen is a tab from here, never a separate sidebar entry. */
+/** FR-AUTH-03. One of the Administration Area's screens — reached directly via its own "Users" sidebar link (nav-items.ts), or via `AdministrationTabs` from any other Administration screen. */
 export default async function AdminUsersPage() {
   const user = await getAuthenticatedUser(await nextHeaders());
   try {
