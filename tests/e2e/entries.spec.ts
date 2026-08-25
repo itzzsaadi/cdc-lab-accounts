@@ -150,23 +150,23 @@ test.describe("Daily Expense filters (FR-DEXP-07)", () => {
     await page.getByRole("button", { name: "Save Expense" }).click();
     await expect(page.locator("dialog[open]")).toBeHidden();
 
-    // Item-or-description search narrows to the matching row only.
+    // Item-or-description search auto-applies (debounced, no Apply Filters
+    // button) and narrows to the matching row only.
     await page.locator("#filter-search").fill(businessMarker);
-    await page.getByRole("button", { name: "Apply Filters" }).click();
     await expect(page).toHaveURL(new RegExp(`search=${businessMarker}`));
     await expect(page.locator("tr:visible", { hasText: businessMarker })).toBeVisible();
     await expect(page.locator("tr:visible", { hasText: partnerMarker })).toHaveCount(0);
 
-    // Funding-source filter narrows to Partner-funded rows.
+    // Funding-source select applies immediately, no debounce.
     await page.locator("#filter-search").fill("");
+    await expect(page).not.toHaveURL(/search=/);
     await page.locator("#filter-funding-source").selectOption("PARTNER");
-    await page.getByRole("button", { name: "Apply Filters" }).click();
     await expect(page).toHaveURL(/fundingSource=PARTNER/);
     await expect(page.locator("tr:visible", { hasText: partnerMarker })).toBeVisible();
     await expect(page.locator("tr:visible", { hasText: businessMarker })).toHaveCount(0);
 
     // Reset Filters returns to the unfiltered current-month view.
-    await page.getByRole("link", { name: "Reset Filters" }).click();
+    await page.getByRole("button", { name: "Reset Filters" }).click();
     await expect(page).toHaveURL(/\/daily-expenses$/);
     await expect(page.locator("tr:visible", { hasText: businessMarker })).toBeVisible();
     await expect(page.locator("tr:visible", { hasText: partnerMarker })).toBeVisible();

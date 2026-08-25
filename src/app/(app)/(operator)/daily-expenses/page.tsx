@@ -14,6 +14,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { DailyExpenseDrawer } from "../../../../components/entries/DailyExpenseDrawer";
 import { DailyExpenseRowActions } from "../../../../components/entries/DailyExpenseRowActions";
+import { DailyExpenseFilters } from "../../../../components/filters/DailyExpenseFilters";
 
 export default async function DailyExpensesPage({
   searchParams,
@@ -81,91 +82,13 @@ export default async function DailyExpensesPage({
         <DailyExpenseDrawer expenseItems={expenseItemOptions} partners={partnerOptions} />
       </div>
 
-      <form
-        action="/daily-expenses"
-        className="border-outline-variant bg-surface-container-lowest mb-6 flex flex-wrap items-end gap-4 rounded-xl border p-4 shadow-sm"
-      >
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-from"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            From
-          </label>
-          <input
-            id="filter-from"
-            name="from"
-            type="date"
-            defaultValue={from}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-to"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            To
-          </label>
-          <input
-            id="filter-to"
-            name="to"
-            type="date"
-            defaultValue={to}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <div className="flex min-w-[200px] flex-1 flex-col gap-2">
-          <label
-            htmlFor="filter-search"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            Item or Description
-          </label>
-          <input
-            id="filter-search"
-            name="search"
-            type="text"
-            defaultValue={filters.search ?? ""}
-            placeholder="Search…"
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="filter-funding-source"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            Funding Source
-          </label>
-          <select
-            id="filter-funding-source"
-            name="fundingSource"
-            defaultValue={filters.fundingSource ?? ""}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          >
-            <option value="">All Sources</option>
-            <option value="BUSINESS">Business</option>
-            <option value="PARTNER">Partner</option>
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="bg-primary text-on-primary hover:bg-primary-container h-11 rounded-lg px-4 text-sm font-medium transition-colors"
-          >
-            Apply Filters
-          </button>
-          {filtersActive ? (
-            <a
-              href="/daily-expenses"
-              className="border-outline-variant text-on-surface hover:bg-surface-container flex h-11 items-center rounded-lg border px-4 text-sm font-medium transition-colors"
-            >
-              Reset Filters
-            </a>
-          ) : null}
-        </div>
-      </form>
+      <DailyExpenseFilters
+        currentParams={rawParams}
+        from={from}
+        to={to}
+        search={filters.search ?? ""}
+        fundingSource={filters.fundingSource ?? ""}
+      />
 
       <div className="border-outline-variant bg-surface-container-lowest overflow-hidden rounded-xl border shadow-sm">
         {items.length === 0 ? (

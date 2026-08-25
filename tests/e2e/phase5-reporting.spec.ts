@@ -156,7 +156,6 @@ test.describe("Audit Log (FR-AUD-04)", () => {
     await expect(page.getByRole("heading", { name: "Audit Log" })).toBeVisible();
 
     await page.locator("#filter-entity-type").selectOption("asset");
-    await page.getByRole("button", { name: "Apply Filters" }).click();
     await expect(page).toHaveURL(/entityType=asset/);
   });
 

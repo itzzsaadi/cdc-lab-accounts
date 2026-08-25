@@ -21,6 +21,7 @@ import {
 import { runSync } from "../../lib/offline/sync-engine";
 import { refreshReferenceCache, pruneRecentRecords } from "../../lib/offline/reference-cache";
 import { clearOfflineDataIfQueueEmpty } from "../../lib/offline/cleanup";
+import { shouldWarnBeforeUnload } from "../../lib/offline/unsaved-work";
 import type { NewOperationInput, QueuedOperation } from "../../lib/offline/types";
 
 interface OfflineContextValue {
@@ -162,8 +163,17 @@ export function OfflineProvider({
     // — closing the tab/browser is the other real way to walk away from
     // pending work. The browser supplies its own generic wording; this
     // only controls whether that native prompt appears at all.
+    //
+    // This listener only ever fires for a genuine document unload (a real
+    // tab close or reload) — a filter change or in-app navigation now
+    // goes through `router.replace`/`<Link>`, neither of which unloads the
+    // document, so this prompt was never reachable from those paths to
+    // begin with once they stopped being full-page `<form>` submissions
+    // (see the filter screens' own components). The listener itself is
+    // re-registered whenever the counts change so it never checks a stale
+    // count, and is always removed on unmount/re-registration.
     function handleBeforeUnload(event: BeforeUnloadEvent) {
-      if (pendingCount + conflictCount + failedCount > 0) {
+      if (shouldWarnBeforeUnload({ pendingCount, conflictCount, failedCount })) {
         event.preventDefault();
       }
     }

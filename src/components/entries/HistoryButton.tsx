@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Alert } from "../ui/Alert";
 import { formatKarachiTimestamp } from "../../lib/domain/calendar-date";
+import { diffAuditValues } from "../../lib/domain/audit-diff";
 import { getEntityHistoryAction } from "../../server/actions/audit-log";
 import type { AuditLogEntry } from "../../server/queries/audit-log";
 
@@ -13,42 +14,28 @@ const ACTION_LABELS: Record<string, string> = {
   ARCHIVE: "Archived",
 };
 
-/** A field-by-field before/after listing for one audit row — values already redacted upstream by `redactSensitiveValues` (defense in depth: this component never itself decides what is safe to show). */
+/** A field-by-field before/after listing for one audit row — values already redacted upstream by `redactSensitiveValues` (defense in depth: this component never itself decides what is safe to show). The actual diffing (which fields changed, and each field appearing exactly once) is `diffAuditValues`, a pure function unit-tested separately — this component only renders its result. */
 function ValueDiff({ oldValues, newValues }: { oldValues: unknown; newValues: unknown }) {
-  const oldRecord = (oldValues && typeof oldValues === "object" ? oldValues : {}) as Record<
-    string,
-    unknown
-  >;
-  const newRecord = (newValues && typeof newValues === "object" ? newValues : {}) as Record<
-    string,
-    unknown
-  >;
-  const keys = Array.from(new Set([...Object.keys(oldRecord), ...Object.keys(newRecord)])).sort();
+  const diffs = diffAuditValues(oldValues, newValues);
 
-  if (keys.length === 0) {
+  if (diffs.length === 0) {
     return null;
   }
 
   return (
     <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-      {keys.map((key) => {
-        const before = oldRecord[key];
-        const after = newRecord[key];
-        const changed = JSON.stringify(before) !== JSON.stringify(after);
-        return (
-          <div key={key} className="contents">
-            <dt className="text-on-surface-variant font-medium">{key}</dt>
-            <dd className="text-on-surface">
-              {before !== undefined ? (
-                <span className={changed ? "line-through" : ""}>{String(before)}</span>
-              ) : null}
-              {before !== undefined && after !== undefined && changed ? " → " : ""}
-              {after !== undefined && changed ? <span>{String(after)}</span> : null}
-              {before === undefined && after !== undefined ? String(after) : ""}
-            </dd>
-          </div>
-        );
-      })}
+      {diffs.map(({ key, before, after, changed }) => (
+        <div key={key} className="contents">
+          <dt className="text-on-surface-variant font-medium">{key}</dt>
+          <dd className="text-on-surface">
+            {before !== undefined ? (
+              <span className={changed ? "line-through" : ""}>{String(before)}</span>
+            ) : null}
+            {before !== undefined && after !== undefined && changed ? " → " : ""}
+            {after !== undefined && changed ? <span>{String(after)}</span> : null}
+          </dd>
+        </div>
+      ))}
     </dl>
   );
 }
