@@ -249,7 +249,7 @@ Inferred from quick-action buttons, nav structure, and SRS use cases (no explici
 - **Operator Home** → Daily Expenses / Party Income Grid / (Counter Income modal) / (Cash Receipt modal), and → Offline Sync Center whenever entries are pending.
 - **Monthly Expenses** and **Asset Register** are both reached from the Partner-facing sidebar directly (no evidence either links to the other, even though an instalment asset's monthly line appears inside Monthly Expenses per FR-AST-04 — this cross-reference is not visually represented anywhere).
 - **Partner Dashboard** → Monthly Summary Report (for full detail) and → Partner Investment Statement; warning callouts on the Dashboard presumably deep-link to the relevant Monthly Expenses/Asset Register entry, though this is not shown.
-- **Administration Area** is reached only from the Admin-visible sidebar; its six sub-tabs are siblings, not a further workflow.
+- **Administration Area** — each of its screens (Users, Parties, Expense Items, Expense Categories, Vendors, Profit Split, Historical Import) has its own direct link in the sidebar's collapsible "Administration" section (superseding this document's earlier note that it was reached only through a single sidebar entry — see `docs/adr/0011-sidebar-navigation-rework.md`); `AdministrationTabs` remains as an in-page secondary nav between them once inside one.
 
 ## 25. Visible discrepancies between the Stitch design and `docs/SRS.md`
 

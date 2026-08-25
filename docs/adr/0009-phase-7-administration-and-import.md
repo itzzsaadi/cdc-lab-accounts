@@ -174,17 +174,26 @@ modal's title.
 
 ### 9. Administration Area reached via an in-page tab bar, not new sidebar links
 
+**Superseded — see `docs/adr/0011-sidebar-navigation-rework.md`.** The
+sidebar/navigation rework gave every Administration route its own direct
+sidebar link under a collapsible "Administration" section, so an Admin
+never has to land on one Administration page (or type a URL) to reach
+another. `AdministrationTabs` is kept as an in-page secondary nav between
+Administration screens, but is no longer the only way in.
+
 The six new routes (`/parties`, `/expense-items`, `/expense-categories`,
-`/vendors`, `/profit-split`, `/import`) are deliberately _not_ added as new
-`Sidebar` navigation entries — `AdministrationTabs` renders an in-page tab
-bar shared across all six pages instead. This avoids touching
+`/vendors`, `/profit-split`, `/import`) were deliberately _not_ added as new
+`Sidebar` navigation entries — `AdministrationTabs` rendered an in-page tab
+bar shared across all six pages instead. This avoided touching
 `tests/e2e/shell.spec.ts`'s existing hard-coded per-role nav-item-count
 assertions (a Phase 3A/6 precedent this phase did not need to reopen), and
-is not a security decision either way — every route's real, independent
+was not a security decision either way — every route's real, independent
 guard is its own server-side `requirePermission("...")` call at the top of
 the page, proven directly (not via navigation visibility) in
 `tests/integration/authorization/phase7-authorization-sweep.test.ts` and
-`tests/e2e/phase7-administration.spec.ts`'s route-protection sweep.
+`tests/e2e/phase7-administration.spec.ts`'s route-protection sweep. That
+guard is unchanged by the supersession above — only the sidebar's
+presentational reachability changed.
 
 ### 10. No new dependency
 

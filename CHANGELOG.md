@@ -4,6 +4,32 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Sidebar and Navigation Rework
+
+Audited every authenticated page route against `src/lib/navigation/nav-items.ts`
+and found the six Phase 7 Administration screens had no sidebar link at
+all (ADR-0009 decision 9 — reachable only via the in-page
+`AdministrationTabs` bar or a typed URL). See `docs/adr/0011-sidebar-navigation-rework.md`.
+
+- Every Admin-authorized route (Users, Parties, Expense Items, Expense
+  Categories, Vendors, Profit Split, Historical Import) now has a real
+  sidebar link — no route requires typing a URL by hand.
+- The sidebar is grouped into six sections in a fixed order: Overview,
+  Daily Operations, Monthly Operations, Reports, Offline and Sync,
+  Administration. A role with nothing in a section never renders that
+  section's heading.
+- Administration is the only collapsible section (expanded by default;
+  auto re-expands when navigation lands on a route inside it, overriding
+  any manual collapse).
+- No change to authorization, schema, or business logic — sidebar
+  visibility remains presentational only; every page's own
+  `requirePermission(...)` call is unchanged and is still the real guard,
+  proven by the existing Phase 7 authorization sweep tests (unmodified).
+- `tests/e2e/shell.spec.ts` and `tests/unit/navigation/nav-items.test.ts`
+  updated to match (Admin nav-item count 15 → 21; new tests for the
+  Administration collapse/expand behavior and for no horizontal overflow
+  at 375/768/1440px on the Administration section specifically).
+
 ### Added — Phase 8A: Internal Acceptance and Release Hardening
 
 Phase 8 is split. 8A closes the internal code, security, and verification
