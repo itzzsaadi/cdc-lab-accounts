@@ -10,6 +10,16 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Prisma CLI commands (migrate deploy/dev/status, db seed, validate)
+    // need a direct, session-mode connection — Supabase's pooled
+    // connection (pgbouncer transaction mode) does not support the
+    // advisory locks and multi-statement DDL `prisma migrate` relies on.
+    // DIRECT_URL is set in production (Supabase's "Direct connection"
+    // string, port 5432) and left unset locally/in CI, where DATABASE_URL
+    // already points at a plain, unpooled Postgres instance — this only
+    // ever changes behavior in production. The application runtime
+    // (src/server/prisma.ts) never reads this file; it always uses
+    // DATABASE_URL (Supabase's pooled connection) directly.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

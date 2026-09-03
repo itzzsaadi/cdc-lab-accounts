@@ -4,6 +4,49 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — Production Deployment Automation (Vercel + Supabase + GitHub Actions)
+
+See `docs/adr/0013-production-deployment-vercel-supabase.md` and
+`docs/VERCEL_SUPABASE_DEPLOYMENT.md`. **No deployment has been performed
+and no external account or resource has been created** — this is
+automation and configuration only.
+
+- `Dockerfile`, `.dockerignore`, `compose.yaml`: production-shaped,
+  non-root, multi-stage Docker image for reproducible local execution and
+  CI build validation only — Vercel does not run this image; the app is
+  deployed through the official Vercel CLI. Includes a `HEALTHCHECK`
+  against the existing `/api/health` route.
+- `next.config.ts`: added `output: "standalone"` for the Docker image;
+  compatible with, and unused by, Vercel's own build pipeline.
+- `prisma.config.ts`: CLI/migration commands now prefer `DIRECT_URL`
+  (Supabase's direct connection, needed for `prisma migrate deploy`),
+  falling back to `DATABASE_URL` unchanged locally/in CI. The running
+  application (`src/server/prisma.ts`) is unaffected — it always uses
+  `DATABASE_URL` (Supabase's pooled connection in production) directly.
+- `prisma/client.ts` / `src/server/prisma.ts`: optional
+  `DATABASE_POOL_MAX` env var bounds each instance's connection pool
+  (parsed by a new pure, unit-tested `src/lib/db/pool-config.ts`) —
+  unset changes nothing.
+- `.github/workflows/deploy-production.yml`: new workflow, triggered on
+  push to `main` and manual `workflow_dispatch`. Re-validates
+  (typecheck/lint/format/complete Vitest suite/Prisma validate), builds
+  and validates the Docker image, applies committed migrations to
+  Supabase, then builds and deploys through the pinned official Vercel
+  CLI (`vercel@59.11.2`). Single-flight via a concurrency group (a newer
+  push cancels an older in-flight deploy, never the reverse); minimum
+  `contents: read` permission; uses a `production` GitHub Environment.
+  Never runs the full Playwright suite (unchanged `ci.yml` already gates
+  every push/PR with that).
+- `.env.example`: documented `DIRECT_URL` and `DATABASE_POOL_MAX`.
+- `docs/deployment.md`: filled in the previously-`[8B]` provider,
+  routine-deployment, and backup sections now that Vercel/Supabase are
+  chosen; flagged two real platform constraints rather than silently
+  working around them — Vercel's fixed 4.5 MB request-body limit is
+  narrower than this app's existing 5 MB workbook-upload ceiling, and
+  Supabase's Free tier has no automated backups meeting NFR-REL-01/02/03.
+- No changes to business rules, permissions, database schema, or raw
+  Stitch exports.
+
 ### Fixed — Overlay Centering, History Duplication, and Auto-Applying Filters
 
 See `docs/adr/0012-centered-overlays-and-auto-apply-filters.md` for full
