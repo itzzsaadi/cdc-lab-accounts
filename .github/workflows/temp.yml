@@ -1,4 +1,4 @@
-name: Deploy Only (Skip Validation)
+name: Deploy Only (Build and Release)
 
 on:
   workflow_dispatch: {}
@@ -8,7 +8,7 @@ jobs:
     name: Build and Deploy to Vercel
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -25,11 +25,6 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
-
-      - name: Apply production migrations (Supabase)
-        env:
-          DIRECT_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
-        run: npx prisma migrate deploy
 
       - name: Install pinned Vercel CLI
         run: npm install --global vercel@59.11.2
