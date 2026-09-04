@@ -137,5 +137,11 @@ docs/
   deviation from the SRS's literal database design.
 - `docs/deployment.md` and `docs/handover.md` — the production/handover
   runbooks, with every external Phase 8B value explicitly marked.
+- `docs/VERCEL_SUPABASE_DEPLOYMENT.md` — beginner-oriented, click-by-click
+  account setup for the chosen production host (Vercel + Supabase +
+  GitHub Actions). No deployment has been performed yet.
+- `Dockerfile` / `compose.yaml` — reproducible local execution and CI
+  build validation only; Vercel does not run this image (see
+  `docs/adr/0013-production-deployment-vercel-supabase.md`).
 - `docs/security-review.md` and `docs/testing.md` — the security posture,
   validation evidence, and unresolved release gates.

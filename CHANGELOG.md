@@ -4,6 +4,106 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Changed — `ci.yml` reduced to build validation only, no test suites (ADR-0014)
+
+At explicit user direction (raised and confirmed twice, given the direct
+conflict with `CLAUDE.md` §5's required validation commands),
+`.github/workflows/ci.yml` no longer runs Vitest, the migration/seed
+rehearsal, `npm audit`, or Playwright. It now runs only: install →
+generate Prisma Client → type check → lint → format check → validate
+Prisma schema → schema format-drift check → build — no live database
+service. Verified directly: a real `next build`, with no reachable
+Postgres and no local `.env` file present, completes successfully (no
+route prerenders against the database at build time). `ci.yml` and
+`deploy-production.yml` stay separate workflows —
+`deploy-production.yml` is unchanged and remains the only workflow that
+runs the test suite and applies migrations before deploying. See
+ADR-0014 for the full rationale and the consequence this carries:
+`CLAUDE.md` §5's test requirement is no longer enforced by CI on every
+push/PR, only by `deploy-production.yml` on a push to `main`.
+
+### Fixed — CI type check/lint failing on a fresh checkout (`generated/prisma` unresolved)
+
+`.github/workflows/ci.yml`'s "Type check" and "Lint" steps ran _before_
+"Generate Prisma Client" — a step-order bug present since Phase 1,
+reproduced directly (`rm -rf generated && npx tsc --noEmit` fails with
+`Cannot find module '../generated/prisma/client'` plus ~40 cascading
+`implicit any` errors everywhere a Prisma query result's type could no
+longer be inferred; `npx prisma generate` alone, with no other change,
+made every one of those errors disappear). The schema's custom-output
+generator (`output = "../generated/prisma"`) is never produced by any
+`npm ci` postinstall hook — unlike the classic default-output
+`@prisma/client` package, generating it is a step this project must
+always run itself, and it must run before anything that resolves types
+from it. `ci.yml` now generates the client immediately after installing
+dependencies, before type check, lint, format check, or either Prisma
+schema check. (`.github/workflows/deploy-production.yml` already had the
+correct order — this only affected the pre-existing `ci.yml`.) Verified:
+a fresh `rm -rf generated && npx prisma generate` followed by
+typecheck/lint/format/`prisma validate`/schema-format-drift/the complete
+Vitest suite (619/619) all pass cleanly in the corrected order.
+
+### Fixed — Vercel build failure (`next-server.js.nft.json` ENOENT)
+
+The first real `vercel build` run failed during Vercel's own packaging
+step: `ENOENT: .../.next/next-server.js.nft.json`. Root cause:
+`output: "standalone"` (added for the Docker image) changes how Next
+emits that trace manifest, and `vercel build` reads it directly — a
+confirmed, version-matching known incompatibility
+(`vercel/next.js#43654`). `next.config.ts` now sets
+`output: process.env.VERCEL ? undefined : "standalone"` — `VERCEL` is a
+system env var Vercel sets automatically in every build (including
+`vercel build` CLI runs), so standalone output now applies only to local
+builds and the Docker builder stage, never a Vercel build. Verified
+directly both ways: `VERCEL=1 npm run build` produces
+`.next/next-server.js.nft.json` and no `.next/standalone`; a plain build
+produces `.next/standalone` exactly as before. See
+`docs/adr/0013-production-deployment-vercel-supabase.md` decision 2
+(corrected in place).
+
+### Added — Production Deployment Automation (Vercel + Supabase + GitHub Actions)
+
+See `docs/adr/0013-production-deployment-vercel-supabase.md` and
+`docs/VERCEL_SUPABASE_DEPLOYMENT.md`. **No deployment has been performed
+and no external account or resource has been created** — this is
+automation and configuration only.
+
+- `Dockerfile`, `.dockerignore`, `compose.yaml`: production-shaped,
+  non-root, multi-stage Docker image for reproducible local execution and
+  CI build validation only — Vercel does not run this image; the app is
+  deployed through the official Vercel CLI. Includes a `HEALTHCHECK`
+  against the existing `/api/health` route.
+- `next.config.ts`: added `output: "standalone"` for the Docker image;
+  compatible with, and unused by, Vercel's own build pipeline.
+- `prisma.config.ts`: CLI/migration commands now prefer `DIRECT_URL`
+  (Supabase's direct connection, needed for `prisma migrate deploy`),
+  falling back to `DATABASE_URL` unchanged locally/in CI. The running
+  application (`src/server/prisma.ts`) is unaffected — it always uses
+  `DATABASE_URL` (Supabase's pooled connection in production) directly.
+- `prisma/client.ts` / `src/server/prisma.ts`: optional
+  `DATABASE_POOL_MAX` env var bounds each instance's connection pool
+  (parsed by a new pure, unit-tested `src/lib/db/pool-config.ts`) —
+  unset changes nothing.
+- `.github/workflows/deploy-production.yml`: new workflow, triggered on
+  push to `main` and manual `workflow_dispatch`. Re-validates
+  (typecheck/lint/format/complete Vitest suite/Prisma validate), builds
+  and validates the Docker image, applies committed migrations to
+  Supabase, then builds and deploys through the pinned official Vercel
+  CLI (`vercel@59.11.2`). Single-flight via a concurrency group (a newer
+  push cancels an older in-flight deploy, never the reverse); minimum
+  `contents: read` permission; uses a `production` GitHub Environment.
+  Never runs the full Playwright suite (unchanged `ci.yml` already gates
+  every push/PR with that).
+- `.env.example`: documented `DIRECT_URL` and `DATABASE_POOL_MAX`.
+- `docs/deployment.md`: filled in the previously-`[8B]` provider,
+  routine-deployment, and backup sections now that Vercel/Supabase are
+  chosen; flagged two real platform constraints rather than silently
+  working around them — Vercel's fixed 4.5 MB request-body limit is
+  narrower than this app's existing 5 MB workbook-upload ceiling, and
+  Supabase's Free tier has no automated backups meeting NFR-REL-01/02/03.
+- No changes to business rules, permissions, database schema, or raw
+  Stitch exports.
+
 ### Fixed — Overlay Centering, History Duplication, and Auto-Applying Filters
 
 See `docs/adr/0012-centered-overlays-and-auto-apply-filters.md` for full

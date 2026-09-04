@@ -1,0 +1,35 @@
+# Keep the build context small and never let real secrets or generated
+# artifacts leak into the image or its build cache.
+
+node_modules
+.next
+generated
+
+# Never send real env files into the build context — only the checked-in
+# templates (.env.example, .env.test.example) are ever needed inside a
+# Docker build, and neither is.
+.env
+.env.*
+!.env.example
+!.env.test.example
+
+.git
+.gitignore
+
+# Docs, tests, and CI config have no bearing on the runtime image.
+docs
+tests
+.github
+test-results
+playwright-report
+coverage
+*.md
+!README.md
+
+.vscode
+.DS_Store
+npm-debug.log*
+
+Dockerfile
+compose.yaml
+.dockerignore

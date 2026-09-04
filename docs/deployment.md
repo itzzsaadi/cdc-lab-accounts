@@ -1,14 +1,19 @@
 # Deployment Runbook
 
-**Status: draft (Phase 8A).** Everything below that does not depend on a
-chosen host is final. Everything that does — the provider, the backup
-mechanism, the restore rehearsal, the monitoring wiring — is marked
-**[8B]** and is written once the host is chosen and the first deployment
-actually happens. `NFR-MNT-04` is not satisfied until those are filled in
-and the restore has been rehearsed (`AC-12`).
+**Status: provider chosen, automation built, no deployment performed
+yet.** The host is now chosen — **Vercel** (application) + **Supabase**
+(PostgreSQL) + **GitHub Actions** (CI/CD) — and the full account-setup and
+deployment procedure is written up, beginner-oriented, in
+`docs/VERCEL_SUPABASE_DEPLOYMENT.md`. See
+`docs/adr/0013-production-deployment-vercel-supabase.md` for the
+decisions and code changes this required. The restore rehearsal (`AC-12`)
+and monitoring wiring below remain **[8B]** until performed against the
+real Supabase project.
 
 **No deployment has been performed. No external resource has been
-created.** Nothing in this file has been executed against a real host.
+created.** Nothing in this file has been executed against a real host —
+`docs/VERCEL_SUPABASE_DEPLOYMENT.md` explicitly tells you what you must
+create yourself before anything deploys.
 
 ---
 
@@ -29,15 +34,17 @@ Node.js **20 or newer** (`package.json` `engines`). CI pins 20.
 Every variable the application reads is listed in `.env.example`
 (NFR-MNT-02). Production values:
 
-| Variable                                                            | Production value                                  | Enforced how                                                                         |
-| ------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `DATABASE_URL`                                                      | Managed Postgres connection string                | Prisma CLI and the runtime adapter both read it; the app throws at start-up if unset |
-| `BETTER_AUTH_URL`                                                   | The public **HTTPS** URL                          | `src/server/auth.ts` refuses to start in production if this is not `https:`          |
-| `BETTER_AUTH_SECRET`                                                | **Freshly generated** — `openssl rand -base64 32` | See the warning below                                                                |
-| `EMAIL_TRANSPORT`                                                   | `smtp`                                            | Production refuses to start on any other value                                       |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Real SMTP credentials                             | Production refuses to start if any is missing                                        |
-| `NODE_ENV`                                                          | `production`                                      | Gates HSTS, `Secure` cookies, and the fail-closed guards above                       |
-| `LOG_STACKS`                                                        | unset (or `true` only while actively diagnosing)  | Keeps stack traces out of the log stream by default                                  |
+| Variable                                                            | Production value                                                                                                                        | Enforced how                                                                                      |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                      | Supabase's **pooled** ("Transaction pooler") connection string — set only in Vercel                                                     | The runtime Prisma adapter reads it directly; the app throws at start-up if unset                 |
+| `DIRECT_URL`                                                        | Supabase's **direct** connection string — set in Vercel (as `DIRECT_URL`) and in GitHub Actions (as the `SUPABASE_DATABASE_URL` secret) | `prisma.config.ts` uses it for every CLI migration command; falls back to `DATABASE_URL` if unset |
+| `DATABASE_POOL_MAX`                                                 | `3` (recommended starting point)                                                                                                        | Optional; bounds each serverless instance's connection pool (`src/server/prisma.ts`)              |
+| `BETTER_AUTH_URL`                                                   | The public **HTTPS** URL                                                                                                                | `src/server/auth.ts` refuses to start in production if this is not `https:`                       |
+| `BETTER_AUTH_SECRET`                                                | **Freshly generated** — `openssl rand -base64 32`                                                                                       | See the warning below                                                                             |
+| `EMAIL_TRANSPORT`                                                   | `smtp`                                                                                                                                  | Production refuses to start on any other value                                                    |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Real SMTP credentials                                                                                                                   | Production refuses to start if any is missing                                                     |
+| `NODE_ENV`                                                          | `production`                                                                                                                            | Gates HSTS, `Secure` cookies, and the fail-closed guards above                                    |
+| `LOG_STACKS`                                                        | unset (or `true` only while actively diagnosing)                                                                                        | Keeps stack traces out of the log stream by default                                               |
 
 > **`BETTER_AUTH_SECRET` is a human step with no automated guard.**
 > Better Auth refuses to start on _its own library default_, but
@@ -52,9 +59,20 @@ manager. Never in the repository — `.env` and `.env.*` are git-ignored.
 
 ## 3. First deployment
 
-1. **Provision** the app instance and the managed Postgres instance. _[8B: record provider, region, tier, and monthly cost here.]_
-2. **Set every environment variable** from §2. The app will refuse to start if any fail-closed condition is unmet — that is the intended behaviour, not a problem to work around.
-3. **Apply migrations:** `npx prisma migrate deploy`.
+See `docs/VERCEL_SUPABASE_DEPLOYMENT.md` for the full, beginner-oriented,
+click-by-click account setup. Summarized:
+
+1. **Provision** a Supabase project (Free tier; region chosen closest to
+   Gujranwala, Pakistan available at the time) and a Vercel project
+   linked to this repository. Monthly cost at Free tier for both: **Rs 0**
+   until usage or storage limits are exceeded — record the actual figure
+   here once a paid tier is chosen.
+2. **Set every environment variable** from §2, in Vercel's Project
+   Settings. The app will refuse to start if any fail-closed condition is
+   unmet — that is the intended behaviour, not a problem to work around.
+3. **Apply migrations:** `.github/workflows/deploy-production.yml` runs
+   `npx prisma migrate deploy` against `SUPABASE_DATABASE_URL` (Supabase's
+   direct connection) automatically on every push to `main`.
    Never `prisma db push`, never a manual schema change (NFR-MNT-05).
    The from-zero path is rehearsed in CI (`npm run rehearse:migrations`), so this should be uneventful.
 4. **Seed master data:** `npx prisma db seed`.
@@ -69,10 +87,17 @@ manager. Never in the repository — `.env` and `.env.*` are git-ignored.
 
 ## 4. Routine deployment
 
-1. Merge to the default branch; CI must be green (typecheck, lint, format, Prisma validate + format-drift, migrations to two databases, clean-DB rehearsal, seed, build, Vitest, Playwright, cross-engine smoke, `npm audit`).
-2. Deploy the new build. _[8B: exact command or pipeline step.]_
-3. Run `npx prisma migrate deploy` if the release contains a migration.
-4. Confirm `/api/health`.
+1. Merge to the default branch; `ci.yml` must be green (typecheck, lint, format, Prisma validate + format-drift, build — build validation only, no test suites; see ADR-0014).
+2. `.github/workflows/deploy-production.yml` fires automatically on the
+   merge to `main` (also runnable manually via `workflow_dispatch`): it
+   re-validates (typecheck/lint/format/Vitest/Prisma validate), builds and
+   validates the Docker image, applies any new migration to Supabase via
+   `prisma migrate deploy`, then builds and deploys through the official
+   Vercel CLI (`vercel build` + `vercel deploy --prebuilt --prod`). Only
+   one production deployment runs at a time (GitHub Actions concurrency
+   group `production-deploy`) — see
+   `docs/adr/0013-production-deployment-vercel-supabase.md`.
+3. Confirm `/api/health` on the live Vercel URL once the workflow finishes.
 
 ---
 
@@ -98,7 +123,7 @@ _[8B: exact restore command, expected duration, and who to notify.]_
 
 ---
 
-## 6. Backups _[8B]_
+## 6. Backups _[8B — mechanism chosen, not yet rehearsed]_
 
 Requirements to satisfy (NFR-REL-01/02/03, AC-12):
 
@@ -108,14 +133,21 @@ Requirements to satisfy (NFR-REL-01/02/03, AC-12):
   environment, demonstrated live, not asserted.
 
 Prefer the host's managed backups over a hand-rolled cron job (CON-07).
+**Supabase's Free tier does not include automated point-in-time backups**
+meeting the 24-hour/30-day/12-month schedule above — a paid tier
+(Pro or higher) is required to satisfy NFR-REL-01/02/03 automatically.
+Until that tier decision is made, `docs/VERCEL_SUPABASE_DEPLOYMENT.md`
+§1.6 documents the manual `pg_dump`/`pg_restore` commands as an interim,
+human-run backup — not a substitute for the automated requirement.
 
 **Restore verification standard:** after restoring into a clean
 environment, re-run the July 2026 reconciliation against the restored
 data. A restore that produces the wrong figures is not a successful
 restore, and a row count is not proof.
 
-_[8B: provider mechanism, schedule, retention settings, restore steps,
-and the dated record of the rehearsal.]_
+_[8B: decide the Supabase tier that provides automated backups meeting
+the schedule above, then perform and record a dated live restore
+rehearsal against it.]_
 
 ---
 
@@ -128,21 +160,36 @@ payloads. Next's `src/instrumentation.ts` hook routes uncaught server
 request errors into that stream without headers or query strings.
 
 `/api/health` performs a real, timeout-bounded database check and returns
-a leak-free body.
+a leak-free body. On Vercel, every log line this application emits is
+visible in the deployment's **Runtime Logs** tab
+(`docs/VERCEL_SUPABASE_DEPLOYMENT.md` §2.7) — no separate log shipping is
+configured yet.
 
 _[8B: wire an uptime check against `/api/health`; set an alert on
-`"level":"error"` lines; record the alerting destination. NFR-REL-07's 99%
-monthly availability is a target to monitor against, plus a documented
-maintenance-window policy.]_
+`"level":"error"` lines (e.g. via a Vercel log drain or an external
+uptime monitor pointed at `/api/health`); record the alerting
+destination. NFR-REL-07's 99% monthly availability is a target to monitor
+against, plus a documented maintenance-window policy.]_
 
 ---
 
 ## 8. Operational notes
 
-- **Single instance assumed.** The per-user rate limiter holds state in
-  process memory (`src/lib/rate-limit.ts`), so running two instances would
-  give each the full quota. Replace it with a shared store before scaling
-  horizontally. The account lockout is database-backed and unaffected.
+- **Single instance assumed — now genuinely multi-instance on Vercel.**
+  The per-user rate limiter holds state in process memory
+  (`src/lib/rate-limit.ts`); Vercel runs each request on a serverless
+  function instance, so this limiter's quota is now effectively per warm
+  instance, not per deployment — a known, disclosed relaxation of the
+  original single-instance assumption, not a new bug. Replace it with a
+  shared store (e.g. a small Postgres table or a rate-limiting service) if
+  this needs to be exact under real concurrent abuse. The account lockout
+  is database-backed and unaffected.
+- **Workbook upload limit exceeds Vercel's fixed platform ceiling.**
+  `MAX_IMPORT_FILE_BYTES` is 5 MB; Vercel's Serverless Functions enforce a
+  fixed, non-configurable 4.5 MB request-body limit, returning `413`
+  before the application's own check runs, for any file between ~4.5 MB
+  and 5 MB. See `docs/adr/0013-production-deployment-vercel-supabase.md`
+  decision 9 — flagged for a client decision, not silently changed here.
 - **No month locking exists** (CON-06, BR-12). Every record stays editable
   indefinitely; the audit log is the only record of what changed. Treat
   any request to "lock last month" as a Change Request, not a bug.

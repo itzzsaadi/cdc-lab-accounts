@@ -1,0 +1,60 @@
+# Reproducible local execution of the production Docker image. By
+# default this runs the app connected to Supabase (or any real Postgres)
+# through the environment variables in your own `.env` file — no
+# database is created here. An optional, profile-gated local Postgres
+# service exists purely for offline/local-only development; it is never
+# started automatically and is never used in production.
+#
+# Usage:
+#   docker compose up --build                       # app only, against .env's DATABASE_URL (e.g. Supabase)
+#   docker compose --profile local-db up --build     # app + a disposable local Postgres
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cdc-lab-accounts:local
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{process.exit(r.status===200?0:1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+
+  # Optional, local-development-only Postgres. Never started by default,
+  # never a stand-in for a production database — see .env.example and
+  # docs/VERCEL_SUPABASE_DEPLOYMENT.md for the real (Supabase) production
+  # connection strings.
+  postgres:
+    image: postgres:16
+    profiles: ["local-db"]
+    environment:
+      POSTGRES_USER: cdc_dev
+      POSTGRES_PASSWORD: cdc_dev_password
+      POSTGRES_DB: cdc_lab_accounts
+    ports:
+      - "5432:5432"
+    volumes:
+      - cdc-local-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdc_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  cdc-local-db:

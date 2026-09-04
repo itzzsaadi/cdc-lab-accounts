@@ -1,0 +1,161 @@
+name: Deploy to Production
+
+# Fires on every push to main and can be re-run manually. This is
+# separate from ci.yml (which gates every push/PR with the full
+# validation suite, including Playwright) — this workflow re-runs the
+# fast, non-browser checks as its own gate, then deploys. It never runs
+# the full Playwright suite.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Only one production deployment in flight at a time. A newer push
+# cancels an older, still-running deploy rather than queuing behind it —
+# queuing would let a stale, older commit finish deploying *after* a
+# newer one and silently overwrite it.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+# Least privilege: this workflow only reads repository contents.
+permissions:
+  contents: read
+
+env:
+  # Non-production values for every step except the two explicitly
+  # marked otherwise below — mirrors ci.yml's own pattern exactly.
+  DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_deploy?schema=public"
+  TEST_DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_deploy_test?schema=public"
+  BETTER_AUTH_URL: "http://localhost:3000"
+  BETTER_AUTH_SECRET: "deploy-ci-only-secret-not-used-in-any-real-deployment"
+  EMAIL_TRANSPORT: "file"
+
+jobs:
+  deploy:
+    name: Validate and deploy
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+
+    # A throwaway Postgres for the Vitest suite's integration/constraint
+    # tests (tests/integration/**) — never Supabase, never production
+    # data. Same pattern as ci.yml.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: cdc_lab_accounts_deploy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # 1. Check out the exact commit that triggered this run.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Configure the project's pinned Node version and package manager cache.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # 3. Install dependencies from the committed lockfile only.
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Generate the Prisma Client (custom output — required before typecheck/build/test).
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      # 5. Type check.
+      - name: Type check
+        run: npm run typecheck
+
+      # 6. Lint.
+      - name: Lint
+        run: npm run lint
+
+      # 7. Format check.
+      - name: Format check
+        run: npm run format:check
+
+      # 8. Complete Vitest suite (unit + integration + constraint tests).
+      - name: Create the dedicated test database
+        run: PGPASSWORD=ci_password psql -h localhost -U ci -d cdc_lab_accounts_deploy -c "CREATE DATABASE cdc_lab_accounts_deploy_test;"
+
+      - name: Apply migrations (dev-equivalent database)
+        run: npx prisma migrate deploy
+
+      - name: Apply migrations (test database)
+        run: DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy
+
+      - name: Vitest — unit, integration, and constraint tests
+        run: npm run test
+
+      # 9. Validate the Prisma schema itself.
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      # 10. Build the Docker image as a validation step (never deployed —
+      #     see Dockerfile's own header comment). Build-only; the
+      #     Dockerfile's ARG defaults are non-secret placeholders, so no
+      #     --build-arg is passed here.
+      - name: Build Docker image (validation only — not deployed)
+        run: docker build --tag cdc-lab-accounts:ci-validation .
+
+      # 11. Apply committed production migrations to the real database.
+      #     DIRECT_URL is Supabase's direct (non-pooled) connection —
+      #     migrate deploy needs a session-mode connection, which the
+      #     pooled DATABASE_URL Vercel uses does not provide. This is the
+      #     ONLY step in this workflow that touches the real production
+      #     database, and it only ever applies already-committed,
+      #     forward-only migrations — never `migrate dev`, `db push`, or
+      #     a reset.
+      - name: Apply production migrations (Supabase)
+        env:
+          DIRECT_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: npx prisma migrate deploy
+
+      # 12. Pull the linked Vercel project's production configuration.
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@59.11.2
+
+      - name: Pull Vercel production configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      # 13. Build with the official Vercel CLI (uses the environment
+      #     variables configured in the Vercel project itself, pulled
+      #     above — real BETTER_AUTH_URL/BETTER_AUTH_SECRET/SMTP_*/
+      #     DATABASE_URL live only in Vercel, never duplicated here).
+      - name: Build with Vercel CLI
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      # 14. Deploy the already-built output to Vercel production.
+      - name: Deploy prebuilt output to Vercel production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+      # 15. Any failure above stops the job immediately (GitHub Actions'
+      #     default step behavior — no step here uses `continue-on-error`
+      #     or `|| true`), so a failed migration or build never reaches
+      #     the deploy step.
