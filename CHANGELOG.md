@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed — CI type check/lint failing on a fresh checkout (`generated/prisma` unresolved)
+
+`.github/workflows/ci.yml`'s "Type check" and "Lint" steps ran _before_
+"Generate Prisma Client" — a step-order bug present since Phase 1,
+reproduced directly (`rm -rf generated && npx tsc --noEmit` fails with
+`Cannot find module '../generated/prisma/client'` plus ~40 cascading
+`implicit any` errors everywhere a Prisma query result's type could no
+longer be inferred; `npx prisma generate` alone, with no other change,
+made every one of those errors disappear). The schema's custom-output
+generator (`output = "../generated/prisma"`) is never produced by any
+`npm ci` postinstall hook — unlike the classic default-output
+`@prisma/client` package, generating it is a step this project must
+always run itself, and it must run before anything that resolves types
+from it. `ci.yml` now generates the client immediately after installing
+dependencies, before type check, lint, format check, or either Prisma
+schema check. (`.github/workflows/deploy-production.yml` already had the
+correct order — this only affected the pre-existing `ci.yml`.) Verified:
+a fresh `rm -rf generated && npx prisma generate` followed by
+typecheck/lint/format/`prisma validate`/schema-format-drift/the complete
+Vitest suite (619/619) all pass cleanly in the corrected order.
+
 ### Fixed — Vercel build failure (`next-server.js.nft.json` ENOENT)
 
 The first real `vercel build` run failed during Vercel's own packaging

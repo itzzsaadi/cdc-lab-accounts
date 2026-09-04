@@ -52,6 +52,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Generated before any other step: the schema uses a custom-output
+      # generator (prisma/schema.prisma's `output = "../generated/prisma"`),
+      # which — unlike the classic default-output @prisma/client package —
+      # is not produced by any package-install postinstall hook. Type check
+      # and lint both resolve types from this generated client, so it must
+      # exist before either runs, not merely before the build/test steps
+      # that use it at runtime.
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Type check
         run: npm run typecheck
 
@@ -68,9 +78,6 @@ jobs:
         run: |
           npx prisma format
           git diff --exit-code -- prisma/schema.prisma
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
 
       - name: Create the dedicated test database
         run: PGPASSWORD=ci_password psql -h localhost -U ci -d cdc_lab_accounts_ci -c "CREATE DATABASE cdc_lab_accounts_ci_test;"
