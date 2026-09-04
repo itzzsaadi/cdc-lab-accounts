@@ -168,8 +168,10 @@ build`'s own packaging step reads it directly; this is a confirmed,
   describes do not perform that setup.
 - `.github/workflows/deploy-production.yml` runs on every push to `main`
   and is the only workflow that touches the real Supabase database or
-  Vercel; `ci.yml` (existing, unchanged) continues to gate every push and
-  PR with the full validation suite including Playwright.
+  Vercel; it is also, per ADR-0014, now the only workflow that runs the
+  test suite at all — `ci.yml` was reduced to build validation only
+  (typecheck/lint/format/Prisma checks/build, no tests) at the user's
+  explicit direction, over the objection raised there.
 - The Docker image is never the production deployment artifact — it
   exists solely so the build and a real container boot/health check can
   be proven reproducibly, independent of Vercel's own build pipeline.

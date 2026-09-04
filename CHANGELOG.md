@@ -4,6 +4,24 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Changed — `ci.yml` reduced to build validation only, no test suites (ADR-0014)
+
+At explicit user direction (raised and confirmed twice, given the direct
+conflict with `CLAUDE.md` §5's required validation commands),
+`.github/workflows/ci.yml` no longer runs Vitest, the migration/seed
+rehearsal, `npm audit`, or Playwright. It now runs only: install →
+generate Prisma Client → type check → lint → format check → validate
+Prisma schema → schema format-drift check → build — no live database
+service. Verified directly: a real `next build`, with no reachable
+Postgres and no local `.env` file present, completes successfully (no
+route prerenders against the database at build time). `ci.yml` and
+`deploy-production.yml` stay separate workflows —
+`deploy-production.yml` is unchanged and remains the only workflow that
+runs the test suite and applies migrations before deploying. See
+ADR-0014 for the full rationale and the consequence this carries:
+`CLAUDE.md` §5's test requirement is no longer enforced by CI on every
+push/PR, only by `deploy-production.yml` on a push to `main`.
+
 ### Fixed — CI type check/lint failing on a fresh checkout (`generated/prisma` unresolved)
 
 `.github/workflows/ci.yml`'s "Type check" and "Lint" steps ran _before_

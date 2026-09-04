@@ -87,7 +87,7 @@ click-by-click account setup. Summarized:
 
 ## 4. Routine deployment
 
-1. Merge to the default branch; `ci.yml` must be green (typecheck, lint, format, Prisma validate + format-drift, migrations to two databases, clean-DB rehearsal, seed, build, Vitest, Playwright, cross-engine smoke, `npm audit`).
+1. Merge to the default branch; `ci.yml` must be green (typecheck, lint, format, Prisma validate + format-drift, build — build validation only, no test suites; see ADR-0014).
 2. `.github/workflows/deploy-production.yml` fires automatically on the
    merge to `main` (also runnable manually via `workflow_dispatch`): it
    re-validates (typecheck/lint/format/Vitest/Prisma validate), builds and

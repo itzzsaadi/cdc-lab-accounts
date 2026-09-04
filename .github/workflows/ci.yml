@@ -7,37 +7,18 @@ on:
 
 env:
   DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_ci?schema=public"
-  TEST_DATABASE_URL: "postgresql://ci:ci_password@localhost:5432/cdc_lab_accounts_ci_test?schema=public"
-  # Phase 2 — non-production values for every step except Build below.
-  # NODE_ENV is not "production" for `prisma generate`/`db seed`/`test`/
-  # `test:e2e` (Playwright's webServer runs `next dev`), so the file-sink
-  # email transport and an HTTP BETTER_AUTH_URL are valid here — see
-  # src/server/auth.ts and src/lib/email/transport.ts's fail-closed guards.
-  BETTER_AUTH_URL: "http://localhost:3000"
+  BETTER_AUTH_URL: "https://ci-build-placeholder.example"
   BETTER_AUTH_SECRET: "ci-only-secret-not-used-in-any-real-deployment-0123456789"
-  EMAIL_TRANSPORT: "file"
+  EMAIL_TRANSPORT: "smtp"
+  SMTP_HOST: "smtp.ci-build-placeholder.example"
+  SMTP_PORT: "587"
+  SMTP_USER: "ci"
+  SMTP_PASSWORD: "ci"
+  SMTP_FROM: "noreply@ci-build-placeholder.example"
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-
-    # Runner-provided CI infrastructure (Phase 1 plan §"Test-database
-    # plan"), not a project dependency — analogous to Playwright's browser
-    # binaries below.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci_password
-          POSTGRES_DB: cdc_lab_accounts_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout
@@ -57,8 +38,8 @@ jobs:
       # which — unlike the classic default-output @prisma/client package —
       # is not produced by any package-install postinstall hook. Type check
       # and lint both resolve types from this generated client, so it must
-      # exist before either runs, not merely before the build/test steps
-      # that use it at runtime.
+      # exist before either runs, not merely before the build step that
+      # uses it at runtime.
       - name: Generate Prisma Client
         run: npx prisma generate
 
@@ -79,67 +60,5 @@ jobs:
           npx prisma format
           git diff --exit-code -- prisma/schema.prisma
 
-      - name: Create the dedicated test database
-        run: PGPASSWORD=ci_password psql -h localhost -U ci -d cdc_lab_accounts_ci -c "CREATE DATABASE cdc_lab_accounts_ci_test;"
-
-      - name: Apply migrations (dev-equivalent database)
-        run: npx prisma migrate deploy
-
-      - name: Apply migrations (test database)
-        run: DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy
-
-      - name: Clean-database migration and seed rehearsal
-        # Proves every migration applies from zero, not just as a no-op
-        # against an already-migrated database — the path a first
-        # production deploy actually takes. Creates and drops its own
-        # uniquely named temporary database; never touches the CI
-        # dev/test databases above.
-        run: npm run rehearse:migrations
-
-      - name: Verify no migration drift
-        run: npx prisma migrate status
-
-      - name: Seed master data (dev-equivalent database)
-        run: npx prisma db seed
-
       - name: Build
-        # next build sets NODE_ENV=production internally, so the
-        # production-only startup guards in src/server/auth.ts fire here —
-        # an HTTPS BETTER_AUTH_URL and complete (placeholder, never
-        # connected-to) SMTP configuration are required for this one step
-        # only. Every other step keeps the job-level, non-production values
-        # above.
         run: npm run build
-        env:
-          BETTER_AUTH_URL: "https://ci-build-placeholder.example"
-          EMAIL_TRANSPORT: "smtp"
-          SMTP_HOST: "smtp.ci-build-placeholder.example"
-          SMTP_PORT: "587"
-          SMTP_USER: "ci"
-          SMTP_PASSWORD: "ci"
-          SMTP_FROM: "noreply@ci-build-placeholder.example"
-
-      - name: Unit, integration, and constraint tests
-        run: npm run test
-
-      - name: Dependency audit (production dependencies)
-        # Advisories are assessed, never blanket-upgraded — see
-        # docs/security-review.md for the reachability analysis behind each
-        # currently-accepted finding. `|| true` keeps a newly published
-        # advisory from blocking an unrelated change; the report is read.
-        run: npm audit --omit=dev || true
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: End-to-end tests (Chromium — full suite)
-        run: npm run test:e2e
-
-      - name: Install Firefox and WebKit for the cross-engine smoke
-        run: npx playwright install --with-deps firefox webkit
-
-      - name: Cross-engine compatibility smoke (NFR-CMP-01)
-        # A small subset only (tests/e2e/compatibility-smoke.spec.ts) — see
-        # playwright.config.ts. This does NOT satisfy NFR-CMP-02, which
-        # needs real Android/iOS hardware.
-        run: npx playwright test --project=firefox --project=webkit --project=mobile-chrome
