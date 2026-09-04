@@ -25,12 +25,28 @@ or the SRS-derived domain logic.
    official Vercel CLI (`vercel build` + `vercel deploy --prebuilt`), per
    the explicit instruction that Vercel does not run arbitrary containers.
 
-2. **`next.config.ts` gains `output: "standalone"`.** Needed for a
-   minimal, correct Docker runtime image (a traced `node_modules` subset
-   instead of the full tree). Vercel's own build pipeline is documented
-   to be compatible with this setting — it detects and uses its own
-   optimized output regardless, so this does not change how Vercel builds
-   or deploys the app.
+2. **`next.config.ts` sets `output: process.env.VERCEL ? undefined : "standalone"`
+   — standalone only for the Docker image, never for a Vercel build.**
+   Standalone output is needed for a minimal, correct Docker runtime image
+   (a traced `node_modules` subset instead of the full tree). The first
+   real `vercel build` run in this project's pipeline failed with
+   `ENOENT: .../.next/next-server.js.nft.json` — `output: "standalone"`
+   changes how/whether Next emits that trace manifest, and `vercel
+build`'s own packaging step reads it directly; this is a confirmed,
+   version-matching, known incompatibility (`vercel/next.js#43654`,
+   "Standalone server does not work with `vercel build` output" — that
+   same issue thread shows Next.js itself already keys other
+   standalone-vs-Vercel build decisions off this exact `VERCEL` system
+   env var, which Vercel sets automatically in every build/runtime
+   environment, `vercel build` CLI included). Verified directly, both
+   ways, after the fix: building locally with `VERCEL=1` set produces no
+   `.next/standalone` directory and _does_ produce
+   `.next/next-server.js.nft.json`; building without it (plain
+   `npm run build`, and the Docker builder stage) produces
+   `.next/standalone` exactly as before. The original claim in this
+   decision — that Vercel's pipeline was simply "compatible" with
+   standalone output regardless — was wrong; corrected here rather than
+   left standing.
 
 3. **`prisma.config.ts`'s CLI-only datasource URL now prefers
    `DIRECT_URL`, falling back to `DATABASE_URL`.** Prisma 7's driver

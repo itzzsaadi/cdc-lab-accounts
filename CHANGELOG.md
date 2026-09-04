@@ -4,6 +4,24 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed — Vercel build failure (`next-server.js.nft.json` ENOENT)
+
+The first real `vercel build` run failed during Vercel's own packaging
+step: `ENOENT: .../.next/next-server.js.nft.json`. Root cause:
+`output: "standalone"` (added for the Docker image) changes how Next
+emits that trace manifest, and `vercel build` reads it directly — a
+confirmed, version-matching known incompatibility
+(`vercel/next.js#43654`). `next.config.ts` now sets
+`output: process.env.VERCEL ? undefined : "standalone"` — `VERCEL` is a
+system env var Vercel sets automatically in every build (including
+`vercel build` CLI runs), so standalone output now applies only to local
+builds and the Docker builder stage, never a Vercel build. Verified
+directly both ways: `VERCEL=1 npm run build` produces
+`.next/next-server.js.nft.json` and no `.next/standalone`; a plain build
+produces `.next/standalone` exactly as before. See
+`docs/adr/0013-production-deployment-vercel-supabase.md` decision 2
+(corrected in place).
+
 ### Added — Production Deployment Automation (Vercel + Supabase + GitHub Actions)
 
 See `docs/adr/0013-production-deployment-vercel-supabase.md` and
