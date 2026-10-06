@@ -1,6 +1,7 @@
 import { Decimal, ZERO } from "../../lib/domain/money";
 import { formatMoney } from "../../lib/domain/money-format";
 import type { MonthlyTrendPoint } from "../../server/queries/results";
+import { InfoTip } from "../ui/InfoTip";
 
 const CHART_HEIGHT = 160;
 const BAR_WIDTH = 32;
@@ -27,6 +28,11 @@ function monthLabel(yearMonth: string): string {
   return `${names[Number(month) - 1]} ${year}`;
 }
 
+interface Props {
+  points: MonthlyTrendPoint[];
+  title?: string;
+}
+
 /**
  * FR-DASH's approved plain SVG/CSS trend chart — no charting library
  * (CLAUDE.md §24 dependency policy). Net-result-per-month bars, scaled
@@ -39,7 +45,7 @@ function monthLabel(yearMonth: string): string {
  * carrying the same figures in text form, so the chart's information is
  * never SVG-only.
  */
-export function TrendChart({ points }: { points: MonthlyTrendPoint[] }) {
+export function TrendChart({ points, title }: Props) {
   if (points.length === 0) {
     return <p className="text-on-surface-variant text-sm">No data available yet.</p>;
   }
@@ -56,6 +62,12 @@ export function TrendChart({ points }: { points: MonthlyTrendPoint[] }) {
 
   return (
     <figure className="m-0">
+      <div className="mb-2 flex items-center gap-1">
+        <figcaption className="text-on-surface-variant text-xs font-medium">
+          {title ?? "Net Profit / Loss Trend"}
+        </figcaption>
+        <InfoTip>The horizontal baseline represents zero. Bars extending below the baseline represent monthly net losses.</InfoTip>
+      </div>
       <svg
         role="img"
         aria-labelledby="trend-chart-title trend-chart-desc"
