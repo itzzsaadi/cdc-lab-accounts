@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/Button";
+import { InfoTip } from "../ui/InfoTip";
 import { Modal } from "../ui/Modal";
 import { HistoryButton } from "./HistoryButton";
 import { generateClientUuid } from "../../lib/client-uuid";
@@ -125,14 +126,19 @@ export function MonthlyPartyBillRow({ row }: { row: MonthlyPartyBillRowData }) {
       </Button>
       {row.existing ? (
         <>
-          <Button
-            type="button"
-            variant="destructive-ghost"
-            disabled={submitting}
-            onClick={() => setConfirmingClear(true)}
-          >
-            Clear
-          </Button>
+          <span className="inline-flex items-center">
+            <Button
+              type="button"
+              variant="destructive-ghost"
+              disabled={submitting}
+              onClick={() => setConfirmingClear(true)}
+            >
+              Clear
+            </Button>
+            <InfoTip>
+              Archives the bill figure. Historical changes remain visible in the audit log.
+            </InfoTip>
+          </span>
           <Modal
             open={confirmingClear}
             onClose={() => setConfirmingClear(false)}

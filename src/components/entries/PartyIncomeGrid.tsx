@@ -94,7 +94,7 @@ export function PartyIncomeGrid({ grid }: { grid: PartyIncomeGridData }) {
                   {formatMoney(grid.partyTotals[party.id] ?? "0")}
                 </td>
               ))}
-              <td className="bg-primary-container text-on-primary-container p-3 text-right font-bold">
+              <td className="bg-primary text-on-primary p-3 text-right font-bold">
                 {formatMoney(grid.grandTotal)}
               </td>
             </tr>
