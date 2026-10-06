@@ -93,6 +93,12 @@ export const PROTECTED_SURFACE: ProtectedSurfaceEntry[] = [
     invoke: (p, u) => capitalQueries.getPartnerInvestmentStatements(p, u),
   },
   {
+    name: "queries/capital-contributions.getPartnerInvestmentSummaries",
+    file: "src/server/queries/capital-contributions.ts",
+    permission: "report:dashboard",
+    invoke: (p, u) => capitalQueries.getPartnerInvestmentSummaries(p, u),
+  },
+  {
     name: "queries/counter-income.listCounterIncome",
     file: "src/server/queries/counter-income.ts",
     permission: "entry:counter-income",
