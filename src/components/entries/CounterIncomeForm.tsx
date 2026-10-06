@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/Button";
+import { InfoTip } from "../ui/InfoTip";
 import { TextInput } from "../ui/TextInput";
 import { Textarea } from "../ui/Textarea";
 import { generateClientUuid } from "../../lib/client-uuid";
@@ -104,7 +105,15 @@ export function CounterIncomeForm() {
       >
         <TextInput
           id="counter-income-date"
-          label="Date"
+          label={
+            <>
+              Date
+              <InfoTip>
+                If an entry already exists for this date, you will be asked to confirm before
+                adding another.
+              </InfoTip>
+            </>
+          }
           type="date"
           value={incomeDate}
           onChange={(event) => {

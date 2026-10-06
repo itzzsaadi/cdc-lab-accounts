@@ -3,6 +3,7 @@
 import { useFilterNavigation } from "./useFilterNavigation";
 import { useSyncedState } from "./useSyncedState";
 import { FilterBarShell } from "./FilterBarShell";
+import { InfoTip } from "../ui/InfoTip";
 
 /** FR-AST filter bar — status/classification/acquisition mode, all select-only, so every change applies immediately with no debounce needed. */
 export function AssetFilters({
@@ -83,6 +84,9 @@ export function AssetFilters({
           className="text-on-surface-variant text-xs font-medium uppercase"
         >
           Acquisition Mode
+          <InfoTip>
+            Instalment assets generate monthly purchasing expenses. Cash assets are one-time partner capital investments.
+          </InfoTip>
         </label>
         <select
           id="filter-mode"

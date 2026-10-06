@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../ui/Modal";
+import { InfoTip } from "../ui/InfoTip";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
 import {
@@ -76,7 +77,19 @@ export function RecurringPrefillPanel({ periodMonth }: { periodMonth: string }) 
         <span className="material-symbols-outlined text-[20px]">content_copy</span>
         Copy Recurring Lines
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title={`Recurring Lines — ${periodMonth}`}>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={
+          <>
+            Recurring Lines — {periodMonth}
+            <InfoTip>
+              Finds recurring categories without entries this month and pre-fills them with last
+              month&apos;s amounts for your review before saving.
+            </InfoTip>
+          </>
+        }
+      >
         <div className="flex flex-col gap-4">
           {loading ? (
             <p className="text-on-surface-variant text-sm">Checking recurring categories…</p>

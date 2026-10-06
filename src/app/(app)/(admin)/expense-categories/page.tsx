@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "../../../../server/session";
 import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
 import { prisma } from "../../../../server/prisma";
-import { AdministrationTabs } from "../../../../components/admin/AdministrationTabs";
 import { ExpenseCategoryManager } from "../../../../components/admin/ExpenseCategoryManager";
 
 /** FR-MST-03. */
@@ -26,7 +25,6 @@ export default async function ExpenseCategoriesPage() {
       <p className="text-on-surface-variant mb-4 text-sm">
         Manage system settings, users, and data imports.
       </p>
-      <AdministrationTabs active="/expense-categories" />
       <ExpenseCategoryManager
         rows={categories.map((c) => ({
           id: c.id,

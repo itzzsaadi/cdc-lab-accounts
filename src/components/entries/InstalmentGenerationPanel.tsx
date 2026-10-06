@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../ui/Modal";
+import { InfoTip } from "../ui/InfoTip";
 import { Button } from "../ui/Button";
 import { formatMoney } from "../../lib/domain/money-format";
 import {
@@ -63,7 +64,15 @@ export function InstalmentGenerationPanel({ periodMonth }: { periodMonth: string
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={`Generate Instalments — ${periodMonth}`}
+        title={
+          <>
+            Generate Instalments — {periodMonth}
+            <InfoTip>
+              Scans active instalment assets and generates scheduled monthly expense lines for this
+              month. Prevents duplicate creation.
+            </InfoTip>
+          </>
+        }
       >
         <div className="flex flex-col gap-4">
           {loading ? (

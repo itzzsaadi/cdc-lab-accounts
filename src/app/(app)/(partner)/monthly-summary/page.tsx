@@ -19,9 +19,11 @@ import { formatMoney } from "../../../../lib/domain/money-format";
 import { Decimal } from "../../../../lib/domain/money";
 import { Card } from "../../../../components/ui/Card";
 import { EmptyState } from "../../../../components/ui/EmptyState";
+import { InfoTip } from "../../../../components/ui/InfoTip";
 import { PartnerMappingSetupPanel } from "../../../../components/entries/PartnerMappingSetupPanel";
 import { ProvisionalNotice } from "../../../../components/offline/ProvisionalNotice";
 import { ProvisionalTotalsWrapper } from "../../../../components/offline/ProvisionalTotalsWrapper";
+import { DateRangeFilter } from "../../../../components/filters/DateRangeFilter";
 
 /** FR-RES-01 to 11, FR-RPT-06 to 08. Month-stepping is the default view; `?from=&to=` switches to an arbitrary custom range (FR-RES-01/AC-09) — both validated server-side, never trusted from the URL directly. */
 export default async function MonthlySummaryPage({
@@ -65,6 +67,12 @@ export default async function MonthlySummaryPage({
     range = { from: bounds.firstDay, to: bounds.lastDay };
     currentMonth = month;
   }
+
+  const currentParams: Record<string, string | undefined> = {
+    ...(params.month ? { month: params.month } : {}),
+    ...(params.from ? { from: params.from } : {}),
+    ...(params.to ? { to: params.to } : {}),
+  };
 
   const [totals, breakdown, partners] = await Promise.all([
     getMonthlyResultTotals(prisma, user, range),
@@ -115,47 +123,7 @@ export default async function MonthlySummaryPage({
         </div>
       </div>
 
-      <form
-        action="/monthly-summary"
-        className="border-outline-variant bg-surface-container-lowest mb-6 flex flex-wrap items-end gap-4 rounded-xl border p-4 shadow-sm"
-      >
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="range-from"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            From
-          </label>
-          <input
-            id="range-from"
-            name="from"
-            type="date"
-            defaultValue={range.from}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="range-to"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            To
-          </label>
-          <input
-            id="range-to"
-            name="to"
-            type="date"
-            defaultValue={range.to}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-primary text-on-primary hover:bg-primary-container h-11 rounded-lg px-4 text-sm font-medium"
-        >
-          Apply Custom Range
-        </button>
-      </form>
+      <DateRangeFilter currentParams={currentParams} from={range.from} to={range.to} />
 
       <div className="mb-6">
         <ProvisionalNotice from={range.from} to={range.to} />
@@ -171,7 +139,12 @@ export default async function MonthlySummaryPage({
           </Card>
           <Card className="p-4">
             <p className="text-on-surface-variant text-xs font-medium uppercase">
-              Total Expenses (Business)
+              Total Expenses (Business){" "}
+              <span className="normal-case font-normal">
+                <InfoTip>
+                  Business-funded expenses reduce net profit. Partner-funded expenses are excluded from the profit calculation and credited to partner equity.
+                </InfoTip>
+              </span>
             </p>
             <p className="tabular-nums text-on-surface mt-1 text-2xl font-bold">
               {formatMoney(totals.totalExpenses)}
@@ -272,7 +245,12 @@ export default async function MonthlySummaryPage({
       </div>
 
       <div className="border-outline-variant bg-surface-container-lowest overflow-hidden rounded-xl border p-4 shadow-sm">
-        <h2 className="text-on-surface mb-3 text-lg font-semibold">Partner Split</h2>
+        <h2 className="text-on-surface mb-3 text-lg font-semibold">
+          Partner Split{" "}
+          <InfoTip>
+            Each partner's share is calculated dynamically using the current split percentages configured in Administration.
+          </InfoTip>
+        </h2>
         {totals.split.isConfigured ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <p className="text-sm">

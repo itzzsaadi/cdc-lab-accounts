@@ -17,6 +17,7 @@ import {
   resolveConflictKeepLocal,
   resolveConflictKeepServer,
   retryNow,
+  discardOperation,
 } from "../../lib/offline/queue";
 import { runSync } from "../../lib/offline/sync-engine";
 import { refreshReferenceCache, pruneRecentRecords } from "../../lib/offline/reference-cache";
@@ -46,6 +47,7 @@ interface OfflineContextValue {
   resolveKeepLocal: (operationId: string) => Promise<void>;
   resolveKeepServer: (operationId: string) => Promise<void>;
   retry: (operationId: string) => Promise<void>;
+  discard: (operationId: string) => Promise<void>;
 }
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
@@ -221,6 +223,11 @@ export function OfflineProvider({
     [db, triggerSyncNow],
   );
 
+  const discard = useCallback(
+    (operationId: string) => discardOperation(db, operationId),
+    [db],
+  );
+
   const clearLocalDataOnSignOut = useCallback(() => clearOfflineDataIfQueueEmpty(userId), [userId]);
 
   const value: OfflineContextValue = {
@@ -235,6 +242,7 @@ export function OfflineProvider({
     resolveKeepLocal,
     resolveKeepServer,
     retry,
+    discard,
     clearLocalDataOnSignOut,
   };
 

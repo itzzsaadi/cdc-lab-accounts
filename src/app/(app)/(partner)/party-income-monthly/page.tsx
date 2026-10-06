@@ -9,6 +9,7 @@ import { formatMoney } from "../../../../lib/domain/money-format";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { MonthlyPartyBillRow } from "../../../../components/entries/MonthlyPartyBillRow";
+import { MonthFilter } from "../../../../components/filters/MonthFilter";
 import { Decimal, ZERO } from "../../../../lib/domain/money";
 
 /** FR-PINC-03 (Partner-only, UC-07) — one figure per monthly-billing party per month, completing FR-PINC-07/08's three-way total (daily + monthly + cash receipts) for monthly-billing parties. */
@@ -30,6 +31,7 @@ export default async function MonthlyPartyBillPage({
   const rawMonth = (await searchParams).month;
   const periodMonth =
     rawMonth && /^\d{4}-\d{2}$/.test(rawMonth) ? rawMonth : currentYearMonthInKarachi();
+  const currentParams: Record<string, string | undefined> = rawMonth ? { month: rawMonth } : {};
 
   const totals = await getPartyMonthlyTotals(prisma, user, periodMonth);
   const monthlyBillingParties = totals.filter((t) => t.billingMode === "MONTHLY");
@@ -41,9 +43,16 @@ export default async function MonthlyPartyBillPage({
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-display-lg text-on-background font-bold">Monthly Party Bills</h1>
-        <p className="text-on-surface-variant mt-1 text-sm">{periodMonth}</p>
+      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-display-lg text-on-background font-bold">Monthly Party Bills</h1>
+          <p className="text-on-surface-variant mt-1 text-sm">{periodMonth}</p>
+        </div>
+        <MonthFilter
+          currentParams={currentParams}
+          month={periodMonth}
+          inputId="monthly-party-bills-month"
+        />
       </div>
 
       <div className="border-outline-variant bg-surface-container-lowest overflow-hidden rounded-xl border shadow-sm">

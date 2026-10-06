@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../ui/Modal";
+import { InfoTip } from "../ui/InfoTip";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
 import { Select } from "../ui/Select";
@@ -102,7 +103,15 @@ export function CashReceiptModal({ parties }: { parties: PartyOption[] }) {
           setOpen(false);
           resetForm();
         }}
-        title="Record Cash Receipt"
+        title={
+          <>
+            Record Cash Receipt
+            <InfoTip>
+              A direct cash payment received from a party outside the standard referral grid.
+              Credited immediately to party income.
+            </InfoTip>
+          </>
+        }
       >
         {savedConfirmation ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">

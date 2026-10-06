@@ -164,3 +164,13 @@ export async function retryNow(db: OfflineDatabase, operationId: string): Promis
     nextAttemptAt: Date.now(),
   });
 }
+
+/** Manually discard a QUEUED or FAILED operation from the Sync Center.
+ * Only intended for operations that are not currently SYNCING — the
+ * caller (SyncCenter) is responsible for gating the button accordingly. */
+export async function discardOperation(
+  db: OfflineDatabase,
+  operationId: string,
+): Promise<void> {
+  await db.operations.delete(operationId);
+}

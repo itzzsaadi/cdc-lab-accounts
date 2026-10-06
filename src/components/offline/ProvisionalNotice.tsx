@@ -3,6 +3,7 @@
 import { useOfflineSync } from "./OfflineProvider";
 import { operationsAffectingRange } from "../../lib/offline/relevance";
 import { Alert } from "../ui/Alert";
+import { InfoTip } from "../ui/InfoTip";
 
 /**
  * FR-OFF-12: the server-rendered totals on this page (Dashboard, Monthly
@@ -33,6 +34,9 @@ export function ProvisionalNotice({ from, to }: { from: string; to: string }) {
       <p className="font-medium">
         Provisional — {relevant.length} {relevant.length === 1 ? "entry" : "entries"} from this
         period {relevant.length === 1 ? "hasn't" : "haven't"} finished syncing yet.
+        <InfoTip>
+          Figures shown reflect only confirmed server data. Pending local entries may alter these totals once synced.
+        </InfoTip>
       </p>
       <p className="mt-1">
         The figures below are computed from confirmed, synced entries only and will update once{" "}

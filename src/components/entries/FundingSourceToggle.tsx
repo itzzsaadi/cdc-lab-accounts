@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "../ui/InfoTip";
 import { Select } from "../ui/Select";
 
 export interface PartnerOption {
@@ -36,7 +37,12 @@ export function FundingSourceToggle({
 }) {
   return (
     <div className="pt-2">
-      <span className="text-on-surface mb-2 block text-sm font-medium">Funding Source</span>
+      <span className="text-on-surface mb-2 block text-sm font-medium">
+        Funding Source
+        <InfoTip>
+          Business means paid from lab funds — reduces net profit. Partner means paid from personal funds — credited as capital investment, does not reduce profit.
+        </InfoTip>
+      </span>
       <div className="border-outline-variant bg-surface-container flex rounded-lg border p-1">
         {(["BUSINESS", "PARTNER"] as const).map((option) => (
           <label key={option} className="relative flex-1 cursor-pointer text-center">
