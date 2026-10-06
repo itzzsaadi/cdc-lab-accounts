@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "../../../../server/session";
 import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
 import { prisma } from "../../../../server/prisma";
-import { AdministrationTabs } from "../../../../components/admin/AdministrationTabs";
 import { UserManager } from "../../../../components/admin/UserManager";
 
 /** FR-AUTH-03. One of the Administration Area's screens — reached directly via its own "Users" sidebar link (nav-items.ts), or via `AdministrationTabs` from any other Administration screen. */
@@ -37,7 +36,6 @@ export default async function AdminUsersPage() {
       <p className="text-on-surface-variant mb-4 text-sm">
         Manage system settings, users, and data imports.
       </p>
-      <AdministrationTabs active="/users" />
       <UserManager
         currentUserId={user!.id}
         rows={users.map((u) => ({
