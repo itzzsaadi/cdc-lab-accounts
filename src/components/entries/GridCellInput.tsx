@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { generateClientUuid } from "../../lib/client-uuid";
 import {
@@ -10,6 +10,7 @@ import {
 } from "../../server/actions/party-income";
 import { useOfflineSync } from "../offline/OfflineProvider";
 import { isLikelyOfflineError } from "../../lib/offline/submit-helpers";
+import { formatMoney } from "../../lib/domain/money-format";
 
 export interface GridCellRecord {
   id: string;
@@ -20,29 +21,21 @@ export interface GridCellRecord {
 type CellStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "stale" | "confirm-clear";
 
 /**
- * One Party Income grid cell — the full autosave state machine (approved
- * plan): idle → dirty (typing) → saving → saved (transient) or error/stale.
- * Commits on blur or Enter (Tab already moves focus natively across cells,
- * per the approved responsive/keyboard design — no custom Tab handling
- * here). Arrow-key navigation is gated on caret position for
- * left/right (only moves columns when the caret is already at the start/
- * end of the text, so normal text-cursor movement inside a cell is never
- * hijacked), matching the Stitch export's keyboard model
- * (`party_income_grid_cdc_laboratories_code.html`) reproduced here against
- * real data instead of its `Math.random()` demo fill.
+ * One Party Income grid cell.
  *
- * A `party_income_active_daily_cell_unique` conflict (a different
- * `clientUuid` racing for the same cell) and a stale `updatedAt` conflict
- * both surface as `status: "error"`/`"stale"` with a retry affordance —
- * never silently retried as if it were the same request.
+ * VIEW MODE (default): the saved amount (or a dash for an empty cell) is
+ * displayed as plain text. A pencil-icon edit button appears on row hover
+ * (or when the cell is focused via keyboard). Clicking it enters EDIT MODE.
+ * Archived-party cells suppress the edit button via the `readOnly` prop.
  *
- * Every successful save also calls `router.refresh()` — row/party/grand
- * totals are computed server-side (FR-PINC-08, "calculated by the system,
- * never typed") and are not recomputed client-side on every keystroke,
- * so a refresh is what keeps them accurate after an edit. This only
- * remounts the cell(s) whose `key` (set by the parent from `id`/
- * `updatedAt`) actually changed; a cell the user has since tabbed/arrowed
- * away from keeps its own focus.
+ * EDIT MODE: the original autosave state machine is fully preserved —
+ * idle → dirty (typing) → saving → saved (transient) or error/stale.
+ * Commits on blur or Enter. Escape cancels and returns to view mode without
+ * saving. Arrow-key navigation is gated on caret position for left/right.
+ *
+ * Every successful save calls `router.refresh()` so server-computed
+ * row/party/grand totals stay accurate (FR-PINC-08). After a save the cell
+ * returns to view mode showing the updated figure.
  */
 export function GridCellInput({
   partyId,
@@ -68,14 +61,43 @@ export function GridCellInput({
   const [status, setStatus] = useState<CellStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
   // True only while `record` represents a cell created offline that has
-  // never reached the server yet -- its "id" is the offline queue's own
+  // never reached the server yet — its "id" is the offline queue's own
   // record-identity key (the client_uuid this component generated), not a
   // real database row id. Editing or clearing it again while still offline
   // enqueues another operation against that same key, which the queue's
   // coalescing rules (src/lib/offline/coalesce.ts) merge correctly.
   const [isQueuedOffline, setIsQueuedOffline] = useState(false);
+  // Whether the cell is in edit mode (input visible) vs view mode (display text).
+  const [editing, setEditing] = useState(false);
   const clientUuidRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const editBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-focus the input whenever edit mode opens.
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  function enterEditMode() {
+    if (readOnly) return;
+    // Reset value to the current saved amount so the input always starts
+    // with the real figure, not a leftover dirty value from a prior session.
+    setValue(record?.amount ?? "");
+    setStatus("idle");
+    setMessage(null);
+    setEditing(true);
+  }
+
+  function exitEditMode() {
+    setEditing(false);
+    setStatus("idle");
+    setMessage(null);
+    // Return focus to the edit button so keyboard users don't lose their place.
+    editBtnRef.current?.focus();
+  }
 
   function focusCell(nextRow: number, nextCol: number) {
     const target = document.querySelector<HTMLInputElement>(
@@ -89,12 +111,14 @@ export function GridCellInput({
     const trimmed = (overrideValue ?? value).trim();
 
     if (trimmed === "" && !record) {
-      setStatus("idle");
+      // Nothing to save and no existing record — just close edit mode.
+      exitEditMode();
       return;
     }
 
     if (record && trimmed === record.amount) {
-      setStatus("idle");
+      // No change — close edit mode without hitting the server.
+      exitEditMode();
       return;
     }
 
@@ -103,9 +127,8 @@ export function GridCellInput({
      * financial record, so it is confirmed by name first. The confirmation
      * is deliberately inline rather than a modal: a modal opening on blur
      * would seize focus mid-keyboard-run and break NFR-USE-02's
-     * keyboard-only grid operation, which is the one requirement this
-     * screen exists to satisfy. The displayed amount is restored while the
-     * prompt is up, so the grid never shows a figure as gone before it
+     * keyboard-only grid operation. The displayed amount is restored while
+     * the prompt is up, so the grid never shows a figure as gone before it
      * actually is, and abandoning the cell simply leaves the record intact.
      *
      * A cell that only ever existed in the offline queue is excluded: that
@@ -134,8 +157,10 @@ export function GridCellInput({
         payload: { id: record.id, expectedUpdatedAt: record.updatedAt },
       });
       setRecord(null);
+      setValue("");
       setIsQueuedOffline(false);
       setStatus("saved");
+      setEditing(false);
       return;
     }
 
@@ -157,6 +182,7 @@ export function GridCellInput({
         setRecord(null);
         setValue("");
         setStatus("saved");
+        setEditing(false);
         router.refresh(); // refreshes the grid's server-computed row/party/grand totals
       } catch (submitError) {
         if (!isLikelyOfflineError(submitError)) {
@@ -172,7 +198,9 @@ export function GridCellInput({
           payload: { id: record.id, expectedUpdatedAt: record.updatedAt },
         });
         setRecord(null);
+        setValue("");
         setStatus("saved");
+        setEditing(false);
       }
       return;
     }
@@ -189,6 +217,7 @@ export function GridCellInput({
         });
         setRecord({ id: record.id, amount: trimmed, updatedAt: nextUpdatedAt });
         setStatus("saved");
+        setEditing(false);
         return;
       }
       try {
@@ -204,6 +233,7 @@ export function GridCellInput({
         }
         setRecord({ id: record.id, amount: trimmed, updatedAt: nextUpdatedAt });
         setStatus("saved");
+        setEditing(false);
         router.refresh();
       } catch (submitError) {
         if (!isLikelyOfflineError(submitError)) {
@@ -220,10 +250,12 @@ export function GridCellInput({
         });
         setRecord({ id: record.id, amount: trimmed, updatedAt: nextUpdatedAt });
         setStatus("saved");
+        setEditing(false);
       }
       return;
     }
 
+    // CREATE — new cell
     clientUuidRef.current ??= generateClientUuid();
     const clientUuid = clientUuidRef.current;
     const payload = { clientUuid, partyId, incomeDate: day, amount: trimmed };
@@ -237,6 +269,7 @@ export function GridCellInput({
       setRecord({ id: result.id, amount: trimmed, updatedAt: new Date().toISOString() });
       clientUuidRef.current = null;
       setStatus("saved");
+      setEditing(false);
       router.refresh();
     } catch (submitError) {
       if (!isLikelyOfflineError(submitError)) {
@@ -252,19 +285,25 @@ export function GridCellInput({
         payload: { ...payload, capturedAt: new Date().toISOString() },
       });
       // The clientUuid stands in as this cell's local record id until it
-      // syncs — the same value already used above as the queue's
-      // coalescing key.
+      // syncs — the same value already used above as the queue's coalescing key.
       setRecord({ id: clientUuid, amount: trimmed, updatedAt: new Date().toISOString() });
       setIsQueuedOffline(true);
       setStatus("saved");
+      setEditing(false);
     }
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      // Restore the original value and exit edit mode without saving.
+      setValue(record?.amount ?? "");
+      exitEditMode();
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       void commit();
-      focusCell(rowIndex + 1, colIndex);
       return;
     }
     const input = inputRef.current;
@@ -299,6 +338,45 @@ export function GridCellInput({
               ? `Confirm clearing the income recorded for ${partyName} on ${day}`
               : "";
 
+  // ── VIEW MODE ──────────────────────────────────────────────────────────────
+  if (!editing) {
+    return (
+      <div className="group/cell relative flex h-full min-h-[2.5rem] items-center justify-end px-3 py-2">
+        {/* Saved amount or dash placeholder */}
+        <span
+          className={`tabular-nums text-right text-sm ${record ? "text-on-surface" : "text-on-surface-variant"}`}
+        >
+          {record ? formatMoney(record.amount) : "–"}
+        </span>
+
+        {/* Edit button — hidden on archived columns, revealed on row hover or focus */}
+        {!readOnly ? (
+          <button
+            ref={editBtnRef}
+            type="button"
+            onClick={enterEditMode}
+            aria-label={`Edit income for ${partyName} on ${day}`}
+            className="text-on-surface-variant hover:text-primary hover:bg-surface-container focus-visible:text-primary focus-visible:bg-surface-container absolute top-1/2 left-1 -translate-y-1/2 rounded p-0.5 opacity-0 transition-all group-hover/cell:opacity-100 focus-visible:opacity-100"
+          >
+            <span className="material-symbols-outlined text-[16px]">edit</span>
+          </button>
+        ) : null}
+
+        {/* Offline badge */}
+        {isQueuedOffline && record ? (
+          <span
+            title="Saved offline — will sync automatically"
+            className="text-primary absolute top-0.5 right-0.5 text-[10px] leading-none"
+            aria-label="Saved offline"
+          >
+            ●
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  // ── EDIT MODE ──────────────────────────────────────────────────────────────
   return (
     <div className="relative">
       <input
@@ -307,11 +385,9 @@ export function GridCellInput({
         inputMode="decimal"
         data-grid-row={rowIndex}
         data-grid-col={colIndex}
-        aria-label={`Amount for ${day}`}
-        readOnly={readOnly}
-        disabled={readOnly}
+        aria-label={`Edit amount for ${partyName} on ${day}`}
         value={value}
-        placeholder={readOnly ? "" : "-"}
+        placeholder="-"
         onChange={(event) => {
           setValue(event.target.value.replace(/[^0-9.]/g, ""));
           setStatus("dirty");
@@ -319,13 +395,15 @@ export function GridCellInput({
         onBlur={() => void commit()}
         onKeyDown={handleKeyDown}
         onFocus={(event) => event.currentTarget.select()}
-        className={`tabular-nums text-on-surface h-full w-full border-2 border-transparent bg-transparent px-3 py-2 text-right transition-colors focus:bg-surface-container-lowest focus:border-primary disabled:cursor-not-allowed disabled:text-on-surface-variant ${
-          status === "error" || status === "stale" ? "border-error" : ""
+        className={`tabular-nums text-on-surface h-full w-full border-2 bg-surface-container-lowest px-3 py-2 text-right transition-colors focus:border-primary ${
+          status === "error" || status === "stale" ? "border-error" : "border-primary"
         }`}
       />
       <span role="status" aria-live="polite" className="sr-only">
         {statusLabel}
       </span>
+
+      {/* Confirm-clear inline popover */}
       {status === "confirm-clear" ? (
         <div
           className="border-outline-variant bg-surface-container-lowest absolute top-full right-0 z-20 mt-1 w-56 rounded-lg border p-3 shadow-lg"
@@ -341,8 +419,7 @@ export function GridCellInput({
               type="button"
               className="text-on-surface-variant text-xs font-medium"
               onClick={() => {
-                // Abandoning leaves the record exactly as it was; `value`
-                // was already restored before this prompt appeared.
+                // Abandoning leaves the record exactly as it was.
                 setStatus("idle");
                 inputRef.current?.focus();
               }}
@@ -359,6 +436,8 @@ export function GridCellInput({
           </div>
         </div>
       ) : null}
+
+      {/* Retry / Reload affordances */}
       {status === "error" ? (
         <button
           type="button"
