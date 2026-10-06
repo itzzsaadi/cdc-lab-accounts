@@ -1,4 +1,4 @@
-import type { SelectHTMLAttributes } from "react";
+import type { ReactNode, SelectHTMLAttributes } from "react";
 
 export function Select({
   id,
@@ -6,7 +6,7 @@ export function Select({
   className = "",
   children,
   ...rest
-}: SelectHTMLAttributes<HTMLSelectElement> & { id: string; label: string }) {
+}: SelectHTMLAttributes<HTMLSelectElement> & { id: string; label: ReactNode }) {
   return (
     <div className="space-y-2">
       <label htmlFor={id} className="text-on-surface block text-sm font-medium">
