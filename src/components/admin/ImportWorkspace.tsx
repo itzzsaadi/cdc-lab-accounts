@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Alert } from "../ui/Alert";
+import { InfoTip } from "../ui/InfoTip";
 
 interface PreviewIssue {
   sheet: string;
@@ -80,7 +81,13 @@ export function ImportWorkspace() {
 
   return (
     <Card className="p-4">
-      <h2 className="text-on-surface mb-2 text-lg font-semibold">Historical Import</h2>
+      <h2 className="text-on-surface mb-2 flex items-center text-lg font-semibold">
+        Historical Import
+        <InfoTip>
+          Preview validates the file and checks for duplicates without modifying the database.
+          Commit permanently writes verified rows.
+        </InfoTip>
+      </h2>
       <p className="text-on-surface-variant mb-4 text-sm">
         Upload an .xlsx workbook (Daily Expenses, Monthly Expenses, Party Income (Daily), Party
         Income (Monthly Bill), Counter Income, Capital Contributions — one sheet each). Up to 5 MB,

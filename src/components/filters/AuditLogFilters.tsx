@@ -5,6 +5,7 @@ import { useFilterNavigation } from "./useFilterNavigation";
 import { useSyncedState } from "./useSyncedState";
 import { FilterBarShell } from "./FilterBarShell";
 import { isValidDateRange } from "../../lib/navigation/filter-query";
+import { InfoTip } from "../ui/InfoTip";
 
 /** FR-AUD-04's filter bar. A filter change always drops `cursor` (keyset pagination restarts from page one) — `useFilterNavigation`'s default behavior, not something this component has to remember to do itself. */
 export function AuditLogFilters({
@@ -91,6 +92,9 @@ export function AuditLogFilters({
           className="text-on-surface-variant text-xs font-medium uppercase"
         >
           Record Type
+          <InfoTip>
+            Filter by the type of database record that was created, modified, or archived.
+          </InfoTip>
         </label>
         <select
           id="filter-entity-type"

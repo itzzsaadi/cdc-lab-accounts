@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MasterDataManager, type MasterDataRow } from "./MasterDataManager";
 import { Select } from "../ui/Select";
 import { TextInput } from "../ui/TextInput";
+import { InfoTip } from "../ui/InfoTip";
 import {
   createPartyAction,
   updatePartyAction,
@@ -34,7 +35,15 @@ export function PartyManager({ rows }: { rows: MasterDataRow[] }) {
             {!editing ? (
               <Select
                 id="party-billing-mode"
-                label="Billing Mode"
+                label={
+                  <>
+                    Billing Mode{" "}
+                    <InfoTip>
+                      Cannot be changed once created. Daily means the party gets a column in the
+                      daily income grid. Monthly means a single consolidated bill.
+                    </InfoTip>
+                  </>
+                }
                 value={billingMode}
                 onChange={(e) => setBillingMode(e.target.value as "DAILY" | "MONTHLY")}
               >
@@ -50,7 +59,12 @@ export function PartyManager({ rows }: { rows: MasterDataRow[] }) {
             )}
             <TextInput
               id="party-sort-order"
-              label="Sort Order"
+              label={
+                <>
+                  Sort Order{" "}
+                  <InfoTip>Lower numbers appear further left in the daily income grid.</InfoTip>
+                </>
+              }
               type="number"
               min={0}
               value={sortOrderValue}
