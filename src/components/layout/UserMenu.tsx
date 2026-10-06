@@ -27,8 +27,31 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) dialog.show();
     if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  // Close on Escape key (showModal() handled this for free; show() does not)
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  // Close when clicking outside the dialog
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (dialogRef.current && !dialogRef.current.contains(e.target as Node) &&
+          triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
   function doSignOut() {
@@ -83,11 +106,8 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
         ref={dialogRef}
         onClose={() => setOpen(false)}
         onCancel={() => setOpen(false)}
-        onClick={(event) => {
-          if (event.target === dialogRef.current) setOpen(false);
-        }}
         aria-label="User menu"
-        className="bg-surface-container-lowest text-on-surface fixed top-16 right-4 m-0 w-56 rounded-lg p-2 shadow-[0px_4px_12px_rgba(18,48,71,0.08)] backdrop:bg-transparent"
+        className="bg-surface-container-lowest text-on-surface absolute top-full right-0 z-50 mt-1 m-0 w-56 max-w-[calc(100vw-1rem)] rounded-lg p-2 shadow-[0px_4px_12px_rgba(18,48,71,0.08)]"
       >
         <p className="text-on-surface truncate px-3 py-2 text-sm font-medium">{fullName}</p>
         <p className="text-on-surface-variant px-3 pb-2 text-xs">{roleLabel}</p>
