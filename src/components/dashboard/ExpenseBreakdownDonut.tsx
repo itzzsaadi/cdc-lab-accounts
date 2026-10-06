@@ -77,7 +77,7 @@ export function ExpenseBreakdownDonut({
             ))}
           </Pie>
           <Tooltip
-            formatter={(value: number) => [formatTooltipMoney(value)]}
+            formatter={(value) => [formatTooltipMoney(Number(value ?? 0))]}
             contentStyle={{
               borderRadius: "8px",
               border: "1px solid var(--color-outline-variant, #cad4dc)",

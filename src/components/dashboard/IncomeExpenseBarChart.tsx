@@ -84,7 +84,7 @@ export function IncomeExpenseBarChart({ points, title }: Props) {
           width={52}
         />
         <Tooltip
-          formatter={(value: number, name: string) => [formatTooltipMoney(value), name]}
+          formatter={(value, name) => [formatTooltipMoney(Number(value ?? 0)), String(name)]}
           contentStyle={{
             borderRadius: "8px",
             border: "1px solid var(--color-outline-variant, #cad4dc)",
