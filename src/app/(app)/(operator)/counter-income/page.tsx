@@ -10,7 +10,7 @@ import { formatMoney } from "../../../../lib/domain/money-format";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { CounterIncomeForm } from "../../../../components/entries/CounterIncomeForm";
-import { HistoryButton } from "../../../../components/entries/HistoryButton";
+import { CounterIncomeRowActions } from "../../../../components/entries/CounterIncomeRowActions";
 
 export default async function CounterIncomePage() {
   const user = await getAuthenticatedUser(await nextHeaders());
@@ -53,28 +53,32 @@ export default async function CounterIncomePage() {
                     <Th>Date</Th>
                     <Th className="text-right">Amount</Th>
                     <Th>Note</Th>
-                    {canViewHistory ? <Th className="text-right">History</Th> : null}
+                    <Th className="text-right">Actions</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {items.map((item) => (
-                    <Tr key={item.id}>
-                      <Td className="whitespace-nowrap">
-                        {item.incomeDate.toISOString().slice(0, 10)}
-                      </Td>
-                      <Td className="tabular-nums text-right">{formatMoney(item.amount)}</Td>
-                      <Td className="text-on-surface-variant">{item.note ?? ""}</Td>
-                      {canViewHistory ? (
+                  {items.map((item) => {
+                    const incomeDate = item.incomeDate.toISOString().slice(0, 10);
+                    return (
+                      <Tr key={item.id}>
+                        <Td className="whitespace-nowrap">{incomeDate}</Td>
+                        <Td className="tabular-nums text-right">{formatMoney(item.amount)}</Td>
+                        <Td className="text-on-surface-variant">{item.note ?? ""}</Td>
                         <Td className="text-right">
-                          <HistoryButton
-                            entityType="counter_income"
-                            entityId={item.id}
-                            displayLabel={`Counter Income ${item.incomeDate.toISOString().slice(0, 10)}`}
+                          <CounterIncomeRowActions
+                            item={{
+                              id: item.id,
+                              incomeDate,
+                              amount: item.amount.toString(),
+                              note: item.note ?? null,
+                              updatedAt: item.updatedAt.toISOString(),
+                            }}
+                            canViewHistory={canViewHistory}
                           />
                         </Td>
-                      ) : null}
-                    </Tr>
-                  ))}
+                      </Tr>
+                    );
+                  })}
                 </Tbody>
               </Table>
               <div className="border-outline-variant bg-surface-container-lowest flex items-center justify-between border-t p-4">

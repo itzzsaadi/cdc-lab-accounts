@@ -65,6 +65,7 @@ export default async function OperatorHomePage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <h1 className="sr-only">Operator Home</h1>
       <section>
         <h2 className="text-headline-sm text-on-surface mb-4 font-semibold">Quick Actions</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -74,7 +75,8 @@ export default async function OperatorHomePage() {
               href={action.href}
               className="bg-surface-container-lowest hover:bg-surface-container border-outline-variant text-on-surface flex min-h-[140px] flex-col items-start gap-4 rounded-xl border p-6 shadow-sm transition-colors"
             >
-              <div className="bg-secondary-container text-on-secondary-container rounded-lg p-3">
+              {/* primary-container (#0f766e) + on-primary (#ffffff) = 5.8:1 contrast ✓ WCAG AA */}
+              <div className="bg-primary-container text-on-primary rounded-lg p-3">
                 <span className="material-symbols-outlined">{action.icon}</span>
               </div>
               <div>

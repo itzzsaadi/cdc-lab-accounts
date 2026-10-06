@@ -10,6 +10,7 @@ import {
 import { currentYearMonthInKarachi, parseYearMonth } from "../../../../lib/domain/calendar-date";
 import { PartyIncomeGrid } from "../../../../components/entries/PartyIncomeGrid";
 import { CashReceiptModal } from "../../../../components/entries/CashReceiptModal";
+import { MonthFilter } from "../../../../components/filters/MonthFilter";
 
 export default async function PartyIncomePage({
   searchParams,
@@ -29,6 +30,9 @@ export default async function PartyIncomePage({
   const params = await searchParams;
   const requestedMonth = params.month && parseYearMonth(params.month) ? params.month : undefined;
   const yearMonth = requestedMonth ?? currentYearMonthInKarachi();
+  const currentParams: Record<string, string | undefined> = params.month
+    ? { month: params.month }
+    : {};
 
   const [grid, cashReceiptParties] = await Promise.all([
     getPartyIncomeGrid(prisma, user, yearMonth),
@@ -45,24 +49,11 @@ export default async function PartyIncomePage({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <form className="flex items-center gap-3" action="/party-income">
-            <label htmlFor="party-income-month" className="text-on-surface-variant text-sm">
-              Month
-            </label>
-            <input
-              id="party-income-month"
-              name="month"
-              type="month"
-              defaultValue={yearMonth}
-              className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-            />
-            <button
-              type="submit"
-              className="border-outline-variant text-on-surface hover:bg-surface-container h-11 rounded-lg border px-3 text-sm"
-            >
-              Go
-            </button>
-          </form>
+          <MonthFilter
+            currentParams={currentParams}
+            month={yearMonth}
+            inputId="party-income-month"
+          />
           <CashReceiptModal parties={cashReceiptParties.map((p) => ({ id: p.id, name: p.name }))} />
         </div>
       </div>
