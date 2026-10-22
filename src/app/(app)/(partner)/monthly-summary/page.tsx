@@ -248,7 +248,7 @@ export default async function MonthlySummaryPage({
         <h2 className="text-on-surface mb-3 text-lg font-semibold">
           Partner Split{" "}
           <InfoTip>
-            Each partner's share is calculated dynamically using the current split percentages configured in Administration.
+            Each partner&apos;s share is calculated dynamically using the current split percentages configured in Administration.
           </InfoTip>
         </h2>
         {totals.split.isConfigured ? (
