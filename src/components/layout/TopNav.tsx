@@ -93,11 +93,9 @@ function NavDropdown({
         <div
           ref={menuRef}
           role="menu"
-          className="bg-on-background border-outline-variant absolute top-full left-0 z-50 mt-1 min-w-[180px] rounded-lg border py-1 shadow-lg"
+          className="bg-on-background border-outline-variant absolute top-full left-0 z-50 mt-1 min-w-[200px] max-h-[calc(100vh-4.5rem)] overflow-y-auto rounded-lg border py-1 shadow-lg"
         >
-          {items
-            .filter((item) => item !== activeItem)
-            .map((item) => (
+          {items.map((item) => (
             <DropdownLink key={item.href} item={item} onNavigate={() => setOpen(false)} />
           ))}
         </div>
