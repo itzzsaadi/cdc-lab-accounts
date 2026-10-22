@@ -42,7 +42,7 @@ export function Sidebar({
   const [administrationManuallyCollapsed, setAdministrationManuallyCollapsed] = useState(false);
 
   return (
-    <nav aria-label="Primary" className="flex flex-1 flex-col gap-4 overflow-y-auto">
+    <nav aria-label="Primary" className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto pr-1">
       {groups.map(({ section, items }) => {
         const collapsed =
           section.collapsible && administrationManuallyCollapsed && activeSectionId !== section.id;
