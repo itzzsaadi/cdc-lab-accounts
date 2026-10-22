@@ -90,7 +90,7 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
@@ -107,7 +107,7 @@ export function UserMenu({ fullName, roleLabel }: { fullName: string; roleLabel:
         onClose={() => setOpen(false)}
         onCancel={() => setOpen(false)}
         aria-label="User menu"
-        className="bg-surface-container-lowest text-on-surface absolute top-full right-0 z-50 mt-1 m-0 w-56 max-w-[calc(100vw-1rem)] rounded-lg p-2 shadow-[0px_4px_12px_rgba(18,48,71,0.08)]"
+        className="bg-surface-container-lowest text-on-surface border-outline-variant absolute top-full right-0 z-50 mt-1 m-0 w-56 max-w-[calc(100vw-1rem)] rounded-lg border p-2 shadow-[0px_4px_12px_rgba(18,48,71,0.08)]"
       >
         <p className="text-on-surface truncate px-3 py-2 text-sm font-medium">{fullName}</p>
         <p className="text-on-surface-variant px-3 pb-2 text-xs">{roleLabel}</p>
