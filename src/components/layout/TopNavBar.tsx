@@ -35,7 +35,7 @@ export function TopNavBar({
   return (
     <>
       {/* ── Top bar ─────────────────────────────────────────────────── */}
-      <header className="bg-on-background border-outline-variant sticky top-0 z-40 flex h-14 w-full items-center gap-4 border-b px-4 overflow-x-hidden">
+      <header className="bg-on-background border-outline-variant sticky top-0 z-40 flex h-14 w-full items-center gap-4 border-b px-4">
         {/* Brand */}
         <Link
           href="/home"
@@ -56,12 +56,12 @@ export function TopNavBar({
         <div className="bg-outline-variant hidden h-5 w-px md:block" aria-hidden />
 
         {/* Nav dropdowns — desktop only */}
-        <div className="hidden min-w-0 flex-1 md:flex overflow-x-hidden">
+        <div className="hidden min-w-0 flex-1 md:flex items-center">
           <TopNav navItems={navItems} />
         </div>
 
         {/* Right side */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <SyncStatusIndicator />
           <UserMenu fullName={fullName} roleLabel={roleLabel} />
         </div>
@@ -88,11 +88,11 @@ export function TopNavBar({
           if (e.target === dialogRef.current) setDrawerOpen(false);
         }}
         aria-label="Navigation menu"
-        className="bg-on-background m-0 h-screen max-h-screen w-72 max-w-[80vw] px-4 py-4 backdrop:bg-black/40 open:flex open:flex-col"
+        className="bg-on-background m-0 h-screen max-h-screen w-72 max-w-[80vw] px-4 py-4 backdrop:bg-black/40 open:flex open:flex-col overflow-hidden"
         style={{ left: 0, top: 0 }}
       >
         {/* Drawer brand */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex shrink-0 items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="bg-surface-container-highest flex h-8 w-8 items-center justify-center rounded">
               <span className="material-symbols-outlined text-primary" aria-hidden>
