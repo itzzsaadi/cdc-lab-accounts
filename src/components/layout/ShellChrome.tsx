@@ -33,7 +33,7 @@ export function ShellChrome({
 
   return (
     <OfflineProvider userId={userId}>
-      <div className="bg-background min-h-screen">
+      <div className="bg-background min-h-screen flex flex-col">
         <TopNavBar navItems={navItems} fullName={fullName} roleLabel={roleLabel} />
         <main
           id="main-content"
