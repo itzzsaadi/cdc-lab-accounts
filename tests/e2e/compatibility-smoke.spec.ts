@@ -45,8 +45,12 @@ test.describe("Cross-engine compatibility smoke", () => {
 
     const marker = `Compat ${randomUUID().slice(0, 8)}`;
     await page.getByRole("button", { name: "Add Expense" }).click();
-    await page.getByLabel("Amount (PKR)").fill("125.50");
-    await page.getByLabel("Description").fill(marker);
+    // Scope label lookups to the open dialog — there may also be inline-edit
+    // inputs in the table rows that share the same label text.
+    const dialog = page.locator("dialog[open]");
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("Amount (PKR)").fill("125.50");
+    await dialog.getByLabel("Description").fill(marker);
     await page.getByRole("button", { name: "Save Expense" }).click();
     await expect(page.getByText(marker)).toBeVisible();
   });

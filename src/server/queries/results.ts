@@ -161,6 +161,12 @@ export interface MonthlyTrendPoint {
   totalIncome: string;
   totalExpenses: string;
   netResult: string;
+  /** Breakdown fields — only populated for the current month point; null for historical points to avoid fetching split config 6× per page load. */
+  totalCounterIncome: string | null;
+  totalPartyIncome: string | null;
+  dailyExpenseBusinessTotal: string | null;
+  monthlyExpenseBusinessTotal: string | null;
+  split: MonthlyResultTotals["split"] | null;
 }
 
 /**
@@ -171,6 +177,12 @@ export interface MonthlyTrendPoint {
  * Gated on `report:dashboard`, distinct from `report:financial-summary`,
  * since the Dashboard and Monthly Summary screens are independent
  * permission surfaces even though they share the underlying computation.
+ *
+ * The last point in the returned array (currentMonth) carries the full
+ * income/expense breakdown and profit-split fields so the dashboard can
+ * render the donut charts and partner share cards without an extra query.
+ * Historical points carry null for those fields — the split config is read
+ * once inside computeMonthlyResultTotals for the current month only.
  */
 export async function getDashboardTrend(
   prisma: PrismaClient,
@@ -194,11 +206,17 @@ export async function getDashboardTrend(
         from: bounds.firstDay,
         to: bounds.lastDay,
       });
+      const isCurrent = month === currentMonth;
       return {
         month,
         totalIncome: totals.totalIncome,
         totalExpenses: totals.totalExpenses,
         netResult: totals.netResult,
+        totalCounterIncome: isCurrent ? totals.totalCounterIncome : null,
+        totalPartyIncome: isCurrent ? totals.totalPartyIncome : null,
+        dailyExpenseBusinessTotal: isCurrent ? totals.dailyExpenseBusinessTotal : null,
+        monthlyExpenseBusinessTotal: isCurrent ? totals.monthlyExpenseBusinessTotal : null,
+        split: isCurrent ? totals.split : null,
       };
     }),
   );

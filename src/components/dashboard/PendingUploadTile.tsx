@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useOfflineSync } from "../offline/OfflineProvider";
+import { InfoTip } from "../ui/InfoTip";
 
 /**
  * FR-RPT-02's second half: "Dashboard shows outstanding warnings **and
@@ -41,8 +42,16 @@ export function PendingUploadTile() {
         {needsAttention ? "sync_problem" : "cloud_upload"}
       </span>
       <span className="flex-1 text-sm">
-        <span className="font-semibold">
-          {total} {total === 1 ? "entry" : "entries"} waiting to upload
+        <span className="flex items-center font-semibold">
+          <span>{total} {total === 1 ? "entry" : "entries"} waiting to upload</span>
+          <span
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <InfoTip>Entries recorded while offline are saved on this device and will automatically upload when an internet connection is re-established.</InfoTip>
+          </span>
         </span>
         {needsAttention ? (
           <span className="block text-xs">

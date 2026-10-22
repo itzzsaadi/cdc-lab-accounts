@@ -1,11 +1,11 @@
-import type { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 
 export function Checkbox({
   id,
   label,
   className = "",
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { id: string; label: string }) {
+}: InputHTMLAttributes<HTMLInputElement> & { id: string; label: ReactNode }) {
   return (
     <div className="flex items-center">
       <input

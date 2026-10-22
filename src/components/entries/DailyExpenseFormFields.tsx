@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "../ui/InfoTip";
 import { TextInput } from "../ui/TextInput";
 import { Select } from "../ui/Select";
 import { FundingSourceToggle, type PartnerOption } from "./FundingSourceToggle";
@@ -52,7 +53,14 @@ export function DailyExpenseFormFields({
       />
       <Select
         id={`${idPrefix}-item`}
-        label="Item"
+        label={
+          <>
+            Expense Item
+            <InfoTip>
+              Select a standardized item, or choose &apos;Other&apos; to enter a custom description.
+            </InfoTip>
+          </>
+        }
         value={state.itemSelection}
         onChange={(event) => onChange({ itemSelection: event.target.value })}
       >
@@ -75,7 +83,12 @@ export function DailyExpenseFormFields({
       ) : null}
       <TextInput
         id={`${idPrefix}-amount`}
-        label="Amount (PKR)"
+        label={
+          <>
+            Amount (PKR)
+            <InfoTip>Enter the amount in Pakistani Rupees (PKR).</InfoTip>
+          </>
+        }
         inputMode="decimal"
         value={state.amount}
         onChange={(event) => onChange({ amount: event.target.value.replace(/[^0-9.]/g, "") })}

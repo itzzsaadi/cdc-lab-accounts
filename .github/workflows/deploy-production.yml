@@ -1,10 +1,9 @@
 name: Deploy to Production
 
 # Fires on every push to main and can be re-run manually. This is
-# separate from ci.yml (which gates every push/PR with the full
-# validation suite, including Playwright) — this workflow re-runs the
-# fast, non-browser checks as its own gate, then deploys. It never runs
-# the full Playwright suite.
+# separate from ci.yml (which gates every push/PR with build validation
+# only — see ADR-0014) — this workflow is the one that actually runs the
+# test suite and deploys. It never runs the full Playwright suite.
 on:
   push:
     branches: [main]
@@ -31,16 +30,64 @@ env:
   BETTER_AUTH_SECRET: "deploy-ci-only-secret-not-used-in-any-real-deployment"
   EMAIL_TRANSPORT: "file"
 
+# Split into four jobs (rather than one long job) so a failure only
+# costs a re-run of the job that failed, plus anything downstream of it
+# — GitHub Actions' "Re-run failed jobs" skips any job that already
+# succeeded and reuses its result, but it can only do that at job
+# granularity, never at step granularity within one job. Each job installs
+# its own dependencies and regenerates the Prisma Client (fast — seconds,
+# helped by actions/setup-node's npm cache) rather than passing
+# node_modules/generated between jobs via artifacts, keeping each job
+# self-contained and simple (CON-07).
 jobs:
-  deploy:
-    name: Validate and deploy
+  # Fast, no-service checks. Nothing here touches a database.
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 30
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # A throwaway Postgres for the Vitest suite's integration/constraint
-    # tests (tests/integration/**) — never Supabase, never production
-    # data. Same pattern as ci.yml.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Custom-output generator (prisma/schema.prisma's
+      # `output = "../generated/prisma"`) is never produced by an npm
+      # postinstall hook — must run before type check/lint.
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Prisma schema format check
+        run: |
+          npx prisma format
+          git diff --exit-code -- prisma/schema.prisma
+
+  # Full Vitest suite (unit + integration + constraint tests) against a
+  # throwaway Postgres — never Supabase, never production data.
+  test:
+    name: Test
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -55,40 +102,22 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
-      # 1. Check out the exact commit that triggered this run.
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Configure the project's pinned Node version and package manager cache.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      # 3. Install dependencies from the committed lockfile only.
       - name: Install dependencies
         run: npm ci
 
-      # 4. Generate the Prisma Client (custom output — required before typecheck/build/test).
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      # 5. Type check.
-      - name: Type check
-        run: npm run typecheck
-
-      # 6. Lint.
-      - name: Lint
-        run: npm run lint
-
-      # 7. Format check.
-      - name: Format check
-        run: npm run format:check
-
-      # 8. Complete Vitest suite (unit + integration + constraint tests).
       - name: Create the dedicated test database
         run: PGPASSWORD=ci_password psql -h localhost -U ci -d cdc_lab_accounts_deploy -c "CREATE DATABASE cdc_lab_accounts_deploy_test;"
 
@@ -101,31 +130,63 @@ jobs:
       - name: Vitest — unit, integration, and constraint tests
         run: npm run test
 
-      # 9. Validate the Prisma schema itself.
-      - name: Validate Prisma schema
-        run: npx prisma validate
+  # Docker image build as a validation step (never deployed — see
+  # Dockerfile's own header comment). Independent of the test job, so it
+  # runs in parallel with it once validate succeeds.
+  docker-build:
+    name: Docker build (validation only)
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # 10. Build the Docker image as a validation step (never deployed —
-      #     see Dockerfile's own header comment). Build-only; the
-      #     Dockerfile's ARG defaults are non-secret placeholders, so no
-      #     --build-arg is passed here.
+      # Build-only; the Dockerfile's ARG defaults are non-secret
+      # placeholders, so no --build-arg is passed here.
       - name: Build Docker image (validation only — not deployed)
         run: docker build --tag cdc-lab-accounts:ci-validation .
 
-      # 11. Apply committed production migrations to the real database.
-      #     DIRECT_URL is Supabase's direct (non-pooled) connection —
-      #     migrate deploy needs a session-mode connection, which the
-      #     pooled DATABASE_URL Vercel uses does not provide. This is the
-      #     ONLY step in this workflow that touches the real production
-      #     database, and it only ever applies already-committed,
-      #     forward-only migrations — never `migrate dev`, `db push`, or
-      #     a reset.
+  # The only job that touches anything real: applies committed
+  # migrations to the real Supabase database, then builds and deploys
+  # through the official Vercel CLI. Gated on both validate-derived jobs
+  # passing first.
+  deploy:
+    name: Deploy
+    needs: [test, docker-build]
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      # Apply committed production migrations to the real database.
+      # DIRECT_URL is Supabase's direct (non-pooled) connection —
+      # migrate deploy needs a session-mode connection, which the
+      # pooled DATABASE_URL Vercel uses does not provide. This is the
+      # ONLY step in this workflow that touches the real production
+      # database, and it only ever applies already-committed,
+      # forward-only migrations — never `migrate dev`, `db push`, or
+      # a reset.
       - name: Apply production migrations (Supabase)
         env:
           DIRECT_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: npx prisma migrate deploy
 
-      # 12. Pull the linked Vercel project's production configuration.
+      # Pull the linked Vercel project's production configuration.
       - name: Install pinned Vercel CLI
         run: npm install --global vercel@59.11.2
 
@@ -136,10 +197,10 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
-      # 13. Build with the official Vercel CLI (uses the environment
-      #     variables configured in the Vercel project itself, pulled
-      #     above — real BETTER_AUTH_URL/BETTER_AUTH_SECRET/SMTP_*/
-      #     DATABASE_URL live only in Vercel, never duplicated here).
+      # Build with the official Vercel CLI (uses the environment
+      # variables configured in the Vercel project itself, pulled
+      # above — real BETTER_AUTH_URL/BETTER_AUTH_SECRET/SMTP_*/
+      # DATABASE_URL live only in Vercel, never duplicated here).
       - name: Build with Vercel CLI
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -147,7 +208,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel build --prod --token="$VERCEL_TOKEN"
 
-      # 14. Deploy the already-built output to Vercel production.
+      # Deploy the already-built output to Vercel production.
       - name: Deploy prebuilt output to Vercel production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -155,7 +216,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
 
-      # 15. Any failure above stops the job immediately (GitHub Actions'
-      #     default step behavior — no step here uses `continue-on-error`
-      #     or `|| true`), so a failed migration or build never reaches
-      #     the deploy step.
+      # Any failure above stops the job immediately (GitHub Actions'
+      # default step behavior — no step here uses `continue-on-error`
+      # or `|| true`), so a failed migration or build never reaches
+      # the deploy step.

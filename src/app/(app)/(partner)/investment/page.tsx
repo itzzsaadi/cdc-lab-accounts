@@ -11,6 +11,7 @@ import { formatMoney } from "../../../../lib/domain/money-format";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
 import { Card } from "../../../../components/ui/Card";
+import { InfoTip } from "../../../../components/ui/InfoTip";
 import { CapitalContributionModal } from "../../../../components/entries/CapitalContributionModal";
 import { HistoryButton } from "../../../../components/entries/HistoryButton";
 
@@ -35,7 +36,12 @@ export default async function InvestmentPage() {
     <div>
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-display-lg text-on-background font-bold">Partner Investment</h1>
+          <h1 className="text-display-lg text-on-background font-bold">
+            Partner Investment{" "}
+            <InfoTip>
+              Capital balances track equity contributions only. They never alter the agreed profit split percentage.
+            </InfoTip>
+          </h1>
           <p className="text-on-surface-variant mt-1 text-sm">
             Running totals — recorded for transparency only, never affecting the profit split.
           </p>

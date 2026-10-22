@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${materialSymbolsOutlined.variable}`}>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased overflow-x-clip">
         <a
           href="#main-content"
           className="bg-primary text-on-primary focus:outline-none sr-only rounded-lg px-4 py-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100]"

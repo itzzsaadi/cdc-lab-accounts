@@ -12,6 +12,8 @@ import {
 import { formatMoney } from "../../../../lib/domain/money-format";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
+import { InfoTip } from "../../../../components/ui/InfoTip";
+import { DateRangeFilter } from "../../../../components/filters/DateRangeFilter";
 
 /** FR-RPT-05/FR-PINC-08: income by party across any user-chosen date range, defaulting to the current calendar month. Partner/Admin-only (report:financial-summary) — never reachable by an Operator, through the UI or a direct request. */
 export default async function PartyIncomeReportPage({
@@ -44,6 +46,11 @@ export default async function PartyIncomeReportPage({
     range = { from: bounds.firstDay, to: bounds.lastDay };
   }
 
+  const currentParams: Record<string, string | undefined> = {
+    ...(params.from ? { from: params.from } : {}),
+    ...(params.to ? { to: params.to } : {}),
+  };
+
   const report = await getPartyIncomeReport(prisma, user, range);
 
   return (
@@ -55,47 +62,7 @@ export default async function PartyIncomeReportPage({
         </p>
       </div>
 
-      <form
-        action="/party-income-report"
-        className="border-outline-variant bg-surface-container-lowest mb-6 flex flex-wrap items-end gap-4 rounded-xl border p-4 shadow-sm"
-      >
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="range-from"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            From
-          </label>
-          <input
-            id="range-from"
-            name="from"
-            type="date"
-            defaultValue={range.from}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor="range-to"
-            className="text-on-surface-variant text-xs font-medium uppercase"
-          >
-            To
-          </label>
-          <input
-            id="range-to"
-            name="to"
-            type="date"
-            defaultValue={range.to}
-            className="border-outline-variant bg-surface-container-lowest h-11 rounded-lg border px-3 text-sm"
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-primary text-on-primary hover:bg-primary-container h-11 rounded-lg px-4 text-sm font-medium"
-        >
-          Apply Range
-        </button>
-      </form>
+      <DateRangeFilter currentParams={currentParams} from={range.from} to={range.to} />
 
       <div className="border-outline-variant bg-surface-container-lowest overflow-hidden rounded-xl border shadow-sm">
         {report.parties.length === 0 ? (
@@ -147,7 +114,10 @@ export default async function PartyIncomeReportPage({
                 {report.parties.length} {report.parties.length === 1 ? "party" : "parties"}
               </span>
               <span className="tabular-nums text-on-surface font-semibold">
-                Combined Total: {formatMoney(report.grandTotal)}
+                Combined Total: {formatMoney(report.grandTotal)}{" "}
+                <InfoTip>
+                  Party totals combine three sources: Daily grid entries, Monthly bills, and Cash receipts.
+                </InfoTip>
               </span>
             </div>
           </>

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "../../../../server/session";
 import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
 import { prisma } from "../../../../server/prisma";
-import { AdministrationTabs } from "../../../../components/admin/AdministrationTabs";
 import { PartyManager } from "../../../../components/admin/PartyManager";
 
 /** FR-MST-01. */
@@ -26,7 +25,6 @@ export default async function PartiesPage() {
       <p className="text-on-surface-variant mb-4 text-sm">
         Manage system settings, users, and data imports.
       </p>
-      <AdministrationTabs active="/parties" />
       <PartyManager
         rows={parties.map((p) => ({
           id: p.id,

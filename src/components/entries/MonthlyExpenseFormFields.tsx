@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "../ui/InfoTip";
 import { TextInput } from "../ui/TextInput";
 import { Select } from "../ui/Select";
 import { FundingSourceToggle, type PartnerOption } from "./FundingSourceToggle";
@@ -44,7 +45,15 @@ export function MonthlyExpenseFormFields({
     <>
       <Select
         id={`${idPrefix}-category`}
-        label="Category"
+        label={
+          <>
+            Category
+            <InfoTip>
+              Administration covers overhead and utilities. Purchasing covers supplies and
+              reagents.
+            </InfoTip>
+          </>
+        }
         value={state.categoryId}
         onChange={(event) => onChange({ categoryId: event.target.value })}
         required
@@ -73,7 +82,12 @@ export function MonthlyExpenseFormFields({
       </Select>
       <Select
         id={`${idPrefix}-vendor`}
-        label="Vendor (optional)"
+        label={
+          <>
+            Vendor (optional)
+            <InfoTip>Optional supplier for invoice cross-referencing.</InfoTip>
+          </>
+        }
         value={state.vendorId}
         onChange={(event) => onChange({ vendorId: event.target.value })}
       >
