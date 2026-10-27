@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../ui/Modal";
+import { InfoTip } from "../ui/InfoTip";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
 import { Select } from "../ui/Select";
@@ -87,7 +88,15 @@ export function CapitalContributionModal({ partners }: { partners: InvestmentPar
           </Select>
           <Select
             id="capital-type"
-            label="Type"
+            label={
+              <>
+                Type
+                <InfoTip>
+                  Initial is founding capital at launch. Injection is additional cash invested.
+                  Drawing is a cash withdrawal that reduces the partner&apos;s capital balance.
+                </InfoTip>
+              </>
+            }
             value={contributionType}
             onChange={(event) => setContributionType(event.target.value as typeof contributionType)}
           >

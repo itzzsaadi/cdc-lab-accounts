@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "../ui/InfoTip";
 import { TextInput } from "../ui/TextInput";
 import { Select } from "../ui/Select";
 
@@ -65,7 +66,15 @@ export function AssetFormFields({
       />
       <Select
         id={`${idPrefix}-classification`}
-        label="Classification"
+        label={
+          <>
+            Classification
+            <InfoTip>
+              Fixed refers to heavy permanent lab machines. Movable refers to portable tools and
+              furniture.
+            </InfoTip>
+          </>
+        }
         value={state.classification}
         onChange={(event) =>
           onChange({ classification: event.target.value as "FIXED" | "MOVABLE" })
@@ -96,7 +105,13 @@ export function AssetFormFields({
       />
 
       <div className="pt-2">
-        <span className="text-on-surface mb-2 block text-sm font-medium">Acquisition Mode</span>
+        <span className="text-on-surface mb-2 block text-sm font-medium">
+          Acquisition Mode
+          <InfoTip>
+            Instalment creates monthly purchasing expenses that reduce profit. Cash is a one-time
+            partner capital investment that does not reduce profit.
+          </InfoTip>
+        </span>
         <div className="border-outline-variant bg-surface-container flex rounded-lg border p-1">
           {(["INSTALMENT", "CASH"] as const).map((option) => (
             <label key={option} className="relative flex-1 cursor-pointer text-center">

@@ -7,6 +7,7 @@ import { listAuditLog, listAuditActors } from "../../../../server/queries/audit-
 import { formatKarachiTimestamp } from "../../../../lib/domain/calendar-date";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../../../components/ui/Table";
 import { EmptyState } from "../../../../components/ui/EmptyState";
+import { InfoTip } from "../../../../components/ui/InfoTip";
 import { AuditLogFilters } from "../../../../components/filters/AuditLogFilters";
 
 const ENTITY_TYPE_OPTIONS = [
@@ -79,7 +80,12 @@ export default async function AuditLogPage({
 
   return (
     <div>
-      <h1 className="text-display-lg text-on-background mb-1 font-bold">Audit Log</h1>
+      <h1 className="text-display-lg text-on-background mb-1 font-bold">
+        Audit Log{" "}
+        <InfoTip>
+          The audit log is an immutable record of all changes. Entries older than one month are retained for regulatory compliance.
+        </InfoTip>
+      </h1>
       <p className="text-on-surface-variant mb-6 text-sm">
         Every creation, change, and archiving of a financial or master-data record — read-only,
         never editable (FR-AUD-01 to 04).

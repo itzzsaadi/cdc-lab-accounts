@@ -16,6 +16,7 @@ import { MonthlyExpenseDrawer } from "../../../../components/entries/MonthlyExpe
 import { MonthlyExpenseRowActions } from "../../../../components/entries/MonthlyExpenseRowActions";
 import { InstalmentGenerationPanel } from "../../../../components/entries/InstalmentGenerationPanel";
 import { RecurringPrefillPanel } from "../../../../components/entries/RecurringPrefillPanel";
+import { MonthFilter } from "../../../../components/filters/MonthFilter";
 
 /** FR-MEXP-01 to 08, FR-AST-04. Month selector defaults to the current calendar month (BR-13); a `month` query param may target any other month, including a past one (nothing auto-backfills a missed month). */
 export default async function MonthlyExpensesPage({
@@ -36,6 +37,7 @@ export default async function MonthlyExpensesPage({
   const rawMonth = (await searchParams).month;
   const periodMonth =
     rawMonth && /^\d{4}-\d{2}$/.test(rawMonth) ? rawMonth : currentYearMonthInKarachi();
+  const currentParams: Record<string, string | undefined> = rawMonth ? { month: rawMonth } : {};
 
   const [{ administration, purchasing, combinedBusinessTotal }, categories, vendors, partners] =
     await Promise.all([
@@ -156,7 +158,12 @@ export default async function MonthlyExpensesPage({
           <h1 className="text-display-lg text-on-background font-bold">Monthly Expenses</h1>
           <p className="text-on-surface-variant mt-1 text-sm">{periodMonth}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <MonthFilter
+            currentParams={currentParams}
+            month={periodMonth}
+            inputId="monthly-expenses-month"
+          />
           <RecurringPrefillPanel periodMonth={periodMonth} />
           <InstalmentGenerationPanel periodMonth={periodMonth} />
           <MonthlyExpenseDrawer

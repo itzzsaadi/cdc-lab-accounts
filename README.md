@@ -1,147 +1,277 @@
 # CDC Lab Accounts & Asset Management System
 
-Replaces the manual Excel workbook CDC Laboratories, Gujranwala uses to
-record daily income and expenses and work out the monthly profit or loss.
-See `docs/SRS.md` for the full specification and `CLAUDE.md` for the
-permanent development rules this project follows.
+CDC Lab Accounts is a Next.js application that replaces the CDC
+Laboratories, Gujranwala Excel workbook for recording income, expenses,
+partner investment, assets, and monthly profit or loss. It preserves the
+workbook's accounting model while providing role-based access, audit history,
+offline entry, synchronization, reports, and administration.
 
-**Current status: Phases 0-7 and all locally achievable Phase 8A release
-hardening are complete.** Transaction workflows, monthly accounts, assets,
-Partner Investment, results/reports, offline sync, Administration, and
-historical import are implemented. Phase 8B has not started: there is no
-production deployment, hosting/backup/monitoring configuration, restore
-rehearsal, client UAT, or real-device compatibility sign-off.
+This README is the practical starting point for running and using the
+repository. The complete functional specification is
+[`docs/SRS.md`](docs/SRS.md), which is read-only. Engineering and business
+rules are maintained in [`CLAUDE.md`](CLAUDE.md).
 
-Six Phase 8A browser checks remain unresolved by explicit deferral: the
-authenticated accessibility findings, horizontal scrolling on data screens,
-and two compatibility-smoke failures. They are preserved and documented in
-`docs/testing.md`. This repository is therefore **not production-ready** and
-does not claim full browser validation.
+## What the application provides
+
+- **Operator workflows:** daily expenses, party income, counter income,
+  offline entry, and sync status.
+- **Partner workflows:** monthly expenses, assets, Partner Investment,
+  monthly results, dashboards, reports, and audit history.
+- **Admin workflows:** users and invitations, parties, expense items,
+  expense categories, vendors, profit split, and historical import.
+- **Financial safeguards:** Decimal-based money calculations, server-side
+  Zod validation, role checks on every server operation, append-only audit
+  history, and archive instead of physical deletion.
+- **Offline support:** entries can be captured in the browser's IndexedDB
+  queue and synchronized later with duplicate-safe client UUIDs.
+
+## Roles and access
+
+| Role         | Main capabilities                                                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Operator** | Record daily expenses, party income, counter income, and offline entries. Operators cannot access profit, loss, investment, or profit-split data. |
+| **Partner**  | Everything an Operator can do, plus monthly expenses, assets, Partner Investment, monthly results, reports, and audit history.                    |
+| **Admin**    | Everything a Partner can do, plus users, master lists, profit split, and historical import.                                                       |
 
 ## Prerequisites
 
 - Node.js 20 or later
-- npm (this project's package manager — do not use yarn/pnpm)
-- PostgreSQL 16 (or later). Two
-  databases are needed locally: one for `DATABASE_URL` (development) and
-  one whose name ends in `_test` for `TEST_DATABASE_URL`
-  (integration/constraint tests - see `docs/testing.md`).
+- npm
+- PostgreSQL 16 or later
+- Two PostgreSQL databases for full local validation:
+  - a development database referenced by `DATABASE_URL`
+  - a separate database whose name ends in `_test`, referenced by
+    `TEST_DATABASE_URL`
 
-## Getting started
+The application itself only needs the development database. The test database
+is required by integration and constraint tests.
 
-```bash
+## Install and run locally
+
+From the repository root:
+
+```powershell
 npm ci
-cp .env.example .env           # set the development database and auth/email values
-cp .env.test.example .env.test # set TEST_DATABASE_URL to a separate test database
+Copy-Item .env.example .env
 npx prisma generate
 npx prisma migrate deploy
 npx prisma db seed
-npm run bootstrap:admin -- --email you@cdclabs.example  # creates the first Admin account
+npm run bootstrap:admin -- --email you@cdclabs.example
 npm run dev
 ```
 
-Then open [http://localhost:3000/sign-in](http://localhost:3000/sign-in) and
-use the one-time link the bootstrap command printed to set the first
-Admin's password. `GET /api/health` returns
-`{"status":"ok","database":"ok"}` only when PostgreSQL is reachable.
+Before running the commands, edit `.env` and set `DATABASE_URL` to your local
+PostgreSQL database. On macOS/Linux, the equivalent copy command is:
 
-**Environment variables** (see `.env.example` for full detail):
-`BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `EMAIL_TRANSPORT` (`smtp` in
-production, `file` in development — never inferred from `NODE_ENV`
-alone), and `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM`
-when `EMAIL_TRANSPORT=smtp`, plus optional `LOG_STACKS`. The app refuses to
-start in production with an HTTP `BETTER_AUTH_URL` or incomplete SMTP
-configuration. Generate a fresh production `BETTER_AUTH_SECRET`; never use
-the template placeholder.
-
-## Available scripts
-
-| Script                        | What it does                                                                                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run dev`                 | Start the Next.js dev server                                                                                                         |
-| `npm run build`               | Production build                                                                                                                     |
-| `npm run start`               | Run the production build                                                                                                             |
-| `npm run typecheck`           | `tsc --noEmit` — must pass with zero errors                                                                                          |
-| `npm run lint`                | ESLint                                                                                                                               |
-| `npm run format`              | Prettier — write formatting fixes                                                                                                    |
-| `npm run format:check`        | Prettier — check only, used in CI                                                                                                    |
-| `npm test`                    | Vitest (unit + integration + constraint tests)                                                                                       |
-| `npm run test:e2e`            | Playwright (end-to-end tests)                                                                                                        |
-| `npm run rehearse:migrations` | Create a unique temporary database, migrate from zero, seed, verify counts, and drop only that temporary database                    |
-| `npm run docs:guides`         | Regenerate the one-page Operator and Partner PDF guides                                                                              |
-| `npx prisma validate`         | Check `prisma/schema.prisma` for correctness                                                                                         |
-| `npx prisma format`           | Format `prisma/schema.prisma`                                                                                                        |
-| `npx prisma generate`         | Regenerate the Prisma Client — required after any schema change                                                                      |
-| `npx prisma migrate deploy`   | Apply committed migrations to whichever database `DATABASE_URL` points at                                                            |
-| `npx prisma db seed`          | Load Appendix A master data (see `docs/adr/0002-phase-1-schema-clarifications.md` for exactly what is and isn't seeded)              |
-| `npm run bootstrap:admin`     | One-time, TTY-gated first-Admin creation — refuses to run if any user already exists (see `docs/adr/0003-phase-2-authentication.md`) |
-
-The complete validation policy is in `CLAUDE.md` §5. `npm test` requires
-`TEST_DATABASE_URL` to be set to a real test database whose name ends in
-`_test`; the suite truncates it between integration tests. The migration
-rehearsal never resets or reuses the development or test database.
-
-## Project structure
-
-```
-src/
-  app/            Next.js App Router screens and route handlers, grouped by role
-  components/
-    ui/           Reusable UI primitives translated from the Stitch handoff
-    layout/       Shared authenticated shell, navigation, and session controls
-    entries/      Daily/monthly entry workflows and archive/history controls
-    offline/      IndexedDB queue, status, conflict resolution, and sync UI
-    admin/        Master data, users, profit split, and import UI
-  lib/
-    domain/       Pure Decimal calculation and calendar logic
-    auth/         Better Auth configuration, invitation, lockout, and audit
-    permissions/  Centralized role/permission guard and matrix
-    validation/   Server-side Zod schemas
-    offline/      Dexie queue and sync client
-    security/     HTTP security-header policy
-    observability/ Structured JSON logger with redaction
-  server/         Session-aware actions, mutations, queries, reports, import, sync
-scripts/
-  bootstrap-admin.ts       One-time, TTY-gated first-Admin creation
-  migration-rehearsal.ts   From-zero temporary-database rehearsal
-  generate-user-guides.ts  Operator/Partner PDF guide generator
-prisma/
-  schema.prisma   Business, authentication, import, and sync data model
-  seed.ts         Appendix A master data only - no users or financial entries
-  migrations/     Seven forward-only, versioned migrations
-tests/
-  unit/           Domain, validation, permissions, offline, security, logging
-  integration/    Real-PostgreSQL constraints, workflows, acceptance, performance
-  e2e/            Preserved Playwright browser coverage and known open findings
-  fixtures/       July 2026 corrected reconciliation fixture
-docs/
-  SRS.md                          Authoritative requirements spec (read-only)
-  PROJECT_PLAN.md                 Phase-by-phase implementation plan
-  REQUIREMENTS_TRACEABILITY.md    Every requirement mapped to its phase and current status
-  UI_REQUIREMENTS.md              Authoritative UI implementation guide (Stitch handoff)
-  deployment.md, handover.md      Phase 8A drafts with Phase 8B gaps marked
-  security-review.md, testing.md  Release-hardening evidence and limitations
-  user-guides/                    One-page Operator and Partner PDFs
-  ui/screenshots/, ui/stitch-export/   Raw Stitch references - never edit
-  adr/                            ADR-0001 through ADR-0010
+```bash
+cp .env.example .env
 ```
 
-## Where to look next
+Open [http://localhost:3000/sign-in](http://localhost:3000/sign-in). The
+bootstrap command creates the first Admin and prints a one-time setup link in
+the terminal. Open that link to set the Admin password. The bootstrap command
+is intentionally interactive, refuses to run if a user already exists, and
+must not be used as an automated pipeline step.
 
-- `CLAUDE.md` — permanent development rules (tech stack, business rules,
-  validation requirements). Read this before writing any code.
-- `docs/SRS.md` — the full requirements specification. Read-only.
-- `docs/PROJECT_PLAN.md` — what gets built in which phase, and why.
-- `docs/REQUIREMENTS_TRACEABILITY.md` — every requirement's current status.
-- `docs/adr/` — architecture decisions, including every disclosed
-  deviation from the SRS's literal database design.
-- `docs/deployment.md` and `docs/handover.md` — the production/handover
-  runbooks, with every external Phase 8B value explicitly marked.
-- `docs/VERCEL_SUPABASE_DEPLOYMENT.md` — beginner-oriented, click-by-click
-  account setup for the chosen production host (Vercel + Supabase +
-  GitHub Actions). No deployment has been performed yet.
-- `Dockerfile` / `compose.yaml` — reproducible local execution and CI
-  build validation only; Vercel does not run this image (see
-  `docs/adr/0013-production-deployment-vercel-supabase.md`).
-- `docs/security-review.md` and `docs/testing.md` — the security posture,
-  validation evidence, and unresolved release gates.
+Check database connectivity with:
+
+```text
+GET http://localhost:3000/api/health
+```
+
+When the database is reachable, the response is:
+
+```json
+{ "status": "ok", "database": "ok" }
+```
+
+### Local email behavior
+
+The template uses `EMAIL_TRANSPORT=file`, which is intended for development
+and testing. Password-reset and invitation messages are appended to the
+git-ignored `.local/mail.log` file rather than sent through a real provider.
+For a real deployment, set `EMAIL_TRANSPORT=smtp` and provide every `SMTP_*`
+value.
+
+## Configuration
+
+Copy `.env.example` to `.env` and configure these variables:
+
+| Variable                                                            | Local use                                | Production use                                               |
+| ------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                                                      | PostgreSQL development connection string | Supabase pooled/transaction connection string                |
+| `DIRECT_URL`                                                        | Leave empty                              | Supabase direct connection for Prisma migrations and seeding |
+| `DATABASE_POOL_MAX`                                                 | Optional                                 | Optional per-instance connection-pool limit                  |
+| `BETTER_AUTH_URL`                                                   | `http://localhost:3000`                  | Public HTTPS application URL                                 |
+| `BETTER_AUTH_SECRET`                                                | Use a local secret                       | Generate a fresh secret; never use the template placeholder  |
+| `EMAIL_TRANSPORT`                                                   | `file`                                   | `smtp`                                                       |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Required only for SMTP                   | Required                                                     |
+| `LOG_STACKS`                                                        | Usually `false`                          | Keep `false` unless diagnosing an issue                      |
+
+Production startup rejects an HTTP `BETTER_AUTH_URL`, incomplete SMTP
+configuration, and file-based email transport. Never commit `.env` files or
+secrets.
+
+## Using the application
+
+After signing in, use the role-specific navigation:
+
+1. **Set up master data (Admin):** confirm parties, expense categories,
+   expense items, vendors, users, and the profit-split configuration.
+2. **Enter daily activity (Operator/Partner/Admin):** record Daily Expenses,
+   Party Income, and Counter Income. Use the offline entry screen when the
+   network is unavailable.
+3. **Review and synchronize offline work:** open Sync Center when connected,
+   inspect queued or conflicted entries, and retry synchronization when needed.
+4. **Record monthly activity (Partner/Admin):** enter Administration Expenses,
+   Purchasing Expenses, and instalment expenses.
+5. **Maintain assets (Partner/Admin):** record cash-purchased or instalment
+   assets according to their acquisition mode. Assets are archived, not
+   physically deleted.
+6. **Review results (Partner/Admin):** use Monthly Summary, Dashboard,
+   Party Income reports, and exports to review income, expenses, profit/loss,
+   and partner shares.
+7. **Review investment (Partner/Admin):** Partner Investment is derived from
+   capital contributions, partner-funded expenses, and cash asset purchases.
+8. **Review history (Partner/Admin):** Audit Log records creation, changes,
+   and archiving of financial records and authentication events.
+
+### Important accounting behavior
+
+- Business-funded expenses reduce profit.
+- Partner-funded expenses remain visible in reports, do not reduce profit,
+  and increase the named partner's investment.
+- Instalment assets create ordinary monthly expenses.
+- Cash asset purchases are not expenses; they increase the purchasing
+  partner's investment.
+- Profit, loss, shares, and investment totals are calculated from source
+  records when requested; they are not stored as editable totals.
+- All amounts are PKR and must be positive monetary values.
+
+## Available commands
+
+| Command                                        | Purpose                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| `npm run dev`                                  | Start the Next.js development server                           |
+| `npm run build`                                | Create a production build                                      |
+| `npm run start`                                | Run the production build                                       |
+| `npm run typecheck`                            | Run TypeScript without emitting files                          |
+| `npm run lint`                                 | Run ESLint                                                     |
+| `npm run format`                               | Format the repository with Prettier                            |
+| `npm run format:check`                         | Check Prettier formatting                                      |
+| `npm run test`                                 | Run Vitest unit, integration, and constraint tests             |
+| `npm run test:e2e`                             | Run Playwright end-to-end tests                                |
+| `npm run rehearse:migrations`                  | Create, migrate, seed, verify, and remove a temporary database |
+| `npm run docs:guides`                          | Regenerate Operator and Partner PDF guides                     |
+| `npm run bootstrap:admin -- --email <address>` | Create the first Admin account                                 |
+| `npx prisma generate`                          | Generate the Prisma Client                                     |
+| `npx prisma migrate deploy`                    | Apply committed migrations                                     |
+| `npx prisma db seed`                           | Load Appendix A master data                                    |
+| `npx prisma validate`                          | Validate the Prisma schema                                     |
+| `npx prisma format`                            | Format the Prisma schema                                       |
+| `docker compose build`                         | Build the production-shaped Docker image                       |
+
+For integration tests, copy `.env.test.example` to `.env.test` and set
+`TEST_DATABASE_URL` to a disposable database ending in `_test`. Tests may
+truncate that database between cases; never point it at a development or
+production database.
+
+The standard validation set is:
+
+```powershell
+npm run typecheck
+npm run lint
+npm run format:check
+npm run test
+npx prisma validate
+npx prisma format
+npm run build
+```
+
+Run `npm run test:e2e` separately when browser coverage is required.
+
+## Deployment
+
+The selected production architecture is **Vercel** for the Next.js
+application, **Supabase** for PostgreSQL, and **GitHub Actions** for
+validation, migrations, and deployment. The detailed setup guide is
+[`docs/VERCEL_SUPABASE_DEPLOYMENT.md`](docs/VERCEL_SUPABASE_DEPLOYMENT.md).
+The operational runbook is [`docs/deployment.md`](docs/deployment.md).
+
+Deployment principles:
+
+1. Use Supabase's pooled connection as `DATABASE_URL` for the running app.
+2. Use Supabase's direct connection as `DIRECT_URL` for Prisma CLI commands.
+3. Apply versioned migrations with `npx prisma migrate deploy`; never use
+   `prisma db push` against a deployed database.
+4. Run `npx prisma db seed` only when initializing the master data.
+5. Keep credentials in Vercel/GitHub secrets and the password manager.
+6. Review both workflows in `.github/workflows/` before changing release
+   automation:
+   - `ci.yml` performs build, type, lint, formatting, and Prisma validation.
+   - `deploy-production.yml` performs deployment checks, migrations, Docker
+     validation, and the Vercel deployment.
+
+The repository also includes [`Dockerfile`](Dockerfile) and
+[`compose.yaml`](compose.yaml) for reproducible local execution and CI
+validation. Vercel deploys through its official build/deploy flow rather than
+running this Docker image.
+
+## Repository map
+
+```text
+src/app/                 Next.js screens and API route handlers
+src/components/          Shared UI, layout, entries, offline, and admin components
+src/lib/domain/          Framework-independent Decimal calculations
+src/lib/validation/      Server-side Zod schemas
+src/server/               Session-aware actions, queries, reports, import, and sync
+prisma/                  Schema, seed data, and versioned migrations
+scripts/                  Admin bootstrap, migration rehearsal, and guide generation
+tests/unit/               Domain, validation, permissions, offline, and security tests
+tests/integration/        PostgreSQL constraints, workflows, and acceptance tests
+tests/e2e/                Playwright browser tests
+docs/                     SRS, architecture, deployment, testing, and ADRs
+```
+
+## Further documentation
+
+- [`docs/SRS.md`](docs/SRS.md) — authoritative requirements specification
+- [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) — implementation phases
+- [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) —
+  requirement coverage
+- [`docs/testing.md`](docs/testing.md) — test strategy and validation evidence
+- [`docs/architecture.md`](docs/architecture.md) — system architecture
+- [`docs/handover.md`](docs/handover.md) — operational handover information
+- [`docs/adr/`](docs/adr/) — architecture decisions
+- [`docs/user-guides/`](docs/user-guides/) — generated Operator and Partner
+  guides
+
+## Troubleshooting
+
+### Prisma cannot connect
+
+Confirm PostgreSQL is running, `DATABASE_URL` is correct, and the database
+exists. Then run `npx prisma migrate deploy` and retry
+`npm run dev`.
+
+### The app starts but sign-in emails do not arrive
+
+In local development, check the file-based email output. In a deployed
+environment, set `EMAIL_TRANSPORT=smtp` and verify all SMTP variables,
+including `SMTP_FROM`.
+
+### Prisma Client types are missing
+
+Run:
+
+```powershell
+npx prisma generate
+```
+
+The generated client is required before type checking, linting, or building.
+
+### An offline entry is not visible on the server
+
+Open Sync Center after reconnecting, inspect the queue and conflict state, and
+retry synchronization. Do not recreate the entry manually until the queued
+entry has been resolved.

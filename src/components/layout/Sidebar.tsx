@@ -42,7 +42,7 @@ export function Sidebar({
   const [administrationManuallyCollapsed, setAdministrationManuallyCollapsed] = useState(false);
 
   return (
-    <nav aria-label="Primary" className="flex flex-1 flex-col gap-4 overflow-y-auto">
+    <nav aria-label="Primary" className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto pr-1">
       {groups.map(({ section, items }) => {
         const collapsed =
           section.collapsible && administrationManuallyCollapsed && activeSectionId !== section.id;
@@ -55,7 +55,7 @@ export function Sidebar({
                 aria-expanded={!collapsed}
                 aria-controls={panelId}
                 onClick={() => setAdministrationManuallyCollapsed((prev) => !prev)}
-                className="text-on-secondary-fixed-variant hover:text-surface-bright flex min-h-touch-target-min w-full items-center justify-between px-3 text-label-md font-semibold tracking-wide uppercase"
+                className="text-surface-bright/60 hover:text-surface-bright flex min-h-touch-target-min w-full items-center justify-between px-3 text-label-md font-semibold tracking-wide uppercase"
               >
                 <span>{section.label}</span>
                 <span className="material-symbols-outlined text-[20px]" aria-hidden>
@@ -63,7 +63,7 @@ export function Sidebar({
                 </span>
               </button>
             ) : (
-              <h3 className="text-on-secondary-fixed-variant px-3 py-2 text-label-md font-semibold tracking-wide uppercase">
+              <h3 className="text-surface-bright/60 px-3 py-2 text-label-md font-semibold tracking-wide uppercase">
                 {section.label}
               </h3>
             )}
@@ -80,7 +80,7 @@ export function Sidebar({
                       className={`flex min-h-touch-target-min items-center gap-3 rounded-r px-3 py-3 transition-colors duration-200 ${
                         active
                           ? "border-primary-fixed-dim bg-secondary-container/10 text-primary-fixed-dim border-l-2 font-bold"
-                          : "border-l-2 border-transparent text-on-secondary-fixed-variant hover:bg-on-secondary-fixed-variant hover:text-surface-bright"
+                          : "border-l-2 border-transparent text-surface-bright/70 hover:bg-white/10 hover:text-surface-bright"
                       }`}
                     >
                       <span className="material-symbols-outlined" aria-hidden>

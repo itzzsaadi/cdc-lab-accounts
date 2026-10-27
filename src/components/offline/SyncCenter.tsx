@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useOfflineSync } from "./OfflineProvider";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
+import { InfoTip } from "../ui/InfoTip";
 import type { QueuedOperation } from "../../lib/offline/types";
 
 const ENTITY_LABELS: Record<QueuedOperation["entityType"], string> = {
@@ -41,9 +42,16 @@ function summaryLine(op: QueuedOperation): string {
  * docs/UI_REQUIREMENTS.md §25 decision 2c.
  */
 export function SyncCenter() {
-  const { operations, isSyncing, triggerSyncNow, resolveKeepLocal, resolveKeepServer, retry } =
+  const { operations, isSyncing, triggerSyncNow, resolveKeepLocal, resolveKeepServer, retry, discard } =
     useOfflineSync();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  async function handleDiscard(operationId: string) {
+    await discard(operationId);
+    setSelectedId(null);
+    setConfirmDiscard(false);
+  }
 
   const conflicted = operations.filter((op) => op.status === "CONFLICT");
   const others = operations.filter((op) => op.status !== "CONFLICT");
@@ -83,7 +91,7 @@ export function SyncCenter() {
             <button
               key={op.operationId}
               type="button"
-              onClick={() => setSelectedId(op.operationId)}
+              onClick={() => { setSelectedId(op.operationId); setConfirmDiscard(false); }}
               className={`group relative flex flex-col gap-1 rounded-lg border p-3 text-left transition-colors ${
                 selected?.operationId === op.operationId
                   ? "border-primary bg-surface-container-low"
@@ -149,24 +157,64 @@ export function SyncCenter() {
               </div>
             </div>
             <div className="border-outline-variant bg-surface/90 flex items-center justify-end gap-3 border-t p-4">
-              <Button variant="secondary" onClick={() => resolveKeepServer(selected.operationId)}>
-                Keep Server Version
-              </Button>
-              <Button onClick={() => resolveKeepLocal(selected.operationId)}>
-                Keep Local Version
-              </Button>
+              <span className="inline-flex items-center">
+                <Button variant="secondary" onClick={() => resolveKeepServer(selected.operationId)}>
+                  Keep Server Version
+                </Button>
+                <InfoTip>Discards your local change and accepts the server record.</InfoTip>
+              </span>
+              <span className="inline-flex items-center">
+                <Button onClick={() => resolveKeepLocal(selected.operationId)}>
+                  Keep Local Version
+                </Button>
+                <InfoTip>Overwrites the server record with your local values.</InfoTip>
+              </span>
             </div>
           </>
         ) : (
           <div className="flex flex-1 flex-col gap-4 p-6">
             <h3 className="text-on-surface font-semibold">{ENTITY_LABELS[selected.entityType]}</h3>
             <FieldList data={selected.payload} />
-            {selected.status === "FAILED" ? (
-              <div className="mt-4">
-                <p className="text-error mb-2 text-sm">{selected.lastError}</p>
-                <Button onClick={() => retry(selected.operationId)}>Retry now</Button>
-              </div>
-            ) : null}
+            <div className="mt-4 flex flex-col gap-3">
+              {selected.status === "FAILED" ? (
+                <div>
+                  <p className="text-error mb-2 text-sm">{selected.lastError}</p>
+                  <Button onClick={() => retry(selected.operationId)}>Retry now</Button>
+                </div>
+              ) : null}
+              {selected.status !== "SYNCING" ? (
+                confirmDiscard ? (
+                  <div className="border-error/30 bg-error-container/10 flex flex-col gap-3 rounded-lg border p-3">
+                    <p className="text-on-surface text-sm">
+                      Discard this entry permanently? It will not be saved to the server.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        className="h-8 px-3 text-xs"
+                        onClick={() => setConfirmDiscard(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="h-8 bg-error px-3 text-xs text-on-error hover:opacity-90"
+                        onClick={() => void handleDiscard(selected.operationId)}
+                      >
+                        Yes, discard
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    className="self-start text-error hover:bg-error-container/20"
+                    onClick={() => setConfirmDiscard(true)}
+                  >
+                    Discard
+                  </Button>
+                )
+              ) : null}
+            </div>
           </div>
         )}
       </div>

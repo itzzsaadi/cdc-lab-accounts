@@ -6,6 +6,7 @@ import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
 import { Alert } from "../ui/Alert";
+import { InfoTip } from "../ui/InfoTip";
 import { updateProfitSplitAction } from "../../server/actions/app-settings";
 
 /**
@@ -66,7 +67,12 @@ export function ProfitSplitForm({
 
   return (
     <Card className="p-4">
-      <h2 className="text-on-surface mb-2 text-lg font-semibold">Profit Split</h2>
+      <h2 className="text-on-surface mb-2 flex items-center text-lg font-semibold">
+        Profit Split
+        <InfoTip>
+          Percentages must total 100%. Changes apply dynamically to all past and present reports — they are not versioned per period.
+        </InfoTip>
+      </h2>
       <Alert variant="warning">
         Changing these percentages changes the split shown for every period — including months
         already reported — the next time each is viewed. Nothing is ever stored per-period; every

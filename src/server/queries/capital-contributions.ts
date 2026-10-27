@@ -170,3 +170,65 @@ export async function getPartnerInvestmentStatements(
       return { partnerId: partner.id, fullName: partner.fullName, items, total: total.toString() };
     });
 }
+
+export interface PartnerInvestmentSummary {
+  partnerId: string;
+  fullName: string;
+  total: string;
+}
+
+/**
+ * FR-INV-01/02 — lightweight summary for the dashboard: one total per
+ * active/ever-active partner, computed via the same `partnerInvestmentTotal`
+ * domain function used by the full statement page.  Gated on
+ * `report:dashboard` (same permission as the dashboard page itself) so it
+ * never appears for Operators.
+ */
+export async function getPartnerInvestmentSummaries(
+  prisma: PrismaClient,
+  currentUser: AuthenticatedUser | null,
+): Promise<PartnerInvestmentSummary[]> {
+  requirePermission(currentUser, "report:dashboard");
+
+  const [contributions, fundedDaily, fundedMonthly, cashAssets, allPartners] = await Promise.all([
+    prisma.capitalContribution.findMany({ where: { isArchived: false } }),
+    prisma.dailyExpense.findMany({
+      where: { isArchived: false, fundingSource: "PARTNER" },
+      select: { fundedByUserId: true, amount: true },
+    }),
+    prisma.monthlyExpense.findMany({
+      where: { isArchived: false, fundingSource: "PARTNER" },
+      select: { fundedByUserId: true, amount: true },
+    }),
+    prisma.asset.findMany({
+      where: { acquisitionMode: "CASH", purchasedByUserId: { not: null } },
+      select: { purchasedByUserId: true, purchasePrice: true },
+    }),
+    prisma.user.findMany({
+      where: { isPartner: true },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+    }),
+  ]);
+
+  return allPartners.map((partner) => ({
+    partnerId: partner.id,
+    fullName: partner.fullName,
+    total: partnerInvestmentTotal(
+      partner.id,
+      contributions.map((c) => ({
+        partnerUserId: c.partnerUserId,
+        amount: c.amount,
+        contributionType: c.contributionType,
+      })),
+      [...fundedDaily, ...fundedMonthly].map((e) => ({
+        fundedByUserId: e.fundedByUserId,
+        amount: e.amount,
+      })),
+      cashAssets.map((a) => ({
+        purchasedByUserId: a.purchasedByUserId,
+        purchasePrice: a.purchasePrice!,
+      })),
+    ).toString(),
+  }));
+}

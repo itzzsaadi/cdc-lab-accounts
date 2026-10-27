@@ -139,7 +139,7 @@ async function enqueueAndNotify(
     entityType,
     action: "CREATE",
     clientUuid,
-    payload: { ...payload, capturedAt: new Date().toISOString() },
+    payload: { ...payload, clientUuid, capturedAt: new Date().toISOString() },
   });
   onSaved("Saved on this device — will sync once you're back online.");
 }

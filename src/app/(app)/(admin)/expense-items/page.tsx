@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "../../../../server/session";
 import { requirePermission, PermissionDeniedError } from "../../../../lib/permissions/guard";
 import { prisma } from "../../../../server/prisma";
-import { AdministrationTabs } from "../../../../components/admin/AdministrationTabs";
 import { ExpenseItemManager } from "../../../../components/admin/ExpenseItemManager";
 
 /** FR-MST-02. */
@@ -26,7 +25,6 @@ export default async function ExpenseItemsPage() {
       <p className="text-on-surface-variant mb-4 text-sm">
         Manage system settings, users, and data imports.
       </p>
-      <AdministrationTabs active="/expense-items" />
       <ExpenseItemManager
         rows={items.map((i) => ({
           id: i.id,

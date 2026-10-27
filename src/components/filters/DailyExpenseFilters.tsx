@@ -5,6 +5,7 @@ import { useFilterNavigation } from "./useFilterNavigation";
 import { useSyncedState } from "./useSyncedState";
 import { FilterBarShell } from "./FilterBarShell";
 import { isValidDateRange } from "../../lib/navigation/filter-query";
+import { InfoTip } from "../ui/InfoTip";
 
 /**
  * FR-DEXP-07's filter bar, converted from a plain `<form action>` GET
@@ -122,6 +123,9 @@ export function DailyExpenseFilters({
           className="text-on-surface-variant text-xs font-medium uppercase"
         >
           Funding Source
+          <InfoTip>
+            Filter by Business-funded expenses that reduce profit, or Partner-funded expenses recorded as capital investment.
+          </InfoTip>
         </label>
         <select
           id="filter-funding-source"

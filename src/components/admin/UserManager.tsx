@@ -10,6 +10,7 @@ import { Checkbox } from "../ui/Checkbox";
 import { Modal } from "../ui/Modal";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../ui/Table";
 import { Alert } from "../ui/Alert";
+import { InfoTip } from "../ui/InfoTip";
 import {
   inviteUserAction,
   reissueInvitationAction,
@@ -183,7 +184,15 @@ export function UserManager({ rows, currentUserId }: { rows: UserRow[]; currentU
           />
           <Select
             id="invite-role"
-            label="Role"
+            label={
+              <>
+                Role{" "}
+                <InfoTip>
+                  Operator can record daily entries only. Partner can view financial reports. Admin
+                  has full system access including user management.
+                </InfoTip>
+              </>
+            }
             value={inviteRole}
             onChange={(e) => setInviteRole(e.target.value as "OPERATOR" | "PARTNER" | "ADMIN")}
           >
@@ -193,7 +202,14 @@ export function UserManager({ rows, currentUserId }: { rows: UserRow[]; currentU
           </Select>
           <Checkbox
             id="invite-is-partner"
-            label="Partner (eligible for profit-split mapping)"
+            label={
+              <>
+                Partner (eligible for profit-split mapping){" "}
+                <InfoTip>
+                  Enables capital account tracking and allows mapping into the profit split formula.
+                </InfoTip>
+              </>
+            }
             checked={inviteIsPartner}
             onChange={(e) => setInviteIsPartner(e.target.checked)}
           />
@@ -213,7 +229,15 @@ export function UserManager({ rows, currentUserId }: { rows: UserRow[]; currentU
         <form onSubmit={handleRoleChange} className="flex flex-col gap-4">
           <Select
             id="edit-role"
-            label="Role"
+            label={
+              <>
+                Role{" "}
+                <InfoTip>
+                  Operator can record daily entries only. Partner can view financial reports. Admin
+                  has full system access including user management.
+                </InfoTip>
+              </>
+            }
             value={editRole}
             onChange={(e) => setEditRole(e.target.value as "OPERATOR" | "PARTNER" | "ADMIN")}
           >
@@ -223,7 +247,14 @@ export function UserManager({ rows, currentUserId }: { rows: UserRow[]; currentU
           </Select>
           <Checkbox
             id="edit-is-partner"
-            label="Partner (eligible for profit-split mapping)"
+            label={
+              <>
+                Partner (eligible for profit-split mapping){" "}
+                <InfoTip>
+                  Enables capital account tracking and allows mapping into the profit split formula.
+                </InfoTip>
+              </>
+            }
             checked={editIsPartner}
             onChange={(e) => setEditIsPartner(e.target.checked)}
           />

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MasterDataManager, type MasterDataRow } from "./MasterDataManager";
 import { Select } from "../ui/Select";
 import { Checkbox } from "../ui/Checkbox";
+import { InfoTip } from "../ui/InfoTip";
 import {
   createExpenseCategoryAction,
   updateExpenseCategoryAction,
@@ -34,7 +35,15 @@ export function ExpenseCategoryManager({ rows }: { rows: MasterDataRow[] }) {
             {!editing ? (
               <Select
                 id="category-expense-group"
-                label="Group"
+                label={
+                  <>
+                    Group{" "}
+                    <InfoTip>
+                      Determines P&L classification. Cannot be changed after the category is
+                      created.
+                    </InfoTip>
+                  </>
+                }
                 value={expenseGroup}
                 onChange={(e) => setExpenseGroup(e.target.value as "ADMIN" | "PURCHASING")}
               >
@@ -49,7 +58,15 @@ export function ExpenseCategoryManager({ rows }: { rows: MasterDataRow[] }) {
             )}
             <Checkbox
               id="category-is-recurring"
-              label="Expected every month (recurring)"
+              label={
+                <>
+                  Expected every month (recurring){" "}
+                  <InfoTip>
+                    When enabled, triggers automated monthly reminders and allows prefill copying
+                    from the previous month.
+                  </InfoTip>
+                </>
+              }
               checked={recurringValue}
               onChange={(e) => setIsRecurring(e.target.checked)}
             />
